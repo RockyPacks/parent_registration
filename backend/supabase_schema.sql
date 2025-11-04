@@ -1,11 +1,15 @@
--- Enable UUID extension
+--- Enable UUID extension
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 -- Create applications table
 CREATE TABLE IF NOT EXISTS applications (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     status VARCHAR(50) DEFAULT 'pending',
+    documents_completed BOOLEAN DEFAULT FALSE,
+    declaration_step_status VARCHAR(20) DEFAULT 'not_started', -- 'not_started', 'in_progress', 'completed'
+    submitted_at TIMESTAMP WITH TIME ZONE,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
@@ -110,23 +114,107 @@ CREATE POLICY "Allow all operations on fee_responsibility" ON fee_responsibility
 DROP POLICY IF EXISTS "Allow all operations on documents" ON documents;
 CREATE POLICY "Allow all operations on documents" ON documents FOR ALL USING (true);
 
--- Create storage bucket for uploads (skip if already exists)
+-- Create dedicated storage buckets for different document types
 INSERT INTO storage.buckets (id, name, public)
-VALUES ('enrollment-documents', 'enrollment-documents', false)
+VALUES
+  ('proof_of_address', 'proof_of_address', false),
+  ('id_documents', 'id_documents', false),
+  ('payslips', 'payslips', false),
+  ('bank_statements', 'bank_statements', false)
 ON CONFLICT (id) DO NOTHING;
 
--- Create storage policies for the bucket
-DROP POLICY IF EXISTS "Allow authenticated users to upload files" ON storage.objects;
-CREATE POLICY "Allow authenticated users to upload files" ON storage.objects
-FOR INSERT WITH CHECK (bucket_id = 'enrollment-documents' AND auth.role() = 'authenticated');
+-- Create storage policies for each bucket - owner and admin access
+DROP POLICY IF EXISTS "Users can upload their own files to proof_of_address" ON storage.objects;
+CREATE POLICY "Users can upload their own files to proof_of_address" ON storage.objects
+FOR INSERT WITH CHECK (bucket_id = 'proof_of_address' AND (auth.uid()::text = (storage.foldername(name))[1] OR auth.jwt() ->> 'role' = 'school_admin'));
 
-DROP POLICY IF EXISTS "Allow authenticated users to view files" ON storage.objects;
-CREATE POLICY "Allow authenticated users to view files" ON storage.objects
-FOR SELECT USING (bucket_id = 'enrollment-documents' AND auth.role() = 'authenticated');
+DROP POLICY IF EXISTS "Users can view their own files in proof_of_address" ON storage.objects;
+CREATE POLICY "Users can view their own files in proof_of_address" ON storage.objects
+FOR SELECT USING (bucket_id = 'proof_of_address' AND (auth.uid()::text = (storage.foldername(name))[1] OR auth.jwt() ->> 'role' = 'school_admin'));
 
-DROP POLICY IF EXISTS "Allow authenticated users to delete files" ON storage.objects;
-CREATE POLICY "Allow authenticated users to delete files" ON storage.objects
-FOR DELETE USING (bucket_id = 'enrollment-documents' AND auth.role() = 'authenticated');
+DROP POLICY IF EXISTS "Users can delete their own files in proof_of_address" ON storage.objects;
+CREATE POLICY "Users can delete their own files in proof_of_address" ON storage.objects
+FOR DELETE USING (bucket_id = 'proof_of_address' AND (auth.uid()::text = (storage.foldername(name))[1] OR auth.jwt() ->> 'role' = 'school_admin'));
+
+DROP POLICY IF EXISTS "Users can upload their own files to id_documents" ON storage.objects;
+CREATE POLICY "Users can upload their own files to id_documents" ON storage.objects
+FOR INSERT WITH CHECK (bucket_id = 'id_documents' AND (auth.uid()::text = (storage.foldername(name))[1] OR auth.jwt() ->> 'role' = 'school_admin'));
+
+DROP POLICY IF EXISTS "Users can view their own files in id_documents" ON storage.objects;
+CREATE POLICY "Users can view their own files in id_documents" ON storage.objects
+FOR SELECT USING (bucket_id = 'id_documents' AND (auth.uid()::text = (storage.foldername(name))[1] OR auth.jwt() ->> 'role' = 'school_admin'));
+
+DROP POLICY IF EXISTS "Users can delete their own files in id_documents" ON storage.objects;
+CREATE POLICY "Users can delete their own files in id_documents" ON storage.objects
+FOR DELETE USING (bucket_id = 'id_documents' AND (auth.uid()::text = (storage.foldername(name))[1] OR auth.jwt() ->> 'role' = 'school_admin'));
+
+DROP POLICY IF EXISTS "Users can upload their own files to payslips" ON storage.objects;
+CREATE POLICY "Users can upload their own files to payslips" ON storage.objects
+FOR INSERT WITH CHECK (bucket_id = 'payslips' AND (auth.uid()::text = (storage.foldername(name))[1] OR auth.jwt() ->> 'role' = 'school_admin'));
+
+DROP POLICY IF EXISTS "Users can view their own files in payslips" ON storage.objects;
+CREATE POLICY "Users can view their own files in payslips" ON storage.objects
+FOR SELECT USING (bucket_id = 'payslips' AND (auth.uid()::text = (storage.foldername(name))[1] OR auth.jwt() ->> 'role' = 'school_admin'));
+
+DROP POLICY IF EXISTS "Users can delete their own files in payslips" ON storage.objects;
+CREATE POLICY "Users can delete their own files in payslips" ON storage.objects
+FOR DELETE USING (bucket_id = 'payslips' AND (auth.uid()::text = (storage.foldername(name))[1] OR auth.jwt() ->> 'role' = 'school_admin'));
+
+DROP POLICY IF EXISTS "Users can upload their own files to bank_statements" ON storage.objects;
+CREATE POLICY "Users can upload their own files to bank_statements" ON storage.objects
+FOR INSERT WITH CHECK (bucket_id = 'bank_statements' AND (auth.uid()::text = (storage.foldername(name))[1] OR auth.jwt() ->> 'role' = 'school_admin'));
+
+DROP POLICY IF EXISTS "Users can view their own files in bank_statements" ON storage.objects;
+CREATE POLICY "Users can view their own files in bank_statements" ON storage.objects
+FOR SELECT USING (bucket_id = 'bank_statements' AND (auth.uid()::text = (storage.foldername(name))[1] OR auth.jwt() ->> 'role' = 'school_admin'));
+
+DROP POLICY IF EXISTS "Users can delete their own files in bank_statements" ON storage.objects;
+CREATE POLICY "Users can delete their own files in bank_statements" ON storage.objects
+FOR DELETE USING (bucket_id = 'bank_statements' AND (auth.uid()::text = (storage.foldername(name))[1] OR auth.jwt() ->> 'role' = 'school_admin'));
+
+-- Create application_documents table for upload metadata and completion tracking
+CREATE TABLE IF NOT EXISTS application_documents (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+  application_id UUID REFERENCES applications(id) ON DELETE CASCADE,
+  document_type TEXT CHECK (document_type IN ('proof_of_address', 'id_document', 'payslip', 'bank_statement')),
+  file_url TEXT NOT NULL,
+  upload_status TEXT DEFAULT 'in_progress' CHECK (upload_status IN ('in_progress', 'completed')),
+  uploaded_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Enable RLS on application_documents
+ALTER TABLE application_documents ENABLE ROW LEVEL SECURITY;
+
+-- Create policies for application_documents
+DROP POLICY IF EXISTS "Users can view their own application documents" ON application_documents;
+CREATE POLICY "Users can view their own application documents" ON application_documents
+FOR SELECT USING (auth.uid() = user_id OR auth.jwt() ->> 'role' = 'school_admin');
+
+DROP POLICY IF EXISTS "Users can insert their own application documents" ON application_documents;
+CREATE POLICY "Users can insert their own application documents" ON application_documents
+FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can update their own application documents" ON application_documents;
+CREATE POLICY "Users can update their own application documents" ON application_documents
+FOR UPDATE USING (auth.uid() = user_id OR auth.jwt() ->> 'role' = 'school_admin');
+
+-- Create view for application upload summary
+CREATE OR REPLACE VIEW application_upload_summary AS
+SELECT
+  application_id,
+  COUNT(DISTINCT document_type) FILTER (WHERE upload_status = 'completed') AS completed_categories,
+  ARRAY_AGG(DISTINCT document_type ORDER BY document_type) FILTER (WHERE upload_status = 'completed') AS uploaded_types
+FROM application_documents
+GROUP BY application_id;
+
+-- Create function to mark upload complete
+CREATE OR REPLACE FUNCTION mark_upload_complete(app_id UUID, doc_type TEXT)
+RETURNS VOID AS $$
+UPDATE application_documents
+SET upload_status = 'completed'
+WHERE application_id = app_id AND document_type = doc_type;
+$$ LANGUAGE SQL;
 
 -- Create a function to update updated_at timestamp
 CREATE OR REPLACE FUNCTION update_updated_at_column()
@@ -172,7 +260,26 @@ CREATE TABLE IF NOT EXISTS selected_subjects (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Create financing_options table
+-- Create financing_selections table
+CREATE TABLE IF NOT EXISTS financing_selections (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    application_id UUID REFERENCES applications(id) ON DELETE CASCADE,
+    plan_type TEXT NOT NULL CHECK (plan_type IN (
+        'monthly_flat',
+        'termly_discount',
+        'annual_discount',
+        'sibling_discount',
+        'bnpl',
+        'forward_funding',
+        'arrears-bnpl'
+    )),
+    discount_rate NUMERIC,
+    cost_of_credit NUMERIC,
+    repayment_term TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Create financing_options table (keeping for backward compatibility)
 CREATE TABLE IF NOT EXISTS financing_options (
     application_id UUID REFERENCES applications(id) ON DELETE CASCADE,
     selected_plan VARCHAR(50), -- 'forward-funding', 'bnpl', 'arrears-bnpl', or null for skipped
@@ -190,13 +297,19 @@ CREATE TABLE IF NOT EXISTS declarations (
     agree_financial BOOLEAN NOT NULL DEFAULT FALSE,
     agree_verification BOOLEAN NOT NULL DEFAULT FALSE,
     agree_data_processing BOOLEAN NOT NULL DEFAULT FALSE,
-    full_name VARCHAR(150) NOT NULL,
+    full_name VARCHAR(150), -- Made nullable to handle partial saves during auto-save
     city VARCHAR(100),
-    date_signed DATE NOT NULL,
+    date DATE, -- Added to store the declaration date from frontend
+    date_signed TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
     status VARCHAR(20) DEFAULT 'in_progress', -- 'in_progress', 'completed'
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    PRIMARY KEY (application_id)
+    PRIMARY KEY (application_id),
+    -- Add constraint to ensure full_name is provided when status is 'completed'
+    CONSTRAINT check_full_name_completed CHECK (
+        (status = 'completed' AND full_name IS NOT NULL AND length(trim(full_name)) >= 3) OR
+        (status != 'completed')
+    )
 );
 
 -- Create indexes for better performance
@@ -214,6 +327,7 @@ CREATE INDEX idx_declarations_status ON declarations(status);
 -- Enable Row Level Security (RLS)
 ALTER TABLE academic_history ENABLE ROW LEVEL SECURITY;
 ALTER TABLE selected_subjects ENABLE ROW LEVEL SECURITY;
+ALTER TABLE financing_selections ENABLE ROW LEVEL SECURITY;
 ALTER TABLE financing_options ENABLE ROW LEVEL SECURITY;
 ALTER TABLE declarations ENABLE ROW LEVEL SECURITY;
 
@@ -222,6 +336,8 @@ DROP POLICY IF EXISTS "Allow all operations on academic_history" ON academic_his
 CREATE POLICY "Allow all operations on academic_history" ON academic_history FOR ALL USING (true);
 DROP POLICY IF EXISTS "Allow all operations on selected_subjects" ON selected_subjects;
 CREATE POLICY "Allow all operations on selected_subjects" ON selected_subjects FOR ALL USING (true);
+DROP POLICY IF EXISTS "Allow all operations on financing_selections" ON financing_selections;
+CREATE POLICY "Allow all operations on financing_selections" ON financing_selections FOR ALL USING (true);
 DROP POLICY IF EXISTS "Allow all operations on financing_options" ON financing_options;
 CREATE POLICY "Allow all operations on financing_options" ON financing_options FOR ALL USING (true);
 DROP POLICY IF EXISTS "Allow all operations on declarations" ON declarations;
@@ -236,4 +352,55 @@ CREATE TRIGGER update_financing_options_updated_at
 DROP TRIGGER IF EXISTS update_declarations_updated_at ON declarations;
 CREATE TRIGGER update_declarations_updated_at
     BEFORE UPDATE ON declarations
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- Create risk_reports table for storing Netcash risk assessment results
+CREATE TABLE IF NOT EXISTS risk_reports (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    application_id UUID REFERENCES applications(id) ON DELETE CASCADE,
+    reference VARCHAR(100) NOT NULL, -- Unique reference for the risk check
+    guardian_email VARCHAR(150), -- Email of the guardian being checked
+    risk_score INTEGER CHECK (risk_score >= 0 AND risk_score <= 100), -- Risk score from Netcash (0-100)
+    flags TEXT[], -- Array of validation flags (e.g., ["BankAccountValidated", "IDVerified"])
+    status VARCHAR(20) DEFAULT 'pending', -- 'pending', 'completed', 'error'
+    timestamp TIMESTAMP WITH TIME ZONE DEFAULT NOW(), -- When the risk check was performed
+    raw_response JSONB, -- Full JSON response from Netcash API for audit trail
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Create indexes for better performance
+DROP INDEX IF EXISTS idx_risk_reports_application_id;
+CREATE INDEX idx_risk_reports_application_id ON risk_reports(application_id);
+DROP INDEX IF EXISTS idx_risk_reports_reference;
+CREATE INDEX idx_risk_reports_reference ON risk_reports(reference);
+DROP INDEX IF EXISTS idx_risk_reports_risk_score;
+CREATE INDEX idx_risk_reports_risk_score ON risk_reports(risk_score);
+
+-- Enable Row Level Security (RLS)
+ALTER TABLE risk_reports ENABLE ROW LEVEL SECURITY;
+
+-- Create policies for risk_reports
+DROP POLICY IF EXISTS "Users can view risk reports for their applications" ON risk_reports;
+CREATE POLICY "Users can view risk reports for their applications" ON risk_reports
+FOR SELECT USING (
+    EXISTS (
+        SELECT 1 FROM applications a
+        WHERE a.id = risk_reports.application_id
+        AND a.id::text = auth.jwt() ->> 'application_id'
+    ) OR auth.jwt() ->> 'role' = 'school_admin'
+);
+
+DROP POLICY IF EXISTS "System can insert risk reports" ON risk_reports;
+CREATE POLICY "System can insert risk reports" ON risk_reports
+FOR INSERT WITH CHECK (true); -- Allow system to insert risk reports
+
+DROP POLICY IF EXISTS "Admins can update risk reports" ON risk_reports;
+CREATE POLICY "Admins can update risk reports" ON risk_reports
+FOR UPDATE USING (auth.jwt() ->> 'role' = 'school_admin');
+
+-- Create trigger for updated_at column
+DROP TRIGGER IF EXISTS update_risk_reports_updated_at ON risk_reports;
+CREATE TRIGGER update_risk_reports_updated_at
+    BEFORE UPDATE ON risk_reports
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();

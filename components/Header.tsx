@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { CollegeIcon, CheckCircleIcon } from './Icons';
+import knitIcon from '../assets/knit-icon.png';
 
 interface HeaderProps {
   title?: string;
@@ -11,7 +11,7 @@ interface HeaderProps {
 }
 
 const Header: React.FC<HeaderProps> = ({
-  title = "Links Combined College",
+  title = "Knit.",
   subtitle = "Student Enrollment Application",
   lastSaved = "2 minutes ago",
   showAutoSave = true,
@@ -20,9 +20,7 @@ const Header: React.FC<HeaderProps> = ({
   return (
     <header className="fixed top-0 left-0 md:left-[25%] right-0 z-50 bg-white border-b border-gray-200 p-4 flex justify-between items-center shadow-sm md:rounded-t-lg">
       <div className="flex items-center gap-4">
-        <div className="bg-gradient-to-br from-blue-600 to-blue-700 text-white p-3 rounded-xl shadow-sm">
-          <CollegeIcon className="h-7 w-7" />
-        </div>
+        <img src={knitIcon} alt="Knit Icon" className="h-8 w-8 object-contain" />
         <div>
           <h1 className="text-xl font-bold text-gray-800">{title}</h1>
           <p className="text-sm text-gray-500">{subtitle}</p>

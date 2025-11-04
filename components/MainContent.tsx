@@ -13,6 +13,7 @@ import SubjectSelection from '../src/components/SubjectSelection';
 import ToastContainer from './ui/ToastContainer';
 import { useToast } from '../hooks/useToast';
 import Footer from './Footer';
+import RiskAssessment from './RiskAssessment';
 
 interface MainContentProps {
   activeStep: number;
@@ -20,6 +21,7 @@ interface MainContentProps {
   onEnrollmentSubmit?: (data: any) => void;
   onDocumentUploadComplete?: () => void;
   onStepChange?: (step: number) => void;
+  onStepComplete?: (stepNumber: number) => void;
 }
 
 const MainContent: React.FC<MainContentProps> = ({
@@ -27,16 +29,22 @@ const MainContent: React.FC<MainContentProps> = ({
   applicationId,
   onEnrollmentSubmit,
   onDocumentUploadComplete,
-  onStepChange
+  onStepChange,
+  onStepComplete
 }) => {
   const { toasts, addToast, removeToast } = useToast();
   const [studentData, setStudentData] = React.useState<any>({});
   const [medicalData, setMedicalData] = React.useState<any>({});
   const [familyData, setFamilyData] = React.useState<any>({});
   const [feeData, setFeeData] = React.useState<any>({});
+  const [selectedElectives, setSelectedElectives] = React.useState<string[]>([]);
   const [validationErrors, setValidationErrors] = React.useState<{[key: string]: string}>({});
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [dataLoaded, setDataLoaded] = React.useState(false);
+  const [isEditing, setIsEditing] = React.useState(false);
+  const [returnStep, setReturnStep] = React.useState<number | null>(null);
+  const [savingStatus, setSavingStatus] = React.useState<'idle' | 'saving' | 'saved'>('idle');
+
 
   // Listen for save progress event
   React.useEffect(() => {
@@ -48,32 +56,23 @@ const MainContent: React.FC<MainContentProps> = ({
     return () => window.removeEventListener('saveProgress', handleSaveEvent);
   }, []);
 
-  // Load saved data from localStorage on component mount
+  // Load saved data from backend on component mount
   React.useEffect(() => {
-    const loadSavedData = () => {
+    const loadSavedData = async () => {
       try {
-        const savedStudentData = localStorage.getItem('studentInformation');
-        const savedMedicalData = localStorage.getItem('medicalInformation');
-        const savedFamilyData = localStorage.getItem('familyInformation');
-        const savedFeeData = localStorage.getItem('feeResponsibility');
+        const applicationId = localStorage.getItem('applicationId');
+        if (applicationId) {
+          const { apiService } = await import('../src/services/api');
+          const backendData = await apiService.getApplication(applicationId);
 
-        if (savedStudentData) {
-          const parsed = JSON.parse(savedStudentData);
-          setStudentData(parsed);
+          if (backendData) {
+            if (backendData.student) setStudentData(backendData.student);
+            if (backendData.medical) setMedicalData(backendData.medical);
+            if (backendData.family) setFamilyData(backendData.family);
+            if (backendData.fee) setFeeData(backendData.fee);
+            if (backendData.subjects?.electives) setSelectedElectives(backendData.subjects.electives);
+          }
         }
-        if (savedMedicalData) {
-          const parsed = JSON.parse(savedMedicalData);
-          setMedicalData(parsed);
-        }
-        if (savedFamilyData) {
-          const parsed = JSON.parse(savedFamilyData);
-          setFamilyData(parsed);
-        }
-        if (savedFeeData) {
-          const parsed = JSON.parse(savedFeeData);
-          setFeeData(parsed);
-        }
-
         setDataLoaded(true);
       } catch (error) {
         console.error('Error loading saved data:', error);
@@ -102,6 +101,10 @@ const MainContent: React.FC<MainContentProps> = ({
     setFeeData(data);
   };
 
+  const handleElectivesChange = (electives: string[]) => {
+    setSelectedElectives(electives);
+  };
+
   const validateAllForms = () => {
     const errors: {[key: string]: string} = {};
 
@@ -116,17 +119,31 @@ const MainContent: React.FC<MainContentProps> = ({
     if (!studentData?.gradeAppliedFor) errors.studentGradeAppliedFor = 'Grade applied for is required';
     if (!studentData?.previousSchool?.trim()) errors.studentPreviousSchool = 'Previous school is required';
 
-    // Family validation
-    if (!familyData?.fatherSurname?.trim()) errors.fatherSurname = 'Father surname is required';
-    if (!familyData?.fatherFirstName?.trim()) errors.fatherFirstName = 'Father first name is required';
-    if (!familyData?.fatherIdNumber?.trim()) errors.fatherIdNumber = 'Father ID number is required';
-    if (!familyData?.fatherMobile?.trim()) errors.fatherMobile = 'Father mobile is required';
-    if (!familyData?.fatherEmail?.trim()) errors.fatherEmail = 'Father email is required';
-    if (!familyData?.motherSurname?.trim()) errors.motherSurname = 'Mother surname is required';
-    if (!familyData?.motherFirstName?.trim()) errors.motherFirstName = 'Mother first name is required';
-    if (!familyData?.motherIdNumber?.trim()) errors.motherIdNumber = 'Mother ID number is required';
-    if (!familyData?.motherMobile?.trim()) errors.motherMobile = 'Mother mobile is required';
-    if (!familyData?.motherEmail?.trim()) errors.motherEmail = 'Mother email is required';
+    // Family validation - at least one parent must be filled, and if filled, all fields for that parent are required
+    const hasFatherInfo = familyData?.fatherSurname?.trim() || familyData?.fatherFirstName?.trim() || familyData?.fatherIdNumber?.trim() || familyData?.fatherMobile?.trim() || familyData?.fatherEmail?.trim();
+    const hasMotherInfo = familyData?.motherSurname?.trim() || familyData?.motherFirstName?.trim() || familyData?.motherIdNumber?.trim() || familyData?.motherMobile?.trim() || familyData?.motherEmail?.trim();
+
+    if (!hasFatherInfo && !hasMotherInfo) {
+      errors.fatherSurname = 'At least one parent (father or mother) information is required';
+    }
+
+    // If father info is partially filled, require all father fields
+    if (hasFatherInfo) {
+      if (!familyData?.fatherSurname?.trim()) errors.fatherSurname = 'Father surname is required';
+      if (!familyData?.fatherFirstName?.trim()) errors.fatherFirstName = 'Father first name is required';
+      if (!familyData?.fatherIdNumber?.trim()) errors.fatherIdNumber = 'Father ID number is required';
+      if (!familyData?.fatherMobile?.trim()) errors.fatherMobile = 'Father mobile is required';
+      if (!familyData?.fatherEmail?.trim()) errors.fatherEmail = 'Father email is required';
+    }
+
+    // If mother info is partially filled, require all mother fields
+    if (hasMotherInfo) {
+      if (!familyData?.motherSurname?.trim()) errors.motherSurname = 'Mother surname is required';
+      if (!familyData?.motherFirstName?.trim()) errors.motherFirstName = 'Mother first name is required';
+      if (!familyData?.motherIdNumber?.trim()) errors.motherIdNumber = 'Mother ID number is required';
+      if (!familyData?.motherMobile?.trim()) errors.motherMobile = 'Mother mobile is required';
+      if (!familyData?.motherEmail?.trim()) errors.motherEmail = 'Mother email is required';
+    }
 
     // Fee validation
     if (!feeData?.feePerson) errors.feePerson = 'Person responsible for fees is required';
@@ -139,7 +156,7 @@ const MainContent: React.FC<MainContentProps> = ({
 
   const handleSaveProgress = async () => {
     try {
-      setIsSubmitting(true);
+      setSavingStatus('saving');
       const combinedData = {
         student: studentData,
         medical: medicalData,
@@ -147,58 +164,58 @@ const MainContent: React.FC<MainContentProps> = ({
         fee: feeData
       };
 
-      // Call the auto-save endpoint
-      const response = await fetch('http://localhost:8000/enrollment/auto-save', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          application_id: applicationId || 'temp_' + Date.now(),
-          ...combinedData
-        }),
+      // Use the apiService for auto-save to handle authentication properly
+      const { apiService } = await import('../src/services/api');
+      const result = await apiService.autoSaveEnrollment({
+        application_id: applicationId || 'temp_' + Date.now(),
+        student: combinedData.student,
+        medical: combinedData.medical,
+        family: combinedData.family,
+        fee: combinedData.fee
       });
 
-      if (!response.ok) {
-        throw new Error('Failed to save progress');
+      console.log('Progress saved successfully:', result);
+      setSavingStatus('saved');
+
+      // Update applicationId if it's a new application
+      if (result.application_id && !applicationId) {
+        localStorage.setItem('applicationId', result.application_id);
       }
 
-      const result = await response.json();
-      console.log('Progress saved successfully:', result);
-      addToast('Progress saved successfully!', 'success');
+      // Reset to idle after showing "saved" for a moment
+      setTimeout(() => setSavingStatus('idle'), 2000);
     } catch (error) {
       console.error('Error saving progress:', error);
       addToast('Failed to save progress. Please try again.', 'error');
-    } finally {
-      setIsSubmitting(false);
+      setSavingStatus('idle');
     }
   };
 
-  const handleSaveProgressForStep = async (stepNumber: number) => {
-    try {
-      // Save current step data to localStorage
-      const stepData = {
-        student: stepNumber >= 1 ? studentData : {},
-        medical: stepNumber >= 1 ? medicalData : {},
-        family: stepNumber >= 1 ? familyData : {},
-        fee: stepNumber >= 1 ? feeData : {}
+  // Auto-save functionality - debounced save to backend
+  const debouncedSave = React.useCallback(
+    (() => {
+      let timeoutId: NodeJS.Timeout;
+      return () => {
+        clearTimeout(timeoutId);
+        timeoutId = setTimeout(() => {
+          handleSaveProgress();
+        }, 10000); // Save after 10 seconds of inactivity
       };
+    })(),
+    [studentData, medicalData, familyData, feeData, applicationId]
+  );
 
-      // Save to localStorage for persistence
-      localStorage.setItem('enrollmentProgress', JSON.stringify({
-        currentStep: stepNumber,
-        data: stepData,
-        lastSaved: new Date().toISOString()
-      }));
-
-      addToast('Progress saved successfully!', 'success');
-    } catch (error) {
-      console.error('Error saving progress:', error);
-      addToast('Failed to save progress. Please try again.', 'error');
+  // Auto-save when form data changes
+  React.useEffect(() => {
+    if (dataLoaded) {
+      debouncedSave();
     }
-  };
+  }, [studentData, medicalData, familyData, feeData, dataLoaded, debouncedSave]);
 
   const handleCombinedSubmit = async () => {
+    // Force save before validation and submission
+    await handleSaveProgress();
+
     // Force validation before submission
     const isValid = validateAllForms();
 
@@ -221,6 +238,13 @@ const MainContent: React.FC<MainContentProps> = ({
         // Clear validation errors after successful submission
         setValidationErrors({});
       }
+
+      // If editing, return to the return step (e.g., step 7)
+      if (isEditing && returnStep) {
+        onStepChange && onStepChange(returnStep);
+        setIsEditing(false);
+        setReturnStep(null);
+      }
     } catch (error) {
       console.error('Error submitting enrollment:', error);
       addToast('An error occurred while submitting your enrollment. Please try again.', 'error');
@@ -229,24 +253,49 @@ const MainContent: React.FC<MainContentProps> = ({
     }
   };
 
+  const handleEditStep = (stepNumber: number) => {
+    setIsEditing(true);
+    setReturnStep(activeStep); // Return to the current step after editing
+    onStepChange && onStepChange(stepNumber);
+  };
+
   if (activeStep === 1) {
     return (
       <div className="flex-1 bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 min-h-screen">
         {/* Header Section */}
         <div className="bg-white/80 backdrop-blur-sm border-b border-white/20 sticky top-0 z-30">
-          <div className="max-w-6xl mx-auto px-6 sm:px-8 py-24">
-            <div className="flex items-center justify-between">
-              <div>
-                <h1 className="text-3xl font-bold text-gray-900 mb-2">Student & Guardian Information</h1>
-                <p className="text-gray-700 font-medium">Complete your enrollment by filling out the required information below</p>
-              </div>
-              <div className="hidden md:flex items-center space-x-4">
-                <div className="text-right">
-                  <div className="text-sm font-medium text-gray-500">Step 1 of 7</div>
-                  <div className="w-32 bg-gray-200 rounded-full h-2 mt-1">
-                    <div className="bg-gradient-to-r from-blue-500 to-purple-600 h-2 rounded-full transition-all duration-500" style={{width: '14%'}}></div>
-                  </div>
+        <div className="max-w-6xl mx-auto px-6 sm:px-8 py-24">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900 mb-2">Student & Guardian Information</h1>
+              <p className="text-gray-700 font-medium">Complete your enrollment by filling out the required information below</p>
+            </div>
+            <div className="hidden md:flex items-center space-x-4">
+              <div className="text-right">
+                <div className="text-sm font-medium text-gray-500">Step 1 of 7</div>
+                <div className="w-32 bg-gray-200 rounded-full h-2 mt-1">
+                  <div className="bg-gradient-to-r from-blue-500 to-purple-600 h-2 rounded-full transition-all duration-500" style={{width: '14%'}}></div>
                 </div>
+              </div>
+              <div className="flex items-center space-x-4">
+                {/* Saving Status Indicator */}
+                {savingStatus === 'saving' && (
+                  <div className="flex items-center text-blue-600 text-sm font-medium">
+                    <svg className="animate-spin -ml-1 mr-2 h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Saving...
+                  </div>
+                )}
+                {savingStatus === 'saved' && (
+                  <div className="flex items-center text-green-600 text-sm font-medium">
+                    <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                    </svg>
+                    All changes saved
+                  </div>
+                )}
                 <div className="bg-gradient-to-r from-blue-500 to-purple-600 rounded-full p-3">
                   <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
@@ -255,6 +304,7 @@ const MainContent: React.FC<MainContentProps> = ({
               </div>
             </div>
           </div>
+        </div>
         </div>
 
         <div className="max-w-6xl mx-auto px-6 sm:px-8 pt-10 pb-32">
@@ -275,7 +325,7 @@ const MainContent: React.FC<MainContentProps> = ({
                 </div>
               }
             >
-              <StudentInformation onDataChange={handleStudentDataChange} onNext={handleCombinedSubmit} />
+            <StudentInformation initialData={studentData} onDataChange={handleStudentDataChange} onNext={handleCombinedSubmit} />
             </UploadCard>
 
             <UploadCard
@@ -291,7 +341,7 @@ const MainContent: React.FC<MainContentProps> = ({
                 </div>
               }
             >
-              <MedicalInformation onDataChange={handleMedicalDataChange} />
+              <MedicalInformation initialData={medicalData} onDataChange={handleMedicalDataChange} />
             </UploadCard>
 
             <UploadCard
@@ -307,7 +357,7 @@ const MainContent: React.FC<MainContentProps> = ({
                 </div>
               }
             >
-              <FamilyInformation onDataChange={handleFamilyDataChange} />
+              <FamilyInformation initialData={familyData} onDataChange={handleFamilyDataChange} />
             </UploadCard>
 
             <UploadCard
@@ -323,7 +373,7 @@ const MainContent: React.FC<MainContentProps> = ({
                 </div>
               }
             >
-              <FeeResponsibility onDataChange={handleFeeDataChange} />
+              <FeeResponsibility initialData={feeData} onDataChange={handleFeeDataChange} />
             </UploadCard>
           </div>
 
@@ -526,7 +576,19 @@ const MainContent: React.FC<MainContentProps> = ({
 
         <div className="max-w-6xl mx-auto px-6 sm:px-8 pt-24 pb-24">
           <div className="h-full overflow-y-auto">
-            <AcademicHistoryForm onSubmit={() => onStepChange && onStepChange(4)} onBack={() => onStepChange && onStepChange(2)} />
+            <AcademicHistoryForm
+              onSubmit={() => {
+                onStepComplete && onStepComplete(3);
+                if (isEditing && returnStep) {
+                  onStepChange && onStepChange(returnStep);
+                  setIsEditing(false);
+                  setReturnStep(null);
+                } else {
+                  onStepChange && onStepChange(4);
+                }
+              }}
+              onBack={() => onStepChange && onStepChange(2)}
+            />
           </div>
         </div>
         <Footer
@@ -573,7 +635,18 @@ const MainContent: React.FC<MainContentProps> = ({
         <div className="max-w-6xl mx-auto px-6 sm:px-8 pt-24 pb-24">
           <div className="h-full overflow-y-auto">
             <SubjectSelection
-              onContinue={() => onStepChange && onStepChange(5)}
+              selectedElectives={selectedElectives}
+              onSelectionChange={handleElectivesChange}
+              onContinue={() => {
+                onStepComplete && onStepComplete(4);
+                if (isEditing && returnStep) {
+                  onStepChange && onStepChange(returnStep);
+                  setIsEditing(false);
+                  setReturnStep(null);
+                } else {
+                  onStepChange && onStepChange(5);
+                }
+              }}
               onBack={() => onStepChange && onStepChange(3)}
             />
           </div>
@@ -620,16 +693,28 @@ const MainContent: React.FC<MainContentProps> = ({
         </div>
 
         <div className="max-w-6xl mx-auto px-6 sm:px-8 pt-24 pb-24">
-          <FeeAgreement onBack={() => onStepChange && onStepChange(4)} onNext={() => onStepChange && onStepChange(6)} />
+          <FeeAgreement onBack={() => onStepChange && onStepChange(4)} onNext={() => {
+            onStepComplete && onStepComplete(5);
+            onStepChange && onStepChange(6);
+          }} />
         </div>
         <Footer
           onBack={() => onStepChange && onStepChange(4)}
           onSave={() => {}}
-          onNext={() => onStepChange && onStepChange(6)}
+          onNext={() => {
+            onStepComplete && onStepComplete(5);
+            onStepChange && onStepChange(5.5);
+          }}
+          onSkip={() => {
+            onStepComplete && onStepComplete(5);
+            onStepChange && onStepChange(5.5);
+          }}
           showBack={true}
           showSave={false}
           showNext={true}
-          nextLabel="Next: Declaration"
+          showSkip={true}
+          nextLabel="Next: Risk Assessment"
+          skipLabel="Skip Fee Agreement"
         />
       </div>
     );
@@ -664,16 +749,101 @@ const MainContent: React.FC<MainContentProps> = ({
         </div>
 
         <div className="max-w-6xl mx-auto px-6 sm:px-8 pt-24 pb-24">
-          <DeclarationStep onBack={() => onStepChange && onStepChange(5)} onNext={() => onStepChange && onStepChange(7)} />
+          <DeclarationStep onBack={() => onStepChange && onStepChange(5)} onNext={() => {
+            onStepComplete && onStepComplete(6);
+            onStepChange && onStepChange(7);
+          }} />
         </div>
         <Footer
-          onBack={() => onStepChange && onStepChange(5)}
+          onBack={() => onStepChange && onStepChange(5.5)}
           onSave={() => {}}
           onNext={() => onStepChange && onStepChange(7)}
           showBack={true}
           showSave={false}
           showNext={true}
           nextLabel="Next: Review and Submit"
+        />
+      </div>
+    );
+  }
+
+  // Prepare current data for ReviewSubmitStep
+  const currentData = {
+    student: studentData,
+    family: familyData,
+    medical: medicalData,
+    fee: feeData,
+    academicHistory: JSON.parse(localStorage.getItem('academicHistoryFormData') || '{}'),
+    subjects: {
+      core: JSON.parse(localStorage.getItem('selectedSubjects') || '{}').core || [],
+      electives: selectedElectives
+    },
+    financing: JSON.parse(localStorage.getItem('financingPlan') || '{}'),
+    declaration: JSON.parse(localStorage.getItem('declarationData') || '{}'),
+    documents: JSON.parse(localStorage.getItem('uploadedFiles') || '[]')
+  };
+
+  if (activeStep === 5.5) {
+    return (
+      <div className="flex-1 bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 min-h-screen">
+        {/* Header Section */}
+        <div className="bg-white/80 backdrop-blur-sm border-b border-white/20 sticky top-0 z-30">
+          <div className="max-w-6xl mx-auto px-6 sm:px-8 py-24">
+            <div className="flex items-center justify-between">
+              <div>
+                <h1 className="text-3xl font-bold text-gray-900 mb-2">Risk Assessment</h1>
+                <p className="text-gray-700 font-medium">Compliance check for enrollment application</p>
+              </div>
+              <div className="hidden md:flex items-center space-x-4">
+                <div className="text-right">
+                  <div className="text-sm font-medium text-gray-500">Step 5.5 of 7</div>
+                  <div className="w-32 bg-gray-200 rounded-full h-2 mt-1">
+                    <div className="bg-gradient-to-r from-blue-500 to-purple-600 h-2 rounded-full transition-all duration-500" style={{width: '79%'}}></div>
+                  </div>
+                </div>
+                <div className="bg-gradient-to-r from-blue-500 to-purple-600 rounded-full p-3">
+                  <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="max-w-6xl mx-auto px-6 sm:px-8 pt-24 pb-24">
+          <RiskAssessment
+            applicationId={applicationId}
+            guardianData={{
+              name: familyData?.fatherFirstName && familyData?.fatherSurname
+                ? `${familyData.fatherFirstName} ${familyData.fatherSurname}`
+                : familyData?.motherFirstName && familyData?.motherSurname
+                ? `${familyData.motherFirstName} ${familyData.motherSurname}`
+                : "Guardian",
+              email: familyData?.fatherEmail || familyData?.motherEmail || "",
+              id_number: familyData?.fatherIdNumber || familyData?.motherIdNumber || "",
+              mobile: familyData?.fatherMobile || familyData?.motherMobile || "",
+              branch_code: "123456", // Default branch code, should be configurable
+              account_number: "1234567890" // Default account number, should be configurable
+            }}
+            onBack={() => onStepChange && onStepChange(5)}
+            onNext={() => {
+              onStepComplete && onStepComplete(5.5);
+              onStepChange && onStepChange(6);
+            }}
+          />
+        </div>
+        <Footer
+          onBack={() => onStepChange && onStepChange(5)}
+          onSave={() => {}}
+          onNext={() => {
+            onStepComplete && onStepComplete(5.5);
+            onStepChange && onStepChange(6);
+          }}
+          showBack={true}
+          showSave={false}
+          showNext={true}
+          nextLabel="Next: Declaration"
         />
       </div>
     );
@@ -708,7 +878,12 @@ const MainContent: React.FC<MainContentProps> = ({
         </div>
 
         <div className="max-w-6xl mx-auto px-6 sm:px-8 pt-24 pb-24">
-          <ReviewSubmitStep onBack={() => onStepChange && onStepChange(6)} />
+          <ReviewSubmitStep
+            currentData={currentData}
+            onBack={() => onStepChange && onStepChange(6)}
+            onEditStep={handleEditStep}
+            onStepComplete={onStepComplete}
+          />
         </div>
         <Footer
           onBack={() => onStepChange && onStepChange(6)}

@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import axios from 'axios';
+import { apiService } from '../../src/services/api';
 import { DownloadIcon, ArrowLeftIcon, ArrowRightIcon } from '../Icons';
 import Footer from '../Footer';
 
@@ -10,11 +12,7 @@ interface ConfirmationChecks {
   agree_data_processing: boolean;
 }
 
-enum AutoSaveStatus {
-  Idle = 'Idle',
-  Saving = 'Saving...',
-  Saved = 'Auto-saved',
-}
+
 
 const CONFIRMATIONS = [
   { id: 'agree_truth', label: 'I confirm that all information provided in this application is true and correct.' },
@@ -43,13 +41,13 @@ const DeclarationStep: React.FC<DeclarationStepProps> = ({ onBack, onNext }) => 
   const [city, setCity] = useState('');
   const [isContinueDisabled, setIsContinueDisabled] = useState(true);
   const [touched, setTouched] = useState<{ [key: string]: boolean }>({});
-  const [autoSaveStatus, setAutoSaveStatus] = useState<AutoSaveStatus>(AutoSaveStatus.Idle);
+
   const [validationErrors, setValidationErrors] = useState<{[key: string]: string}>({});
   const [isNextEnabled, setIsNextEnabled] = useState(false);
 
-  const autoSaveTimeoutRef = useRef<number | null>(null);
 
-  const today = new Date().toISOString().split('T')[0].replace(/-/g, '/');
+
+  const today = new Date().toISOString().split('T')[0];
 
   const handleCheckboxChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const { name, checked } = event.target;
@@ -70,55 +68,9 @@ const DeclarationStep: React.FC<DeclarationStepProps> = ({ onBack, onNext }) => 
 
   const showFullNameError = touched.fullName && fullName.trim().length < 3;
 
-  const runAutoSave = useCallback(async () => {
-    setAutoSaveStatus(AutoSaveStatus.Saving);
-    try {
-      const response = await fetch('http://localhost:8000/declaration', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          agree_truth: confirmations.agree_truth,
-          agree_policies: confirmations.agree_policies,
-          agree_financial: confirmations.agree_financial,
-          agree_verification: confirmations.agree_verification,
-          agree_data_processing: confirmations.agree_data_processing,
-          fullName,
-          city,
-          date: today.replace(/\//g, '-'),  // Convert to YYYY-MM-DD format
-          status: 'in_progress'
-        }),
-      });
-      if (!response.ok) {
-        throw new Error('Failed to save data');
-      }
-      console.log('Data saved successfully.');
-      setAutoSaveStatus(AutoSaveStatus.Saved);
-    } catch (error) {
-      console.error('Error saving data:', error);
-      setAutoSaveStatus(AutoSaveStatus.Idle);
-      alert('Failed to save progress. Please try again.');
-    } finally {
-      setTimeout(() => setAutoSaveStatus(AutoSaveStatus.Idle), 2000);
-    }
-  }, [confirmations, fullName, city, today]);
 
-  useEffect(() => {
-    if (autoSaveTimeoutRef.current) {
-      clearTimeout(autoSaveTimeoutRef.current);
-    }
-    autoSaveTimeoutRef.current = window.setTimeout(() => {
-        runAutoSave();
-    }, 1500);
 
-    return () => {
-      if (autoSaveTimeoutRef.current) {
-        clearTimeout(autoSaveTimeoutRef.current);
-      }
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [confirmations, fullName, city]);
+
 
 
   useEffect(() => {
@@ -149,25 +101,34 @@ const DeclarationStep: React.FC<DeclarationStepProps> = ({ onBack, onNext }) => 
   const handleSaveProgress = async () => {
       console.log('Saving progress...');
       try {
+        const declarationData = {
+          application_id: localStorage.getItem('applicationId') || 'temp_' + Date.now(),
+          agree_truth: confirmations.agree_truth,
+          agree_policies: confirmations.agree_policies,
+          agree_financial: confirmations.agree_financial,
+          agree_verification: confirmations.agree_verification,
+          agree_data_processing: confirmations.agree_data_processing,
+          fullName,
+          city,
+          status: 'in_progress'
+        };
+
+        // Save to localStorage
+        localStorage.setItem('declarationData', JSON.stringify(declarationData));
+
         const response = await fetch('http://localhost:8000/declaration', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({
-            agree_truth: confirmations.agree_truth,
-            agree_policies: confirmations.agree_policies,
-            agree_financial: confirmations.agree_financial,
-            agree_verification: confirmations.agree_verification,
-            agree_data_processing: confirmations.agree_data_processing,
-            fullName,
-            city,
-            date: today.replace(/\//g, '-'),  // Convert to YYYY-MM-DD format
-            status: 'in_progress'
-          }),
+        body: JSON.stringify(declarationData),
         });
         if (!response.ok) {
           throw new Error('Failed to save progress');
+        }
+        const responseData = await response.json();
+        if (responseData.application_id) {
+            localStorage.setItem('applicationId', responseData.application_id);
         }
         alert('Your progress has been saved!');
       } catch (error) {
@@ -180,33 +141,42 @@ const DeclarationStep: React.FC<DeclarationStepProps> = ({ onBack, onNext }) => 
       if(isContinueDisabled) return;
       console.log('Continuing to next step...');
       try {
+        const declarationData = {
+          application_id: localStorage.getItem('applicationId') || 'temp_' + Date.now(),
+          agree_truth: confirmations.agree_truth,
+          agree_policies: confirmations.agree_policies,
+          agree_financial: confirmations.agree_financial,
+          agree_verification: confirmations.agree_verification,
+          agree_data_processing: confirmations.agree_data_processing,
+          fullName,
+          city,
+          status: 'completed'
+        };
+
+        // Save to localStorage
+        localStorage.setItem('declarationData', JSON.stringify(declarationData));
+
         const response = await fetch('http://localhost:8000/declaration', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({
-            agree_truth: confirmations.agree_truth,
-            agree_policies: confirmations.agree_policies,
-            agree_financial: confirmations.agree_financial,
-            agree_verification: confirmations.agree_verification,
-            agree_data_processing: confirmations.agree_data_processing,
-            fullName,
-            city,
-            date: today.replace(/\//g, '-'),  // Convert to YYYY-MM-DD format
-            status: 'completed'
-          }),
+        body: JSON.stringify(declarationData),
         });
         if (!response.ok) {
           throw new Error('Failed to submit declaration');
         }
-        alert('Declaration complete! Moving to the next step.');
+        const responseData = await response.json();
+        if (responseData.application_id) {
+            localStorage.setItem('applicationId', responseData.application_id);
+        }
+       // alert('Declaration complete! Moving to the next step.');
         if (onNext) {
             onNext();
         }
       } catch (error) {
         console.error('Error submitting declaration:', error);
-        alert('Failed to submit declaration. Please try again.');
+       // alert('Failed to submit declaration. Please try again.');
       }
   };
 
@@ -245,7 +215,7 @@ const DeclarationStep: React.FC<DeclarationStepProps> = ({ onBack, onNext }) => 
                         <p>I agree to support and enforce the school's rules, policies, and disciplinary procedures. I understand that cooperation between home and school is essential for my child's success and the wellbeing of the school community.</p>
                     </div>
                 </div>
-                <a href="#" className="inline-flex items-center mt-4 text-blue-600 hover:text-blue-800 font-medium text-sm">
+                <a href="/assets/school-policy.pdf" download="school-policy.pdf" className="inline-flex items-center mt-4 text-blue-600 hover:text-blue-800 font-medium text-sm">
                     <DownloadIcon className="w-5 h-5 mr-2" />
                     Download Full Policy (PDF)
                 </a>
@@ -364,19 +334,33 @@ const DeclarationStep: React.FC<DeclarationStepProps> = ({ onBack, onNext }) => 
 
 
 
-        <Footer
-            onBack={onBack}
-            onSave={handleSaveProgress}
-            onNext={() => {
+        {/* Submit Button */}
+        <div className="mt-6 pt-4 border-t border-gray-200">
+          <button
+            onClick={() => {
               if (validateDeclaration()) {
                 handleContinue();
               }
             }}
+            disabled={!isNextEnabled}
+            className="w-full bg-gradient-to-r from-indigo-500 to-purple-500 text-white py-3 px-6 rounded-lg hover:from-indigo-600 hover:to-purple-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 font-medium shadow-sm"
+          >
+            Submit Declaration & Continue to Review
+          </button>
+          <p className="text-center text-sm text-gray-500 mt-3">
+            Complete all declarations and enter your name to submit and proceed to the final review
+          </p>
+        </div>
+
+        <Footer
+            onBack={onBack}
+            onSave={handleSaveProgress}
+            onNext={() => {}}
             showBack={true}
             showSave={true}
-            showNext={true}
+            showNext={false}
             nextLabel="Next: Review and Submit"
-            isLoading={!isNextEnabled}
+            isLoading={false}
         />
     </div>
   );

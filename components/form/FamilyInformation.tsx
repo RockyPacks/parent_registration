@@ -3,16 +3,16 @@ import React, { useState, useEffect } from 'react';
 import FormSection from './FormSection';
 import InputField from '../ui/InputField';
 import { FamilyIcon } from '../Icons';
-import { useLocalStorage } from '../../hooks/useLocalStorage';
 import { useToast } from '../../hooks/useToast';
 
 interface FamilyInformationProps {
+  initialData?: any;
   onDataChange?: (data: any) => void;
 }
 
-const FamilyInformation: React.FC<FamilyInformationProps> = ({ onDataChange }) => {
+const FamilyInformation: React.FC<FamilyInformationProps> = ({ initialData, onDataChange }) => {
   const { addToast } = useToast();
-  const [formData, setFormData] = useLocalStorage('familyInformation', {
+  const [formData, setFormData] = useState({
     fatherSurname: '',
     fatherFirstName: '',
     fatherIdNumber: '',
@@ -22,7 +22,13 @@ const FamilyInformation: React.FC<FamilyInformationProps> = ({ onDataChange }) =
     motherFirstName: '',
     motherIdNumber: '',
     motherMobile: '',
-    motherEmail: ''
+    motherEmail: '',
+    nextOfKinSurname: '',
+    nextOfKinFirstName: '',
+    nextOfKinRelationship: '',
+    nextOfKinMobile: '',
+    nextOfKinEmail: '',
+    ...initialData
   });
 
   const [errors, setErrors] = useState({
@@ -35,23 +41,15 @@ const FamilyInformation: React.FC<FamilyInformationProps> = ({ onDataChange }) =
     motherFirstName: '',
     motherIdNumber: '',
     motherMobile: '',
-    motherEmail: ''
+    motherEmail: '',
+    nextOfKinSurname: '',
+    nextOfKinFirstName: '',
+    nextOfKinRelationship: '',
+    nextOfKinMobile: '',
+    nextOfKinEmail: ''
   });
 
-  // Show toast when data is loaded from localStorage
-  useEffect(() => {
-    const savedData = localStorage.getItem('familyInformation');
-    if (savedData) {
-      try {
-        const parsedData = JSON.parse(savedData);
-        if (Object.values(parsedData).some(value => value !== '')) {
-          addToast('Family information loaded from previous session', 'info');
-        }
-      } catch (error) {
-        console.error('Error parsing saved family data:', error);
-      }
-    }
-  }, [addToast]);
+
 
   useEffect(() => {
     if (onDataChange) {
@@ -59,12 +57,23 @@ const FamilyInformation: React.FC<FamilyInformationProps> = ({ onDataChange }) =
     }
   }, [formData, onDataChange]);
 
+  // Check if at least one parent is fully filled
+  useEffect(() => {
+    const isFatherComplete = formData.fatherSurname && formData.fatherFirstName && formData.fatherIdNumber && formData.fatherMobile && formData.fatherEmail;
+    const isMotherComplete = formData.motherSurname && formData.motherFirstName && formData.motherIdNumber && formData.motherMobile && formData.motherEmail;
+
+    if (!isFatherComplete && !isMotherComplete) {
+      addToast('Please provide complete information for at least one parent (Father or Mother)', 'warning');
+    }
+  }, [formData, addToast]);
+
   const validateField = (field: string, value: string) => {
     let error = '';
 
     switch (field) {
       case 'fatherSurname':
       case 'motherSurname':
+      case 'nextOfKinSurname':
         if (!value.trim()) {
           error = 'Surname is required';
         } else if (value.length < 2) {
@@ -75,6 +84,7 @@ const FamilyInformation: React.FC<FamilyInformationProps> = ({ onDataChange }) =
         break;
       case 'fatherFirstName':
       case 'motherFirstName':
+      case 'nextOfKinFirstName':
         if (!value.trim()) {
           error = 'First name is required';
         } else if (value.length < 2) {
@@ -93,6 +103,7 @@ const FamilyInformation: React.FC<FamilyInformationProps> = ({ onDataChange }) =
         break;
       case 'fatherMobile':
       case 'motherMobile':
+      case 'nextOfKinMobile':
         if (!value.trim()) {
           error = 'Mobile number is required';
         } else if (!/^(\+27|0)[6-8][0-9]{8}$/.test(value)) {
@@ -101,10 +112,18 @@ const FamilyInformation: React.FC<FamilyInformationProps> = ({ onDataChange }) =
         break;
       case 'fatherEmail':
       case 'motherEmail':
+      case 'nextOfKinEmail':
         if (!value.trim()) {
           error = 'Email address is required';
         } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
           error = 'Please enter a valid email address';
+        }
+        break;
+      case 'nextOfKinRelationship':
+        if (!value.trim()) {
+          error = 'Relationship is required';
+        } else if (value.length < 2) {
+          error = 'Relationship must be at least 2 characters';
         }
         break;
     }
@@ -124,9 +143,26 @@ const FamilyInformation: React.FC<FamilyInformationProps> = ({ onDataChange }) =
     }));
     validateField(field, value);
   };
+
+  // Auto-save functionality removed - handled by parent component
   return (
     <FormSection icon={<FamilyIcon className="w-6 h-6 text-green-500" />} title="Family Information">
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+      <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+        <div className="flex items-start gap-3">
+          <div className="flex-shrink-0">
+            <svg className="w-5 h-5 text-blue-600 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+            </svg>
+          </div>
+          <div>
+            <h4 className="text-sm font-semibold text-blue-800 mb-1">Single Parent Households Supported</h4>
+            <p className="text-sm text-blue-700">
+              You only need to provide complete information for one parent (Father or Mother). The Next of Kin section is for emergency contact purposes.
+            </p>
+          </div>
+        </div>
+      </div>
+      <div className="space-y-8">
         {/* Father/Guardian Card */}
         <div className="relative bg-gradient-to-br from-blue-50 via-blue-25 to-indigo-50 rounded-2xl p-8 border border-blue-200/50 shadow-sm hover:shadow-lg transition-all duration-300 group">
           <div className="absolute -top-4 -left-4 w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-300">
@@ -250,6 +286,71 @@ const FamilyInformation: React.FC<FamilyInformationProps> = ({ onDataChange }) =
                   value={formData.motherEmail}
                   onChange={(e) => handleInputChange('motherEmail', e.target.value)}
                   error={errors.motherEmail}
+                  placeholder="example@email.com"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Next of Kin Card */}
+        <div className="relative bg-gradient-to-br from-green-50 via-green-25 to-emerald-50 rounded-2xl p-8 border border-green-200/50 shadow-sm hover:shadow-lg transition-all duration-300 group">
+          <div className="absolute -top-4 -left-4 w-12 h-12 bg-gradient-to-br from-green-500 to-green-600 rounded-full flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-300">
+            <svg className="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
+            </svg>
+          </div>
+          <div className="ml-8">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
+              <h3 className="text-xl font-bold text-gray-800">Next of Kin</h3>
+              <div className="flex-1 h-px bg-gradient-to-r from-green-200 to-transparent"></div>
+            </div>
+            <div className="space-y-5">
+              <div className="grid grid-cols-1 gap-4">
+                <InputField
+                  id="nextOfKinSurname"
+                  label="Surname"
+                  required
+                  value={formData.nextOfKinSurname}
+                  onChange={(e) => handleInputChange('nextOfKinSurname', e.target.value)}
+                  error={errors.nextOfKinSurname}
+                />
+                <InputField
+                  id="nextOfKinFirstName"
+                  label="First Name"
+                  required
+                  value={formData.nextOfKinFirstName}
+                  onChange={(e) => handleInputChange('nextOfKinFirstName', e.target.value)}
+                  error={errors.nextOfKinFirstName}
+                />
+              </div>
+              <InputField
+                id="nextOfKinRelationship"
+                label="Relationship"
+                required
+                value={formData.nextOfKinRelationship}
+                onChange={(e) => handleInputChange('nextOfKinRelationship', e.target.value)}
+                error={errors.nextOfKinRelationship}
+                placeholder="e.g., Aunt, Uncle, Grandparent"
+              />
+              <div className="grid grid-cols-1 gap-4">
+                <InputField
+                  id="nextOfKinMobile"
+                  label="Mobile Number"
+                  required
+                  value={formData.nextOfKinMobile}
+                  onChange={(e) => handleInputChange('nextOfKinMobile', e.target.value)}
+                  error={errors.nextOfKinMobile}
+                  placeholder="+27 or 0XXXXXXXXX"
+                />
+                <InputField
+                  id="nextOfKinEmail"
+                  label="Email Address"
+                  required
+                  value={formData.nextOfKinEmail}
+                  onChange={(e) => handleInputChange('nextOfKinEmail', e.target.value)}
+                  error={errors.nextOfKinEmail}
                   placeholder="example@email.com"
                 />
               </div>

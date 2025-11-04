@@ -22,6 +22,7 @@ const App: React.FC = () => {
     { number: 3, title: 'Academic History', subtitle: 'Previous schools' },
     { number: 4, title: 'Subjects Selection', subtitle: 'Choose subjects' },
     { number: 5, title: 'Fee Agreement', subtitle: 'Payment terms' },
+    { number: 5.5, title: 'Risk Assessment', subtitle: 'Compliance check' },
     { number: 6, title: 'Declaration', subtitle: 'Terms & conditions' },
     { number: 7, title: 'Review & Submit', subtitle: 'Final review' },
   ];
@@ -29,8 +30,12 @@ const App: React.FC = () => {
   useEffect(() => {
     // Check if user is already authenticated on app load
     const token = localStorage.getItem('authToken');
+    const storedApplicationId = localStorage.getItem('applicationId');
     if (token) {
       setIsAuthenticated(true);
+      if (storedApplicationId) {
+        setApplicationId(storedApplicationId);
+      }
     }
   }, []);
 
@@ -47,6 +52,8 @@ const App: React.FC = () => {
 
   const handleLogout = () => {
     localStorage.removeItem('authToken');
+    localStorage.removeItem('user');
+    localStorage.removeItem('applicationId');
     setIsAuthenticated(false);
     setActiveStep(1);
     setEnrollmentData({});
@@ -56,7 +63,7 @@ const App: React.FC = () => {
 
   const handleStepClick = (stepNumber: number) => {
     // Only allow navigation to completed steps or the next step
-    if (stepNumber <= activeStep || completedSteps.has(stepNumber - 1)) {
+    if (stepNumber <= activeStep || completedSteps.has(Math.floor(stepNumber - 1))) {
       setActiveStep(stepNumber);
     }
   };
@@ -80,7 +87,8 @@ const App: React.FC = () => {
       console.log('Enrollment submitted successfully:', result);
 
       setEnrollmentData(data);
-      setApplicationId(result.data.application_id); // Store the application ID
+      setApplicationId(result.application_id); // Store the application ID
+      localStorage.setItem('applicationId', result.application_id);
       setCompletedSteps(prev => new Set([...prev, 1])); // Mark step 1 as completed
       setActiveStep(2); // Advance to document upload
     } catch (error) {
@@ -92,6 +100,10 @@ const App: React.FC = () => {
   const handleDocumentUploadComplete = () => {
     setCompletedSteps(prev => new Set([...prev, 2])); // Mark step 2 as completed
     setActiveStep(3); // Advance to academic history after document upload
+  };
+
+  const handleStepComplete = (stepNumber: number) => {
+    setCompletedSteps(prev => new Set([...prev, stepNumber]));
   };
 
   if (!isAuthenticated) {
@@ -110,13 +122,14 @@ const App: React.FC = () => {
           <main className="flex flex-col md:flex-row">
             <Sidebar steps={steps} activeStep={activeStep} onStepClick={handleStepClick} completedSteps={completedSteps} />
             <div className="flex-1 flex flex-col md:ml-[25%] bg-white border border-gray-200 shadow-sm md:rounded-lg">
-        <MainContent
-          activeStep={activeStep}
-          applicationId={applicationId}
-          onEnrollmentSubmit={handleEnrollmentSubmit}
-          onDocumentUploadComplete={handleDocumentUploadComplete}
-          onStepChange={setActiveStep}
-        />
+            <MainContent
+              activeStep={activeStep}
+              applicationId={applicationId}
+              onEnrollmentSubmit={handleEnrollmentSubmit}
+              onDocumentUploadComplete={handleDocumentUploadComplete}
+              onStepChange={setActiveStep}
+              onStepComplete={handleStepComplete}
+            />
             </div>
           </main>
         </div>

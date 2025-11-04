@@ -1,5 +1,7 @@
 const API_BASE_URL = 'http://localhost:8000';
 
+import { RiskCheckRequest, RiskReportResponse } from '../../types';
+
 export interface UploadResponse {
   success: boolean;
   message: string;
@@ -69,7 +71,7 @@ export interface EnrollmentData {
 }
 
 class ApiService {
-  private async request<T>(endpoint: string, options?: RequestInit): Promise<T> {
+  async request<T>(endpoint: string, options?: RequestInit): Promise<T> {
     const url = `${API_BASE_URL}${endpoint}`;
     const token = localStorage.getItem('authToken');
     const headers: HeadersInit = {
@@ -96,8 +98,6 @@ class ApiService {
 
     return response.json();
   }
-
-
 
   async uploadFile(
     file: File,
@@ -159,12 +159,30 @@ class ApiService {
       }
 
       xhr.open('POST', `${API_BASE_URL}/upload`);
+      const token = localStorage.getItem('authToken');
+      if (token) {
+        xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+      }
       xhr.send(formData);
     });
   }
 
+  async getApplication(applicationId: string): Promise<any> {
+    return this.request(`/applications/${applicationId}`);
+  }
+
   async getDocumentStatus(applicationId: string): Promise<DocumentStatus> {
     return this.request<DocumentStatus>(`/documents/${applicationId}`);
+  }
+
+  async getUploadSummary(applicationId: string): Promise<{ completed_categories: number; uploaded_types: string[] }> {
+    return this.request(`/applications/${applicationId}/upload-summary`);
+  }
+
+  async markDocumentComplete(applicationId: string, docType: string): Promise<{ message: string }> {
+    return this.request(`/applications/${applicationId}/mark-complete/${docType}`, {
+      method: 'POST',
+    });
   }
 
   async getUploadedFiles(applicationId: string): Promise<{ files: any[] }> {
@@ -181,6 +199,20 @@ class ApiService {
     return this.request('/enrollment/submit', {
       method: 'POST',
       body: JSON.stringify(data),
+    });
+  }
+
+  async autoSaveEnrollment(data: { application_id: string; student?: any; medical?: any; family?: any; fee?: any }): Promise<{ message: string; application_id: string }> {
+    return this.request('/enrollment/auto-save', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async submitFullApplication(applicationId: string, data: any): Promise<{ message: string; data: any }> {
+    return this.request(`/submit-application`, {
+      method: 'POST',
+      body: JSON.stringify({ application_id: applicationId, ...data }),
     });
   }
 
@@ -202,6 +234,13 @@ class ApiService {
     return this.request('/documents/complete', {
       method: 'POST',
       body: JSON.stringify({ application_id: applicationId }),
+    });
+  }
+
+  async runRiskCheck(request: RiskCheckRequest): Promise<RiskReportResponse> {
+    return this.request<RiskReportResponse>('/risk-check', {
+      method: 'POST',
+      body: JSON.stringify(request),
     });
   }
 }

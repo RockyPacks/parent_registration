@@ -55,9 +55,13 @@ const SelectedElectiveCard: React.FC<{
 };
 
 
-const SubjectSelection: React.FC<{ onContinue: () => void; onBack: () => void }> = ({ onContinue, onBack }) => {
+const SubjectSelection: React.FC<{
+  selectedElectives: string[];
+  onSelectionChange: (electives: string[]) => void;
+  onContinue: () => void;
+  onBack: () => void;
+}> = ({ selectedElectives, onSelectionChange, onContinue, onBack }) => {
     const { addToast } = useToast();
-    const [selectedElectives, setSelectedElectives] = useState<string[]>([]);
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
     const [focusedIndex, setFocusedIndex] = useState(-1);
@@ -72,9 +76,43 @@ const SubjectSelection: React.FC<{ onContinue: () => void; onBack: () => void }>
     const saveToStorage = async (selection: string[]) => {
         setSaveStatus('saving');
         try {
-            // Save to localStorage as the API doesn't have subject selection endpoints yet
+            // Save to localStorage
             localStorage.setItem('selectedElectives', JSON.stringify(selection));
-            addToast('Subject selection saved successfully!', 'success');
+
+            // Also save to backend database
+            let applicationId = localStorage.getItem('applicationId');
+            if (!applicationId) {
+                applicationId = 'temp_' + Date.now();
+                localStorage.setItem('applicationId', applicationId);
+            }
+
+            // Get subject details for the selected IDs
+            const selectedSubjectDetails = ELECTIVE_SUBJECTS.filter(subject =>
+                selection.includes(subject.id)
+            ).map(subject => ({
+                id: subject.id,
+                name: subject.name
+            }));
+
+            const formDataToSubmit = {
+                application_id: applicationId,
+                selectedElectives: selectedSubjectDetails
+            };
+
+            const response = await fetch('http://localhost:8000/subjects', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(formDataToSubmit),
+            });
+
+            if (response.ok) {
+                addToast('Subject selection saved successfully!', 'success');
+            } else {
+                const errorData = await response.json();
+                addToast('Error saving subjects: ' + (errorData.detail || 'Unknown error'), 'error');
+            }
         } catch (error) {
             console.error('Failed to save selections:', error);
             addToast('Failed to save subject selection.', 'error');
@@ -97,16 +135,14 @@ const SubjectSelection: React.FC<{ onContinue: () => void; onBack: () => void }>
 
     const addElective = useCallback((id: string) => {
         if (!selectedElectives.includes(id)) {
-            setSelectedElectives(prev => {
-                const newSelection = [...prev, id];
-                saveToStorage(newSelection);
-                return newSelection;
-            });
+            const newSelection = [...selectedElectives, id];
+            onSelectionChange(newSelection);
+            saveToStorage(newSelection);
         }
         setSearchTerm('');
         setIsDropdownOpen(false);
         setFocusedIndex(-1);
-    }, [selectedElectives]);
+    }, [selectedElectives, onSelectionChange]);
 
     const handleKeyDown = useCallback((event: React.KeyboardEvent, availableElectives: Subject[]) => {
         if (!isDropdownOpen) return;
@@ -137,18 +173,16 @@ const SubjectSelection: React.FC<{ onContinue: () => void; onBack: () => void }>
     }, [isDropdownOpen, focusedIndex, addElective]);
 
     const removeElective = useCallback((id: string) => {
-        setSelectedElectives(prev => {
-            const newSelection = prev.filter(eId => eId !== id);
-            saveToStorage(newSelection);
-            return newSelection;
-        });
-    }, []);
+        const newSelection = selectedElectives.filter(eId => eId !== id);
+        onSelectionChange(newSelection);
+        saveToStorage(newSelection);
+    }, [selectedElectives, onSelectionChange]);
 
     const saveProgress = useCallback(() => {
         saveToStorage(selectedElectives);
     }, [selectedElectives]);
 
-    const validateSelection = () => {
+    const validateSelection = useCallback(() => {
         const errors: {[key: string]: string} = {};
 
         if (selectedElectives.length === 0) {
@@ -159,34 +193,68 @@ const SubjectSelection: React.FC<{ onContinue: () => void; onBack: () => void }>
         const isValid = Object.keys(errors).length === 0;
         setIsNextEnabled(isValid);
         return isValid;
-    };
+    }, [selectedElectives]);
 
 
 
-    // Load initial data from localStorage
+    // Load initial data from localStorage and backend
     useEffect(() => {
         const loadInitialData = async () => {
             try {
                 setIsLoading(true);
                 setError(null);
 
-                // Load from localStorage
+                // First try to load from backend if application exists
+                const applicationId = localStorage.getItem('applicationId');
+                if (applicationId) {
+                    try {
+                        const { apiService } = await import('../services/api');
+                        const appData = await apiService.getApplication(applicationId);
+                        if (appData) {
+                            // If we have subjects data, populate the form
+                            if (appData.subjects && appData.subjects.electives) {
+                                const existingElectives = appData.subjects.electives.map((name: string) => {
+                                    const subject = ELECTIVE_SUBJECTS.find(s => s.name === name);
+                                    return subject ? subject.id : null;
+                                }).filter(Boolean) as string[];
+                                onSelectionChange(existingElectives);
+                                setIsNextEnabled(existingElectives.length > 0);
+                                setIsLoading(false);
+                                return;
+                            }
+                        }
+                    } catch (backendError) {
+                        console.error('Error loading from backend:', backendError);
+                        // Continue to localStorage fallback
+                    }
+                }
+
+                // Fallback to localStorage
                 const saved = localStorage.getItem('selectedElectives');
                 if (saved) {
-                    setSelectedElectives(JSON.parse(saved));
+                    const parsed = JSON.parse(saved);
+                    onSelectionChange(parsed);
+                    setIsNextEnabled(parsed.length > 0);
                 } else {
-                    setSelectedElectives(['phy_sci']); // Default selection
+                    onSelectionChange([]); // Start with empty selection
+                    setIsNextEnabled(false);
                 }
             } catch (error) {
-                console.error('Failed to load from localStorage:', error);
-                setSelectedElectives(['phy_sci']); // Default selection
+                console.error('Failed to load data:', error);
+                onSelectionChange([]); // Start with empty selection
+                setIsNextEnabled(false);
             } finally {
                 setIsLoading(false);
             }
         };
 
-        loadInitialData();
-    }, []);
+        // Only load if we don't have any selected electives yet (to avoid overriding parent state)
+        if (selectedElectives.length === 0) {
+            loadInitialData();
+        } else {
+            setIsLoading(false);
+        }
+    }, []); // Remove onSelectionChange dependency to avoid infinite loops
 
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
@@ -201,6 +269,11 @@ const SubjectSelection: React.FC<{ onContinue: () => void; onBack: () => void }>
             document.removeEventListener('mousedown', handleClickOutside);
         };
     }, []);
+
+    // Validate selection whenever selectedElectives changes
+    useEffect(() => {
+        validateSelection();
+    }, [selectedElectives, validateSelection]);
 
     // Cleanup timeout on unmount
     useEffect(() => {
@@ -432,19 +505,33 @@ const SubjectSelection: React.FC<{ onContinue: () => void; onBack: () => void }>
 
 
 
+        {/* Submit Button */}
+        <div className="mt-6 pt-4 border-t border-gray-200">
+          <button
+            onClick={() => {
+              if (validateSelection()) {
+                onContinue();
+              }
+            }}
+            disabled={!isNextEnabled}
+            className="w-full bg-gradient-to-r from-pink-500 to-rose-500 text-white py-3 px-6 rounded-lg hover:from-pink-600 hover:to-rose-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 font-medium shadow-sm"
+          >
+            Submit Subject Selection & Continue to Fee Agreement
+          </button>
+          <p className="text-center text-sm text-gray-500 mt-3">
+            Select at least one elective subject to submit and proceed to the next step
+          </p>
+        </div>
+
         <Footer
           onBack={onBack}
           onSave={saveProgress}
-          onNext={() => {
-            if (validateSelection()) {
-              onContinue();
-            }
-          }}
+          onNext={() => {}}
           showBack={true}
           showSave={true}
-          showNext={true}
+          showNext={false}
           nextLabel="Next: Fee Agreement"
-          isLoading={!isNextEnabled}
+          isLoading={false}
         />
     </div>
   );

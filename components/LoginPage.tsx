@@ -19,6 +19,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onSwitchToSignup }) => {
       const data = await apiService.login(email, password);
       if (data.access_token) {
         localStorage.setItem('authToken', data.access_token);
+        localStorage.setItem('user', JSON.stringify(data.user));
         onLogin();
       }
     } catch (err: any) {

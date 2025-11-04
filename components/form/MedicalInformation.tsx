@@ -3,20 +3,21 @@ import React, { useState, useEffect } from 'react';
 import FormSection from './FormSection';
 import InputField from '../ui/InputField';
 import { MedicalIcon } from '../Icons';
-import { useLocalStorage } from '../../hooks/useLocalStorage';
 import { useToast } from '../../hooks/useToast';
 
 interface MedicalInformationProps {
+  initialData?: any;
   onDataChange?: (data: any) => void;
 }
 
-const MedicalInformation: React.FC<MedicalInformationProps> = ({ onDataChange }) => {
+const MedicalInformation: React.FC<MedicalInformationProps> = ({ initialData, onDataChange }) => {
   const { addToast } = useToast();
-  const [formData, setFormData] = useLocalStorage('medicalInformation', {
+  const [formData, setFormData] = useState({
     medicalAidName: '',
     memberNumber: '',
     conditions: [] as string[],
-    allergies: ''
+    allergies: '',
+    ...initialData
   });
 
   const [errors, setErrors] = useState({
@@ -25,20 +26,7 @@ const MedicalInformation: React.FC<MedicalInformationProps> = ({ onDataChange })
     allergies: ''
   });
 
-  // Show toast when data is loaded from localStorage
-  useEffect(() => {
-    const savedData = localStorage.getItem('medicalInformation');
-    if (savedData) {
-      try {
-        const parsedData = JSON.parse(savedData);
-        if (parsedData.medicalAidName || parsedData.memberNumber || parsedData.conditions.length > 0 || parsedData.allergies) {
-          addToast('Medical information loaded from previous session', 'info');
-        }
-      } catch (error) {
-        console.error('Error parsing saved medical data:', error);
-      }
-    }
-  }, [addToast]);
+
 
   useEffect(() => {
     if (onDataChange) {
@@ -91,6 +79,8 @@ const MedicalInformation: React.FC<MedicalInformationProps> = ({ onDataChange })
         : prev.conditions.filter(c => c !== condition)
     }));
   };
+
+  // Auto-save functionality removed - handled by parent component
   return (
     <FormSection icon={<MedicalIcon className="w-6 h-6 text-red-500" />} title="Medical Information">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

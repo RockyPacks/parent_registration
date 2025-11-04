@@ -6,10 +6,13 @@ interface FooterProps {
   onBack?: () => void;
   onSave?: () => void;
   onNext?: () => void;
+  onSkip?: () => void;
   showBack?: boolean;
   showSave?: boolean;
   showNext?: boolean;
+  showSkip?: boolean;
   nextLabel?: string;
+  skipLabel?: string;
   isLoading?: boolean;
 }
 
@@ -17,10 +20,13 @@ const Footer: React.FC<FooterProps> = ({
   onBack,
   onSave,
   onNext,
+  onSkip,
   showBack = true,
   showSave = true,
   showNext = true,
+  showSkip = false,
   nextLabel = "Next: Document Upload",
+  skipLabel = "Skip",
   isLoading = false
 }) => {
   return (
@@ -42,6 +48,14 @@ const Footer: React.FC<FooterProps> = ({
           >
             <SaveIcon className="w-4 h-4" />
             Save & Continue Later
+          </button>
+        )}
+        {showSkip && (
+          <button
+            onClick={onSkip}
+            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-600 bg-gray-50 border border-gray-300 rounded-md hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 transition-all duration-200 hover:shadow-md"
+          >
+            Skip
           </button>
         )}
       </div>

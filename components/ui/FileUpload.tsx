@@ -19,7 +19,10 @@ const FileUpload: React.FC<FileUploadProps> = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFile = useCallback((file: File | null) => {
-    if (file && (file.type.startsWith('image/') || file.type === 'application/pdf' || file.type.includes('document')) && file.size <= 10 * 1024 * 1024) {
+    const allowedTypes = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png'];
+    const maxSize = 5 * 1024 * 1024; // 5MB
+
+    if (file && allowedTypes.includes(file.type) && file.size <= maxSize) {
       setFileName(file.name);
       onFileChange(file);
 
@@ -38,7 +41,7 @@ const FileUpload: React.FC<FileUploadProps> = ({
       setPreviewUrl(null);
       onFileChange(null);
       // Optional: Add user feedback for invalid file
-      alert('Please upload a PDF, image, or document file under 10MB.');
+      alert('Please upload a PDF, JPG, or PNG file under 5MB.');
     }
   }, [onFileChange]);
 
@@ -110,7 +113,7 @@ const FileUpload: React.FC<FileUploadProps> = ({
           ref={fileInputRef}
           onChange={onFileSelected}
           className="hidden"
-          accept="image/*,application/pdf,.doc,.docx"
+          accept=".pdf,.jpg,.jpeg,.png"
           disabled={isUploading}
         />
         {isUploading ? (
@@ -141,7 +144,7 @@ const FileUpload: React.FC<FileUploadProps> = ({
                   </>
               )}
             </p>
-            <p className="mt-2 text-xs text-gray-500">PDF, Image, or Document files, maximum 10 MB</p>
+            <p className="mt-2 text-xs text-gray-500">PDF, JPG, or PNG files, maximum 5 MB</p>
           </>
         )}
       </div>

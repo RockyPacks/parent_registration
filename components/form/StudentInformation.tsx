@@ -5,18 +5,18 @@ import InputField from '../ui/InputField';
 import SelectField from '../ui/SelectField';
 import DatePickerField from '../ui/DatePickerField';
 import { StudentIcon } from '../Icons';
-import { useLocalStorage } from '../../hooks/useLocalStorage';
 import { useToast } from '../../hooks/useToast';
 import Footer from '../Footer';
 
 interface StudentInformationProps {
+  initialData?: any;
   onDataChange?: (data: any) => void;
   onNext?: () => void;
 }
 
-const StudentInformation: React.FC<StudentInformationProps> = ({ onDataChange, onNext }) => {
+const StudentInformation: React.FC<StudentInformationProps> = ({ initialData, onDataChange, onNext }) => {
   const { addToast } = useToast();
-  const [formData, setFormData] = useLocalStorage('studentInformation', {
+  const [formData, setFormData] = useState({
     surname: '',
     firstName: '',
     middleName: '',
@@ -27,25 +27,11 @@ const StudentInformation: React.FC<StudentInformationProps> = ({ onDataChange, o
     idNumber: '',
     previousGrade: '',
     gradeAppliedFor: '',
-    previousSchool: ''
+    previousSchool: '',
+    ...initialData
   });
 
   const [errors, setErrors] = useState<{[key: string]: string}>({});
-
-  // Show toast when data is loaded from localStorage
-  useEffect(() => {
-    const savedData = localStorage.getItem('studentInformation');
-    if (savedData) {
-      try {
-        const parsedData = JSON.parse(savedData);
-        if (Object.values(parsedData).some(value => value !== '' && value !== null)) {
-          addToast('Student information loaded from previous session', 'info');
-        }
-      } catch (error) {
-        console.error('Error parsing saved student data:', error);
-      }
-    }
-  }, [addToast]);
 
   useEffect(() => {
     if (onDataChange) {
@@ -123,6 +109,8 @@ const StudentInformation: React.FC<StudentInformationProps> = ({ onDataChange, o
       validateField(field, value);
     }
   };
+
+  // Auto-save functionality removed - handled by parent component
   return (
     <div>
       <FormSection icon={<StudentIcon className="w-6 h-6 text-blue-600" />} title="Student Information">
@@ -283,6 +271,11 @@ const StudentInformation: React.FC<StudentInformationProps> = ({ onDataChange, o
             <option value="Grade 5">Grade 5</option>
             <option value="Grade 6">Grade 6</option>
             <option value="Grade 7">Grade 7</option>
+            <option value="Grade 8">Grade 8</option>
+            <option value="Grade 9">Grade 9</option>
+            <option value="Grade 10">Grade 10</option>
+            <option value="Grade 11">Grade 11</option>
+            <option value="Grade 12">Grade 12</option>
           </SelectField>
           <SelectField
             id="gradeAppliedFor"
@@ -293,6 +286,13 @@ const StudentInformation: React.FC<StudentInformationProps> = ({ onDataChange, o
             error={errors.gradeAppliedFor}
           >
             <option value="">Select Grade</option>
+            <option value="Grade 1">Grade 1</option>
+            <option value="Grade 2">Grade 2</option>
+            <option value="Grade 3">Grade 3</option>
+            <option value="Grade 4">Grade 4</option>
+            <option value="Grade 5">Grade 5</option>
+            <option value="Grade 6">Grade 6</option>
+            <option value="Grade 7">Grade 7</option>
             <option value="Grade 8">Grade 8</option>
             <option value="Grade 9">Grade 9</option>
             <option value="Grade 10">Grade 10</option>

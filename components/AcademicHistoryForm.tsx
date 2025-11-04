@@ -4,7 +4,6 @@ import { SCHOOL_TYPES, GRADES, SUBJECTS } from '../constants';
 import { Input, Select, Textarea } from './ui/FormControls';
 import FileUpload from './ui/FileUpload';
 import MultiSelect from './ui/MultiSelect';
-import DatePicker from './ui/DatePicker';
 import { Button } from './ui/Button';
 import { SaveIcon, ArrowRightIcon, ChevronDownIcon, ChevronUpIcon, SchoolIcon, ContactIcon, PerformanceIcon } from './ui/Icons';
 import Footer from './Footer';
@@ -37,6 +36,43 @@ const AcademicHistoryForm: React.FC<AcademicHistoryFormProps> = ({ onSubmit, onB
     };
   });
 
+  // Load existing data from backend if application exists
+  React.useEffect(() => {
+    const loadExistingData = async () => {
+      try {
+        const applicationId = localStorage.getItem('applicationId');
+        if (applicationId) {
+          const response = await fetch(`http://localhost:8000/academic-history/${applicationId}`);
+          if (response.ok) {
+            const backendData = await response.json();
+            // Populate form with backend data
+            if (backendData) {
+              setFormData(prev => ({
+                ...prev,
+                schoolName: backendData.school_name || prev.schoolName,
+                schoolType: backendData.school_type || prev.schoolType,
+                lastGradeCompleted: backendData.last_grade_completed || prev.lastGradeCompleted,
+                academicYearCompleted: backendData.academic_year_completed || prev.academicYearCompleted,
+                reasonForLeaving: backendData.reason_for_leaving || prev.reasonForLeaving,
+                principalName: backendData.principal_name || prev.principalName,
+                schoolPhoneNumber: backendData.school_phone_number || prev.schoolPhoneNumber,
+                schoolEmail: backendData.school_email || prev.schoolEmail,
+                schoolAddress: backendData.school_address || prev.schoolAddress,
+                subjectsPerformedWellIn: backendData.subjects_performed_well_in || prev.subjectsPerformedWellIn,
+                areasNeedingImprovement: backendData.areas_needing_improvement || prev.areasNeedingImprovement,
+                additionalNotes: backendData.additional_notes || prev.additionalNotes,
+              }));
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Error loading existing academic history data:', error);
+      }
+    };
+
+    loadExistingData();
+  }, []);
+
   const [expandedSections, setExpandedSections] = useState({
     schoolDetails: true,
     schoolContact: false,
@@ -45,6 +81,11 @@ const AcademicHistoryForm: React.FC<AcademicHistoryFormProps> = ({ onSubmit, onB
 
   const [validationErrors, setValidationErrors] = useState<{[key: string]: string}>({});
   const [isNextEnabled, setIsNextEnabled] = useState(false);
+
+  // Auto-validate form when formData changes
+  React.useEffect(() => {
+    validateForm();
+  }, [formData]);
 
   // Calculate progress percentage
   const progressPercentage = useMemo(() => {
@@ -100,6 +141,30 @@ const AcademicHistoryForm: React.FC<AcademicHistoryFormProps> = ({ onSubmit, onB
       }
     });
 
+    // Validate school name minimum length
+    if (formData.schoolName && formData.schoolName.length < 3) {
+      errors.schoolName = 'School name must be at least 3 characters long';
+    }
+
+    // Validate academic year
+    if (formData.academicYearCompleted) {
+      const year = parseInt(formData.academicYearCompleted);
+      const currentYear = new Date().getFullYear();
+      if (year < 1900 || year > currentYear) {
+        errors.academicYearCompleted = `Year must be between 1900 and ${currentYear}`;
+      }
+    }
+
+    // Validate email format
+    if (formData.schoolEmail && !/\S+@\S+\.\S+/.test(formData.schoolEmail)) {
+      errors.schoolEmail = 'Please enter a valid email address';
+    }
+
+    // Validate phone number (South African format)
+    if (formData.schoolPhoneNumber && !/^\+27\s?\(?(0)?\)?\s?\d{2}\s?\d{3}\s?\d{4}$/.test(formData.schoolPhoneNumber)) {
+      errors.schoolPhoneNumber = 'Please enter a valid South African phone number (+27 (0)xx xxx xxxx)';
+    }
+
     setValidationErrors(errors);
     const isValid = Object.keys(errors).length === 0;
     setIsNextEnabled(isValid);
@@ -136,8 +201,10 @@ const AcademicHistoryForm: React.FC<AcademicHistoryFormProps> = ({ onSubmit, onB
         uploadFormData.append('application_id', applicationId);
         uploadFormData.append('document_type', 'report_card');
 
+        const token = localStorage.getItem('authToken');
         const uploadResponse = await fetch('http://localhost:8000/upload', {
           method: 'POST',
+          headers: token ? { 'Authorization': `Bearer ${token}` } : undefined,
           body: uploadFormData,
         });
 
@@ -177,6 +244,11 @@ const AcademicHistoryForm: React.FC<AcademicHistoryFormProps> = ({ onSubmit, onB
       });
 
       if (response.ok) {
+        const result = await response.json();
+        // Update localStorage with the real application ID if it was a temp ID
+        if (result.application_id && result.application_id !== applicationId) {
+          localStorage.setItem('applicationId', result.application_id);
+        }
         addToast('Academic history saved successfully!', 'success');
         // Clear saved progress after successful submission
         localStorage.removeItem('academicHistoryFormData');
@@ -184,6 +256,8 @@ const AcademicHistoryForm: React.FC<AcademicHistoryFormProps> = ({ onSubmit, onB
       } else {
         const errorData = await response.json();
         addToast('Error saving academic history: ' + (errorData.detail || 'Unknown error'), 'error');
+        // Still proceed to next step even if backend fails
+        onSubmit();
       }
     } catch (error) {
       console.error('Error:', error);
@@ -219,12 +293,21 @@ const AcademicHistoryForm: React.FC<AcademicHistoryFormProps> = ({ onSubmit, onB
               <Input label="School Name" name="schoolName" value={formData.schoolName} onChange={handleChange} placeholder="Enter school name" required />
               <Select label="School Type" name="schoolType" value={formData.schoolType} onChange={handleChange} options={SCHOOL_TYPES} placeholder="Select school type" required />
               <Select label="Last Grade Completed" name="lastGradeCompleted" value={formData.lastGradeCompleted} onChange={handleChange} options={GRADES} placeholder="Select grade" required />
-              <DatePicker
+              <Select
                 label="Academic Year Completed"
                 name="academicYearCompleted"
                 value={formData.academicYearCompleted}
-                onChange={(value) => setFormData(prev => ({ ...prev, academicYearCompleted: value }))}
-                placeholder="Select year completed"
+                onChange={handleChange}
+                options={(() => {
+                  const currentYear = new Date().getFullYear();
+                  const years = [];
+                  for (let i = 0; i < 5; i++) {
+                    const year = currentYear - i;
+                    years.push({ value: year.toString(), label: year.toString() });
+                  }
+                  return years;
+                })()}
+                placeholder="Select year"
                 required
               />
             </div>
@@ -252,7 +335,7 @@ const AcademicHistoryForm: React.FC<AcademicHistoryFormProps> = ({ onSubmit, onB
           <div className="px-6 pb-6 space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <Input label="Principal / Teacher Name" name="principalName" value={formData.principalName} onChange={handleChange} placeholder="Enter name" />
-              <Input label="School Phone Number" name="schoolPhoneNumber" value={formData.schoolPhoneNumber} onChange={handleChange} placeholder="+27 (0)11 123 4567" />
+              <Input label="School Phone Number" name="schoolPhoneNumber" value={formData.schoolPhoneNumber} onChange={handleChange} placeholder="+27 (0)11 123 4567" pattern="^\+27\s?\(0\)\d{2}\s?\d{3}\s?\d{4}$" />
             </div>
             <Input label="School Email Address" name="schoolEmail" type="email" value={formData.schoolEmail} onChange={handleChange} placeholder="school@example.com" />
             <Textarea label="School Address" name="schoolAddress" value={formData.schoolAddress} onChange={handleChange} placeholder="Enter complete school address" rows={4} />
@@ -279,24 +362,10 @@ const AcademicHistoryForm: React.FC<AcademicHistoryFormProps> = ({ onSubmit, onB
           <div className="px-6 pb-6 space-y-6">
             <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Upload Last Report Card</label>
+                <p className="text-xs text-gray-500 mb-2">Upload your most recent report card to help us assess the learner's academic progress.</p>
                 <FileUpload onFileChange={handleFileChange} />
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <MultiSelect
-                    label="Subjects Performed Well In"
-                    name="subjectsPerformedWellIn"
-                    options={SUBJECTS}
-                    value={formData.subjectsPerformedWellIn}
-                    onChange={(values) => handleMultiSelectChange('subjectsPerformedWellIn', values)}
-                />
-                <MultiSelect
-                    label="Areas Needing Improvement"
-                    name="areasNeedingImprovement"
-                    options={SUBJECTS}
-                    value={formData.areasNeedingImprovement}
-                    onChange={(values) => handleMultiSelectChange('areasNeedingImprovement', values)}
-                />
-            </div>
+
             <Textarea label="Additional Notes / Comments" name="additionalNotes" value={formData.additionalNotes} onChange={handleChange} placeholder="Any additional information about the student's academic history or special considerations" rows={4} />
           </div>
         </div>
@@ -357,15 +426,29 @@ const AcademicHistoryForm: React.FC<AcademicHistoryFormProps> = ({ onSubmit, onB
 
 
 
+      {/* Submit Button */}
+      <div className="mt-6 pt-4 border-t border-gray-200">
+        <button
+          onClick={handleSubmit}
+          disabled={!isNextEnabled}
+          className="w-full bg-gradient-to-r from-blue-500 to-purple-500 text-white py-3 px-6 rounded-lg hover:from-blue-600 hover:to-purple-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 font-medium shadow-sm"
+        >
+          Submit Academic History & Continue to Subjects
+        </button>
+        <p className="text-center text-sm text-gray-500 mt-3">
+          Complete all required fields above to submit and proceed to the next step
+        </p>
+      </div>
+
       <Footer
         onBack={onBack}
         onSave={handleSaveProgress}
-        onNext={handleSubmit}
+        onNext={() => {}}
         showBack={true}
         showSave={true}
-        showNext={true}
+        showNext={false}
         nextLabel="Next: Subjects Selection"
-        isLoading={!isNextEnabled}
+        isLoading={false}
       />
     </div>
   );

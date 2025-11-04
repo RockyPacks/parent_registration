@@ -59,3 +59,54 @@ export interface SummaryData {
     signed: boolean;
   };
 }
+
+export interface Feature {
+  text: string;
+  type: 'positive' | 'warning' | 'info';
+}
+
+export type TagType = 'save' | 'cost' | 'best-value' | 'none';
+
+export interface FinancingOption {
+  title: string;
+  subtitle: string;
+  price: string;
+  period: string;
+  tag: {
+    text: string;
+    type: TagType;
+  };
+  features: Feature[];
+}
+
+export interface RiskCheckRequest {
+  reference: string;
+  guardian: {
+    name: string;
+    email: string;
+    id_number: string;
+    mobile: string;
+    branch_code: string;
+    account_number: string;
+  };
+}
+
+export interface RiskReportResponse {
+  risk_score: number;
+  status: string;
+  flags: string[];
+}
+
+export interface RiskReport {
+  id: string;
+  application_id: string;
+  reference: string;
+  guardian_email: string;
+  risk_score: number;
+  flags: string[];
+  status: string;
+  timestamp: string;
+  raw_response: any;
+  created_at: string;
+  updated_at: string;
+}

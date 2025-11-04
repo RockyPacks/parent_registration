@@ -15,7 +15,7 @@ import Footer from '../../components/Footer';
 
 // Bucket mapping for document types to specific buckets
 const DOCUMENT_TYPE_TO_BUCKET: Record<string, string> = {
-  // Category buckets (for backwards compatibility)
+  // Category buckets
   "proof_of_address": "proof_of_address",
   "id_documents": "id_documents",
   "payslips": "payslips",
@@ -23,15 +23,15 @@ const DOCUMENT_TYPE_TO_BUCKET: Record<string, string> = {
 
   // Specific document type buckets
   "proof-of-address": "proof_of_address",
-  "parent-guardian-id": "parent-guardian-id",
-  "learner-birth-certificate": "learner-birth-certificate",
-  "spouse-id": "spouse-id",
-  "optional-document": "optional-document",
-  "latest-payslip": "latest-payslip",
-  "previous-payslip": "previous-payslip",
-  "third-payslip": "third-payslip",
-  "bank-statements": "bank-statements",
-  "academic_history": "academic_history",
+  "parent-guardian-id": "id_documents",
+  "learner-birth-certificate": "id_documents",
+  "spouse-id": "id_documents",
+  "optional-document": "id_documents",
+  "latest-payslip": "payslips",
+  "previous-payslip": "payslips",
+  "third-payslip": "payslips",
+  "bank-statements": "bank_statements",
+  "academic_history": "id_documents",
 };
 
 const getBucketName = (documentType: string): string => {
@@ -92,14 +92,32 @@ export const DocumentUploadCenter: React.FC<DocumentUploadCenterProps> = ({
   const [uploadedFiles, setUploadedFiles] = useState<any[]>([]);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [isComplete, setIsComplete] = useState(false);
   const { uploadState, uploadFile, resetUploadState } = useUpload();
 
-  // Load uploaded files on component mount
+  // Add user tracking
+  const [currentUserId, setCurrentUserId] = useState<string>(userId);
+
+
+  // Modify the useEffect for loading files to clear data on user change
   useEffect(() => {
-    if (applicationId) {
-      loadUploadedFiles();
+    // Clear all documents when user changes
+    if (currentUserId !== userId) {
+      setUploadedFiles([]);
+      setCategories(initialCategories);
+      setCurrentUserId(userId);
     }
-  }, [applicationId]);
+
+    // Only load files if we have both userId and applicationId
+    if (applicationId && userId) {
+      loadUploadedFiles();
+    } else {
+      // Clear any cached uploaded files
+      setUploadedFiles([]);
+      setCategories(initialCategories);
+    }
+  }, [applicationId, userId]);
+  
 
   // Update category statuses and files based on uploaded files
   useEffect(() => {
@@ -138,7 +156,20 @@ export const DocumentUploadCenter: React.FC<DocumentUploadCenterProps> = ({
       });
       return updated;
     });
+
+    // Check completion status
+    checkCompletionStatus();
   }, [uploadedFiles]);
+
+  const checkCompletionStatus = async () => {
+    try {
+      const complete = await isAllRequiredComplete();
+      setIsComplete(complete);
+    } catch (error) {
+      console.error('Error checking completion:', error);
+      setIsComplete(false);
+    }
+  };
 
   const loadDocumentStatus = async () => {
     try {
@@ -149,11 +180,16 @@ export const DocumentUploadCenter: React.FC<DocumentUploadCenterProps> = ({
     }
   };
 
+  // Modify loadUploadedFiles to include user verification
   const loadUploadedFiles = async () => {
-    if (!applicationId) return;
+    if (!applicationId || !userId) {
+      setUploadedFiles([]);
+      return;
+    }
 
     try {
       const data = await apiService.getUploadedFiles(applicationId);
+
       setUploadedFiles(data.files || []);
     } catch (error: any) {
       console.error('Failed to load uploaded files:', error);
@@ -223,9 +259,10 @@ export const DocumentUploadCenter: React.FC<DocumentUploadCenterProps> = ({
     return null;
   };
 
+  // Modify handleFileUpload to include user ID
   const handleFileUpload = useCallback(async (categoryId: string, file: File, documentType?: string) => {
-    if (!applicationId) {
-      const errorMsg = 'No application ID available. Please complete the enrollment form first.';
+    if (!applicationId || !userId) {
+      const errorMsg = 'No application ID or user ID available. Please log in first.';
       console.error(errorMsg);
       setErrorMessage(errorMsg);
       setTimeout(() => setErrorMessage(null), 5000);
@@ -293,13 +330,21 @@ export const DocumentUploadCenter: React.FC<DocumentUploadCenterProps> = ({
     return fileCount >= required ? CategoryStatus.Completed : CategoryStatus.InProgress;
   };
 
-  const isAllRequiredComplete = (): boolean => {
-    return categoryList.every((category: DocumentCategory) => category.status === CategoryStatus.Completed);
+  const isAllRequiredComplete = async (): Promise<boolean> => {
+    try {
+      // Use the new upload summary API for completion tracking
+      const summary = await apiService.getUploadSummary(applicationId || '');
+      return summary.completed_categories >= 4; // All 4 categories completed
+    } catch (error) {
+      console.error('Error checking completion status:', error);
+      // Fallback to local category checking
+      return categoryList.every((category: DocumentCategory) => category.status === CategoryStatus.Completed);
+    }
   };
 
   const handleFileDelete = useCallback(async (fileId: string) => {
-    if (!applicationId) {
-      const errorMsg = 'No application ID available for deletion';
+    if (!applicationId || !userId) {
+      const errorMsg = 'No application ID or user ID available for deletion';
       console.error(errorMsg);
       setErrorMessage(errorMsg);
       setTimeout(() => setErrorMessage(null), 5000);
@@ -605,6 +650,8 @@ export const DocumentUploadCenter: React.FC<DocumentUploadCenterProps> = ({
                       await apiService.completeDocumentUpload(applicationId);
                       setSuccessMessage('Document upload completed successfully!');
                       setTimeout(() => setSuccessMessage(null), 3000);
+                      // Proceed to next section after successful completion
+                      onDocumentUploadComplete && onDocumentUploadComplete();
                     } catch (error: any) {
                       console.error('Failed to complete document upload:', error);
                       const errorMsg = 'Failed to complete document upload: ' + (error.message || 'Network error');
@@ -612,24 +659,44 @@ export const DocumentUploadCenter: React.FC<DocumentUploadCenterProps> = ({
                       setTimeout(() => setErrorMessage(null), 5000);
                     }
                   }}
-                  disabled={!isAllRequiredComplete()}
+                  disabled={!isComplete}
                   className={`w-full py-3 px-6 rounded-lg font-medium shadow-sm transition-all duration-200 ${
-                    isAllRequiredComplete()
+                    isComplete
                       ? 'bg-gradient-to-r from-green-500 to-teal-500 text-white hover:from-green-600 hover:to-teal-600'
                       : 'bg-gray-300 text-gray-500 cursor-not-allowed'
                   }`}
                 >
                   Complete Document Upload
                 </button>
-                {!isAllRequiredComplete() && (
+                {!isComplete && (
                   <p className="text-sm text-gray-500 mt-2 text-center">
                     Please upload all required documents before completing this section.
                   </p>
                 )}
               </div>
               <ActionButtons
-                disabled={!isAllRequiredComplete()}
-                onContinue={onDocumentUploadComplete}
+                disabled={!isComplete}
+                onContinue={async () => {
+                  if (!applicationId) {
+                    setErrorMessage('No application ID available. Please complete the enrollment form first.');
+                    setTimeout(() => setErrorMessage(null), 5000);
+                    return;
+                  }
+
+                  try {
+                    await apiService.completeDocumentUpload(applicationId);
+                    setSuccessMessage('Document upload completed successfully!');
+                    setTimeout(() => setSuccessMessage(null), 3000);
+                    onDocumentUploadComplete && onDocumentUploadComplete();
+                  } catch (error: any) {
+                    console.error('Failed to complete document upload:', error);
+                    const errorMsg = 'Failed to complete document upload: ' + (error.message || 'Network error');
+                    setErrorMessage(errorMsg);
+                    setTimeout(() => setErrorMessage(null), 5000);
+                    // Still proceed to next step even if backend fails
+                    onDocumentUploadComplete && onDocumentUploadComplete();
+                  }
+                }}
               />
               <Footer
                 onBack={onBack}

@@ -1,10 +1,10 @@
-
 import React from 'react';
 
 interface Step {
   number: number;
   title: string;
   subtitle: string;
+  isRiskAssessment?: boolean; // New optional property for risk assessment step
 }
 
 interface SidebarProps {
@@ -21,7 +21,16 @@ const Sidebar: React.FC<SidebarProps> = ({ steps, activeStep, onStepClick, compl
     return 'pending';
   };
 
-  const getStepIcon = (status: string) => {
+  const getStepIcon = (status: string, isRiskAssessment?: boolean) => {
+    if (isRiskAssessment) {
+      // Special icon for risk assessment
+      return (
+        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+          <path fillRule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z" clipRule="evenodd" />
+        </svg>
+      );
+    }
+
     switch (status) {
       case 'completed':
         return (
@@ -92,10 +101,12 @@ const Sidebar: React.FC<SidebarProps> = ({ steps, activeStep, onStepClick, compl
                       ? 'bg-blue-600 text-white'
                       : status === 'completed'
                       ? 'bg-green-600 text-white'
+                      : step.isRiskAssessment
+                      ? 'bg-orange-100 text-orange-600 border border-orange-200'
                       : 'bg-gray-200 text-gray-600'
                   }`}
                 >
-                  {status === 'completed' ? getStepIcon('completed') : step.number}
+                  {status === 'completed' ? getStepIcon('completed') : step.isRiskAssessment ? getStepIcon('pending', true) : step.number}
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className={`font-medium text-sm truncate ${

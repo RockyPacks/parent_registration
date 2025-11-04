@@ -3,19 +3,20 @@ import FormSection from './FormSection';
 import InputField from '../ui/InputField';
 import SelectField from '../ui/SelectField';
 import { FeeIcon } from '../Icons';
-import { useLocalStorage } from '../../hooks/useLocalStorage';
 import { useToast } from '../../hooks/useToast';
 
 interface FeeResponsibilityProps {
+  initialData?: any;
   onDataChange?: (data: any) => void;
 }
 
-const FeeResponsibility: React.FC<FeeResponsibilityProps> = ({ onDataChange }) => {
+const FeeResponsibility: React.FC<FeeResponsibilityProps> = ({ initialData, onDataChange }) => {
   const { addToast } = useToast();
-  const [formData, setFormData] = useLocalStorage('feeResponsibility', {
+  const [formData, setFormData] = useState({
     feePerson: '',
     relationship: '',
-    feeTermsAccepted: false
+    feeTermsAccepted: false,
+    ...initialData
   });
 
   const [errors, setErrors] = useState({
@@ -24,20 +25,7 @@ const FeeResponsibility: React.FC<FeeResponsibilityProps> = ({ onDataChange }) =
     feeTermsAccepted: ''
   });
 
-  // Show toast when data is loaded from localStorage
-  useEffect(() => {
-    const savedData = localStorage.getItem('feeResponsibility');
-    if (savedData) {
-      try {
-        const parsedData = JSON.parse(savedData);
-        if (parsedData.feePerson || parsedData.relationship || parsedData.feeTermsAccepted) {
-          addToast('Fee responsibility information loaded from previous session', 'info');
-        }
-      } catch (error) {
-        console.error('Error parsing saved fee data:', error);
-      }
-    }
-  }, [addToast]);
+
 
   useEffect(() => {
     if (onDataChange) {
@@ -81,6 +69,8 @@ const FeeResponsibility: React.FC<FeeResponsibilityProps> = ({ onDataChange }) =
     }));
     validateField(field, value);
   };
+
+  // Auto-save functionality removed - handled by parent component
 
   return (
     <FormSection icon={<FeeIcon className="w-6 h-6 text-yellow-500" />} title="Fee Responsibility">
