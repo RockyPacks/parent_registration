@@ -42,7 +42,7 @@ const AcademicHistoryForm: React.FC<AcademicHistoryFormProps> = ({ onSubmit, onB
       try {
         const applicationId = localStorage.getItem('applicationId');
         if (applicationId) {
-          const response = await fetch(`http://localhost:8000/academic-history/${applicationId}`);
+          const response = await fetch(`http://localhost:8001/academic-history/${applicationId}`);
           if (response.ok) {
             const backendData = await response.json();
             // Populate form with backend data
@@ -202,7 +202,7 @@ const AcademicHistoryForm: React.FC<AcademicHistoryFormProps> = ({ onSubmit, onB
         uploadFormData.append('document_type', 'report_card');
 
         const token = localStorage.getItem('authToken');
-        const uploadResponse = await fetch('http://localhost:8000/upload', {
+        const uploadResponse = await fetch('http://localhost:8001/upload', {
           method: 'POST',
           headers: token ? { 'Authorization': `Bearer ${token}` } : undefined,
           body: uploadFormData,
@@ -235,7 +235,7 @@ const AcademicHistoryForm: React.FC<AcademicHistoryFormProps> = ({ onSubmit, onB
         reportCardUrl: reportCardUrl
       };
 
-      const response = await fetch('http://localhost:8000/academic-history', {
+      const response = await fetch('http://localhost:8001/academic-history', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

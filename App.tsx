@@ -71,7 +71,7 @@ const App: React.FC = () => {
   const handleEnrollmentSubmit = async (data: EnrollmentData) => {
     try {
       // Submit enrollment data to backend
-      const response = await fetch('http://localhost:8000/enrollment/submit', {
+      const response = await fetch('http://localhost:8001/enrollment/submit', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -118,7 +118,7 @@ const App: React.FC = () => {
     <>
       <Header onLogout={handleLogout} />
       <div className="min-h-screen bg-gray-50">
-        <div className="max-w-7xl mx-auto">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <main className="flex flex-col md:flex-row">
             <Sidebar steps={steps} activeStep={activeStep} onStepClick={handleStepClick} completedSteps={completedSteps} />
             <div className="flex-1 flex flex-col md:ml-[25%] bg-white border border-gray-200 shadow-sm md:rounded-lg">

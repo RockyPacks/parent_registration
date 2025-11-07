@@ -360,7 +360,11 @@ CREATE TABLE IF NOT EXISTS risk_reports (
     application_id UUID REFERENCES applications(id) ON DELETE CASCADE,
     reference VARCHAR(100) NOT NULL, -- Unique reference for the risk check
     guardian_email VARCHAR(150), -- Email of the guardian being checked
-    risk_score INTEGER CHECK (risk_score >= 0 AND risk_score <= 100), -- Risk score from Netcash (0-100)
+    guardian_name VARCHAR(150), -- Name of the guardian being checked
+    guardian_id_number VARCHAR(20), -- ID number of the guardian being checked
+    branch_code VARCHAR(10), -- Bank branch code
+    account_number VARCHAR(20), -- Bank account number
+    risk_score NUMERIC(5,2) CHECK (risk_score >= 0 AND risk_score <= 100), -- Risk score from Netcash (0-100)
     flags TEXT[], -- Array of validation flags (e.g., ["BankAccountValidated", "IDVerified"])
     status VARCHAR(20) DEFAULT 'pending', -- 'pending', 'completed', 'error'
     timestamp TIMESTAMP WITH TIME ZONE DEFAULT NOW(), -- When the risk check was performed
@@ -403,4 +407,52 @@ FOR UPDATE USING (auth.jwt() ->> 'role' = 'school_admin');
 DROP TRIGGER IF EXISTS update_risk_reports_updated_at ON risk_reports;
 CREATE TRIGGER update_risk_reports_updated_at
     BEFORE UPDATE ON risk_reports
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- Create payments table for tracking Netcash payments
+CREATE TABLE IF NOT EXISTS payments (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    application_id UUID REFERENCES applications(id) ON DELETE CASCADE,
+    reference VARCHAR(100) NOT NULL UNIQUE, -- Unique payment reference
+    amount NUMERIC(10,2) NOT NULL, -- Payment amount
+    currency VARCHAR(3) DEFAULT 'ZAR',
+    status VARCHAR(20) DEFAULT 'pending', -- 'pending', 'processing', 'completed', 'failed', 'cancelled'
+    plan_type VARCHAR(50), -- Financing plan selected
+    netcash_transaction_id VARCHAR(100), -- Transaction ID from Netcash
+    redirect_url TEXT, -- URL to redirect user to Netcash
+    return_url TEXT, -- URL to return after payment
+    notify_url TEXT, -- Webhook URL for Netcash notifications
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    completed_at TIMESTAMP WITH TIME ZONE
+);
+
+-- Create indexes for payments table
+DROP INDEX IF EXISTS idx_payments_application_id;
+CREATE INDEX idx_payments_application_id ON payments(application_id);
+DROP INDEX IF EXISTS idx_payments_reference;
+CREATE INDEX idx_payments_reference ON payments(reference);
+DROP INDEX IF EXISTS idx_payments_status;
+CREATE INDEX idx_payments_status ON payments(status);
+
+-- Enable Row Level Security (RLS)
+ALTER TABLE payments ENABLE ROW LEVEL SECURITY;
+
+-- Create simplified policies for payments (avoid complex subqueries that might fail)
+DROP POLICY IF EXISTS "Allow authenticated users to view payments" ON payments;
+CREATE POLICY "Allow authenticated users to view payments" ON payments
+FOR SELECT USING (auth.role() = 'authenticated');
+
+DROP POLICY IF EXISTS "Allow system to insert payments" ON payments;
+CREATE POLICY "Allow system to insert payments" ON payments
+FOR INSERT WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Allow system to update payments" ON payments;
+CREATE POLICY "Allow system to update payments" ON payments
+FOR UPDATE USING (true);
+
+-- Create trigger for updated_at column
+DROP TRIGGER IF EXISTS update_payments_updated_at ON payments;
+CREATE TRIGGER update_payments_updated_at
+    BEFORE UPDATE ON payments
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();

@@ -56,7 +56,7 @@ const Sidebar: React.FC<SidebarProps> = ({ steps, activeStep, onStepClick, compl
   const progressPercentage = Math.round((completedSteps.size / steps.length) * 100);
 
   return (
-    <aside className="w-full md:w-1/4 p-6 border-b md:border-b-0 md:border-r border-gray-200 md:fixed md:top-0 md:left-0 md:bottom-0 md:overflow-y-auto bg-white">
+    <aside className="w-full md:w-1/4 p-4 md:p-6 border-b md:border-b-0 md:border-r border-gray-200 md:fixed md:top-0 md:left-0 md:bottom-0 md:overflow-y-auto bg-white">
       <div className="mb-8">
         <h2 className="text-xl font-bold text-gray-900 mb-1">Application Progress</h2>
         <p className="text-sm text-gray-600 mb-4">Complete all steps to submit your enrollment</p>

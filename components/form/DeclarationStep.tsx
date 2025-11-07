@@ -116,7 +116,7 @@ const DeclarationStep: React.FC<DeclarationStepProps> = ({ onBack, onNext }) => 
         // Save to localStorage
         localStorage.setItem('declarationData', JSON.stringify(declarationData));
 
-        const response = await fetch('http://localhost:8000/declaration', {
+        const response = await fetch('http://localhost:8001/declaration', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -156,7 +156,7 @@ const DeclarationStep: React.FC<DeclarationStepProps> = ({ onBack, onNext }) => 
         // Save to localStorage
         localStorage.setItem('declarationData', JSON.stringify(declarationData));
 
-        const response = await fetch('http://localhost:8000/declaration', {
+        const response = await fetch('http://localhost:8001/declaration', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',

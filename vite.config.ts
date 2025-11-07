@@ -16,7 +16,7 @@ export default defineConfig({
   define: {
     // Ensure Vite env variables are available
     'import.meta.env': {
-      VITE_API_BASE_URL: process.env.VITE_API_BASE_URL || 'http://localhost:8000',
+      VITE_API_BASE_URL: process.env.VITE_API_BASE_URL || 'http://localhost:8001',
     },
   },
 });

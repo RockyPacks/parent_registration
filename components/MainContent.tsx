@@ -307,7 +307,7 @@ const MainContent: React.FC<MainContentProps> = ({
         </div>
         </div>
 
-        <div className="max-w-6xl mx-auto px-6 sm:px-8 pt-10 pb-32">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-10 pb-32">
 
 
           {/* Form Sections */}
@@ -823,8 +823,8 @@ const MainContent: React.FC<MainContentProps> = ({
               email: familyData?.fatherEmail || familyData?.motherEmail || "",
               id_number: familyData?.fatherIdNumber || familyData?.motherIdNumber || "",
               mobile: familyData?.fatherMobile || familyData?.motherMobile || "",
-              branch_code: "123456", // Default branch code, should be configurable
-              account_number: "1234567890" // Default account number, should be configurable
+              branch_code: feeData?.branchCode || "",
+              account_number: feeData?.accountNumber || ""
             }}
             onBack={() => onStepChange && onStepChange(5)}
             onNext={() => {

@@ -16,13 +16,19 @@ const FeeResponsibility: React.FC<FeeResponsibilityProps> = ({ initialData, onDa
     feePerson: '',
     relationship: '',
     feeTermsAccepted: false,
+    bankName: '',
+    branchCode: '',
+    accountNumber: '',
     ...initialData
   });
 
   const [errors, setErrors] = useState({
     feePerson: '',
     relationship: '',
-    feeTermsAccepted: ''
+    feeTermsAccepted: '',
+    bankName: '',
+    branchCode: '',
+    accountNumber: ''
   });
 
 
@@ -50,6 +56,25 @@ const FeeResponsibility: React.FC<FeeResponsibilityProps> = ({ initialData, onDa
       case 'feeTermsAccepted':
         if (!value) {
           error = 'You must accept the fee terms and conditions to proceed';
+        }
+        break;
+      case 'bankName':
+        if (!value) {
+          error = 'Bank name is required';
+        }
+        break;
+      case 'branchCode':
+        if (!value) {
+          error = 'Branch code is required';
+        } else if (!/^\d{6}$/.test(value as string)) {
+          error = 'Branch code must be 6 digits';
+        }
+        break;
+      case 'accountNumber':
+        if (!value) {
+          error = 'Account number is required';
+        } else if (!/^\d{10,12}$/.test(value as string)) {
+          error = 'Account number must be 10-12 digits';
         }
         break;
     }
@@ -105,6 +130,44 @@ const FeeResponsibility: React.FC<FeeResponsibilityProps> = ({ initialData, onDa
           <option value="Grandparent">Grandparent</option>
           <option value="Other">Other</option>
         </SelectField>
+      </div>
+
+      <div className="mt-8">
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">Banking Details</h3>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <InputField
+            id="bankName"
+            label="Bank Name"
+            required
+            value={formData.bankName}
+            onChange={(e) => handleInputChange('bankName', e.target.value)}
+            error={errors.bankName}
+            placeholder="e.g., Standard Bank"
+          />
+          <InputField
+            id="branchCode"
+            label="Branch Code"
+            required
+            value={formData.branchCode}
+            onChange={(e) => handleInputChange('branchCode', e.target.value)}
+            error={errors.branchCode}
+            placeholder="6-digit code"
+            maxLength={6}
+          />
+          <InputField
+            id="accountNumber"
+            label="Account Number"
+            required
+            value={formData.accountNumber}
+            onChange={(e) => handleInputChange('accountNumber', e.target.value)}
+            error={errors.accountNumber}
+            placeholder="10-12 digit number"
+            maxLength={12}
+          />
+        </div>
+        <p className="mt-2 text-sm text-gray-600">
+          These banking details will be used for fee payments and risk assessment verification.
+        </p>
       </div>
 
       <div className="mt-8 bg-gray-50 rounded-lg p-6 border border-gray-200">
