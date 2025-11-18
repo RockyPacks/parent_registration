@@ -34,7 +34,7 @@ class Settings(BaseSettings):
         if not self.supabase_anon_key:
             raise ValueError("SUPABASE_ANON_KEY environment variable is required")
         if not self.supabase_service_key:
-            raise ValueError("SUPABASE_SERVICE_KEY environment variable is required")
+            raise ValueError("SUPABASE_SERVICE_ROLE_KEY environment variable is required")
         if not self.supabase_jwt_secret:
             raise ValueError("SUPABASE_JWT_SECRET environment variable is required")
 
