@@ -70,6 +70,9 @@ else:
         "http://localhost:3002"
     ]
 
+# Add production frontend URL for Render deployment
+allowed_origins.append("https://parent-registration-frontend.onrender.com")
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed_origins,
