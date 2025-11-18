@@ -8,9 +8,7 @@ class Settings(BaseSettings):
     supabase_key: str
     supabase_service_key: Optional[str] = None
 
-    # Netcash Risk Reports API
-    netcash_risk_base: str = "https://ws.netcash.co.za/RiskReportsService.svc"
-    netcash_risk_key: Optional[str] = None
+
 
     # Application Settings
     debug: bool = False
