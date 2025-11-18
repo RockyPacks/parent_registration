@@ -6,7 +6,7 @@ class Settings(BaseSettings):
     # Supabase Configuration
     supabase_url: Optional[str] = None
     supabase_anon_key: Optional[str] = None
-    supabase_service_key: Optional[str] = None
+    supabase_service_key: Optional[str] = Field(None, env="SUPABASE_SERVICE_ROLE_KEY")
     vite_supabase_url: Optional[str] = None
     vite_supabase_anon_key: Optional[str] = None
     vite_supabase_service_key: Optional[str] = None
