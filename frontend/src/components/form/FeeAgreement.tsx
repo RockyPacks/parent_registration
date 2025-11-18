@@ -28,7 +28,8 @@ const FeeAgreement: React.FC<FeeAgreementProps> = ({ applicationId, onBack, onNe
   useEffect(() => {
     const fetchBackendStatus = async () => {
       try {
-        const response = await axios.get<BackendStatus>('http://localhost:8000/health');
+        const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+        const response = await axios.get<BackendStatus>(`${baseUrl}/health`);
         setBackendStatus(response.data);
       } catch (error) {
         setBackendStatus({ message: 'Backend unavailable', status: 'error' });
@@ -89,7 +90,7 @@ const FeeAgreement: React.FC<FeeAgreementProps> = ({ applicationId, onBack, onNe
         plan_type: getPlanType(sanitizedPlan)
       };
 
-      const response = await fetch('http://localhost:8000/api/v1/financing/select-plan', {
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api/v1'}/financing/select-plan`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
