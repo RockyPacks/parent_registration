@@ -133,6 +133,39 @@ class AuthService {
 
   // Initialize auth state listener
   initAuthListener(callback: (user: AuthUser | null) => void) {
+    // Handle initial session from URL hash (email confirmation)
+    const handleInitialSession = async () => {
+      try {
+        const { data: { session }, error } = await supabase.auth.getSession();
+        if (error) {
+          console.error("AuthService: Error getting session:", error);
+          return;
+        }
+
+        if (session?.user) {
+          console.log("AuthService: Initial session found, user:", session.user.email);
+          const user: AuthUser = {
+            id: session.user.id,
+            email: session.user.email || '',
+            full_name: session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || '',
+          };
+          localStorage.setItem('access_token', session.access_token);
+          localStorage.setItem('user', JSON.stringify(user));
+          callback(user);
+        } else {
+          console.log("AuthService: No initial session found");
+          callback(null);
+        }
+      } catch (error) {
+        console.error("AuthService: Error handling initial session:", error);
+        callback(null);
+      }
+    };
+
+    // Handle initial session first
+    handleInitialSession();
+
+    // Then set up the auth state change listener
     supabase.auth.onAuthStateChange(async (event, session) => {
       console.log("AuthService: Auth state change event:", event, !!session?.user);
 
