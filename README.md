@@ -140,7 +140,13 @@ Run tests:
 ```bash
 cd backend && pytest
 ```
-
+Location,Variable,Purpose,Source
+backend/.env,SUPABASE_URL,Supabase Project URL,
+backend/.env,SUPABASE_ANON_KEY,Supabase Public Key,
+backend/.env,SUPABASE_SERVICE_ROLE_KEY,Supabase Service Role Key (Used for server-side operations),
+backend/.env,SUPABASE_JWT_SECRET,Supabase JWT Secret (Used for verifying Auth tokens),
+frontend/.env.local,VITE_SUPABASE_URL,Supabase Project URL (Client-side use),
+frontend/.env.local,VITE_SUPABASE_ANON_KEY,Supabase Anon Key (Client-side use for Auth operations),
 ### 📚 6.2. API Documentation
 
 FastAPI provides automatic, interactive documentation:
