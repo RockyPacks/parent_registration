@@ -29,14 +29,23 @@ class Settings(BaseSettings):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         # Validate required production environment variables
+        missing_vars = []
         if not self.supabase_url:
-            raise ValueError("SUPABASE_URL environment variable is required")
+            missing_vars.append("SUPABASE_URL")
         if not self.supabase_anon_key:
-            raise ValueError("SUPABASE_ANON_KEY environment variable is required")
+            missing_vars.append("SUPABASE_ANON_KEY")
         if not self.supabase_service_key:
-            raise ValueError("SUPABASE_SERVICE_ROLE_KEY environment variable is required")
+            missing_vars.append("SUPABASE_SERVICE_ROLE_KEY")
         if not self.supabase_jwt_secret:
-            raise ValueError("SUPABASE_JWT_SECRET environment variable is required")
+            missing_vars.append("SUPABASE_JWT_SECRET")
+        
+        if missing_vars:
+            error_msg = (
+                f"Missing required environment variables: {', '.join(missing_vars)}\n"
+                f"Please ensure these are set in your .env file or hosting platform's environment settings.\n"
+                f"Check DEPLOYMENT.md for setup instructions."
+            )
+            raise ValueError(error_msg)
 
     @property
     def supabase(self):

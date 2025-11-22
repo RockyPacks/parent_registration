@@ -13,8 +13,15 @@
 
 1. Create a new Supabase project
 2. Run the SQL schema from `backend/supabase_schema.sql` in your Supabase SQL editor
-3. Create a storage bucket named `enrollment-documents`
-4. Get your project credentials:
+3. **IMPORTANT**: Run ALL migration files from `backend/db/migrations/` in order:
+   - `add_next_of_kin_to_family_info.sql`
+   - `add_next_of_kin_to_financing_selections.sql`
+   - `add_updated_at_to_fee_responsibility.sql`
+   - `create_financing_selections_table.sql`
+   - `supabase_rls_policies.sql`
+   - `add_indexes.sql`
+4. Create a storage bucket named `enrollment-documents`
+5. Get your project credentials:
    - Project URL
    - Anon/Public key
    - Service Role key

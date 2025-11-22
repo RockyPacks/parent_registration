@@ -47,12 +47,4 @@ export default defineConfig({
       'assets': path.resolve(__dirname, './assets'),
     }
   },
-  define: {
-    // Ensure Vite env variables are available
-    'import.meta.env': {
-      VITE_API_BASE_URL: process.env.VITE_API_BASE_URL || 'http://localhost:8000',
-      VITE_SUPABASE_URL: process.env.VITE_SUPABASE_URL,
-      VITE_SUPABASE_SERVICE_KEY: process.env.VITE_SUPABASE_SERVICE_KEY,
-    },
-  },
 });
