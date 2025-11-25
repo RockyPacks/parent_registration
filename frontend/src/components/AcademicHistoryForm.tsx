@@ -109,12 +109,13 @@ const AcademicHistoryForm: React.FC<AcademicHistoryFormProps> = ({ onSubmit, onB
 
   const validateForm = () => {
     const errors: {[key: string]: string} = {};
+    
+    // Only require core fields - report card is now optional
     const requiredFields = [
       { key: 'schoolName', label: 'School Name' },
       { key: 'schoolType', label: 'School Type' },
       { key: 'lastGradeCompleted', label: 'Last Grade Completed' },
-      { key: 'academicYearCompleted', label: 'Academic Year Completed' },
-      { key: 'reportCard', label: 'Report Card Upload' }
+      { key: 'academicYearCompleted', label: 'Academic Year Completed' }
     ];
 
     requiredFields.forEach(({ key, label }) => {
@@ -124,8 +125,8 @@ const AcademicHistoryForm: React.FC<AcademicHistoryFormProps> = ({ onSubmit, onB
     });
 
     // Validate school name minimum length
-    if (formData.schoolName && formData.schoolName.length < 3) {
-      errors.schoolName = 'School name must be at least 3 characters long';
+    if (formData.schoolName && formData.schoolName.length < 2) {
+      errors.schoolName = 'School name must be at least 2 characters';
     }
 
     // Validate academic year
@@ -137,31 +138,17 @@ const AcademicHistoryForm: React.FC<AcademicHistoryFormProps> = ({ onSubmit, onB
       }
     }
 
-    // Validate email format
+    // Validate email format (optional field)
     if (formData.schoolEmail && !/\S+@\S+\.\S+/.test(formData.schoolEmail)) {
       errors.schoolEmail = 'Please enter a valid email address';
     }
 
-    // Validate phone number: exactly 10 digits only
+    // Validate phone number: exactly 10 digits only (optional field)
     if (formData.schoolPhoneNumber) {
-      // Remove all non-digit characters for validation
       const cleanPhone = formData.schoolPhoneNumber.replace(/\D/g, '');
-      // Check if it's exactly 10 digits
       if (cleanPhone.length !== 10) {
         errors.schoolPhoneNumber = 'Phone number must be exactly 10 digits';
-      } else if (!/^\d{10}$/.test(cleanPhone)) {
-        errors.schoolPhoneNumber = 'Phone number must contain only digits';
       }
-    }
-
-    // Validate principal name if provided
-    if (formData.principalName && formData.principalName.length < 2) {
-      errors.principalName = 'Principal name must be at least 2 characters long';
-    }
-
-    // Validate school address if provided
-    if (formData.schoolAddress && formData.schoolAddress.length < 10) {
-      errors.schoolAddress = 'School address must be at least 10 characters long';
     }
 
     setValidationErrors(errors);
@@ -191,59 +178,68 @@ const AcademicHistoryForm: React.FC<AcademicHistoryFormProps> = ({ onSubmit, onB
 
     // Validate required fields
     if (!validateForm()) {
+      console.log('Form validation failed:', validationErrors);
       return;
     }
 
     try {
       // Get application ID from localStorage
-      let applicationId = localStorage.getItem('applicationId');
+      const applicationId = localStorage.getItem('applicationId');
 
-      // Ensure application ID exists and is not a temp ID
       if (!applicationId || applicationId.startsWith('temp_')) {
-        addToast('Please complete the enrollment form first to create your application.', 'error');
+        addToast('Application ID not found. Please complete Step 1 first.', 'error');
         return;
       }
 
-      // If there's a report card file, upload it first
+      // Upload report card only if a new file is selected
       let reportCardUrl = null;
-      if (formData.reportCard) {
-        const uploadResult = await apiService.uploadFile(
-          formData.reportCard,
-          applicationId,
-          'academic_history'
-        );
-        reportCardUrl = uploadResult.file.download_url;
+      if (formData.reportCard && typeof formData.reportCard === 'object' && formData.reportCard instanceof File) {
+        try {
+          console.log('Uploading report card...');
+          const uploadResult = await apiService.uploadFile(
+            formData.reportCard,
+            applicationId,
+            'academic_history'
+          );
+          reportCardUrl = uploadResult.file.download_url;
+          console.log('Report card uploaded:', reportCardUrl);
+        } catch (uploadError) {
+          console.warn('Report card upload failed (optional):', uploadError);
+          // Continue without report card - it's optional
+        }
       }
 
-      // Submit form data to backend - convert empty strings to null for optional fields
-      const formDataToSubmit = {
+      // Build payload - simple and clean
+      const payload = {
         application_id: applicationId,
-        school_name: formData.schoolName,
-        school_type: formData.schoolType,
-        last_grade_completed: formData.lastGradeCompleted,
-        academic_year_completed: formData.academicYearCompleted,
-        reason_for_leaving: formData.reasonForLeaving || null,
-        principal_name: formData.principalName || null,
-        school_phone_number: formData.schoolPhoneNumber || null,
-        school_email: formData.schoolEmail || null,
-        school_address: formData.schoolAddress || null,
-        additional_notes: formData.additionalNotes || null,
-        report_card_url: reportCardUrl
+        school_name: formData.schoolName.trim(),
+        school_type: formData.schoolType.trim(),
+        last_grade_completed: formData.lastGradeCompleted.trim(),
+        academic_year_completed: formData.academicYearCompleted.trim(),
+        reason_for_leaving: formData.reasonForLeaving?.trim() || null,
+        principal_name: formData.principalName?.trim() || null,
+        school_phone_number: formData.schoolPhoneNumber?.trim() || null,
+        school_email: formData.schoolEmail?.trim() || null,
+        school_address: formData.schoolAddress?.trim() || null,
+        additional_notes: formData.additionalNotes?.trim() || null,
+        report_card_url: reportCardUrl || null
       };
 
-      const result = await apiService.submitAcademicHistory(formDataToSubmit);
+      console.log('Submitting academic history:', payload);
+      const result = await apiService.submitAcademicHistory(payload);
+      console.log('Submit response:', result);
 
-      // Update localStorage with the real application ID if it was a temp ID
-      if (result.application_id && result.application_id !== applicationId) {
-        localStorage.setItem('applicationId', result.application_id);
-      }
       addToast('Academic history saved successfully!', 'success');
       
-      // Call onSubmit to proceed to the next step AFTER successful submission.
-      onSubmit(); 
+      // Wait a moment to ensure UI updates
+      setTimeout(() => {
+        onSubmit();
+      }, 500);
+      
     } catch (error: any) {
-      addToast('Error saving academic history: ' + (error.message || 'Unknown error'), 'error');
-      // Do NOT proceed to next step if backend submission fails.
+      console.error('Submit error:', error);
+      const errorMessage = error.response?.data?.detail || error.message || 'Unknown error';
+      addToast('Error: ' + errorMessage, 'error');
     }
   };
 
@@ -357,12 +353,12 @@ const AcademicHistoryForm: React.FC<AcademicHistoryFormProps> = ({ onSubmit, onB
             {expandedSections.academicPerformance && (
               <div className="px-6 pb-6 space-y-6 border-t border-gray-200">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Upload Last Report Card <span className="text-red-500">*</span></label>
-                  <p className="text-xs text-gray-500 mb-2">Upload your most recent report card to help us assess the learner's academic progress. This upload is required before moving on.</p>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Upload Last Report Card (Optional)</label>
+                  <p className="text-xs text-gray-500 mb-2">Upload your most recent report card to help us assess your academic progress.</p>
                   <FileUpload onFileChange={handleFileChange} />
                 </div>
 
-                <Textarea label="Additional Notes / Comments" name="additionalNotes" value={formData.additionalNotes} onChange={handleChange} placeholder="Any additional information about the student's academic history or special considerations" rows={4} />
+                <Textarea label="Additional Notes / Comments" name="additionalNotes" value={formData.additionalNotes} onChange={handleChange} placeholder="Any additional information about your academic history" rows={3} />
               </div>
             )}
           </div>
