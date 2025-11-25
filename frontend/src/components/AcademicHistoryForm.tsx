@@ -399,7 +399,17 @@ const AcademicHistoryForm: React.FC<AcademicHistoryFormProps> = ({ onSubmit, onB
       {/* Footer Navigation */}
       <Footer
         onBack={onBack}
-        onNext={handleSubmit}
+        onNext={(e) => {
+          // If it's a synthetic event, prevent default
+          if (e && typeof e.preventDefault === 'function') {
+            e.preventDefault();
+          }
+          // Trigger form submission
+          const form = document.querySelector('form');
+          if (form) {
+            form.dispatchEvent(new Event('submit', { bubbles: true }));
+          }
+        }}
         showBack={true}
         showNext={true}
         nextLabel="Continue to Next Step"
