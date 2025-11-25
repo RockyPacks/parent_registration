@@ -1,5 +1,5 @@
 import React from 'react';
-import DeclarationStep from '../form/DeclarationStep';
+import DeclarationStep from './DeclarationStep';
 import Footer from '../Footer';
 
 interface Step5DeclarationStepProps {

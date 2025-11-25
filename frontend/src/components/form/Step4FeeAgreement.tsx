@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import FeeAgreement from '../form/FeeAgreement';
+import FeeAgreement from './FeeAgreement';
 import Footer from '../Footer';
 import { apiService } from '../../services/api';
 
