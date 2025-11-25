@@ -11,12 +11,13 @@ import { useToast } from '../hooks/useToast';
 import { apiService } from '../services/api';
 
 interface AcademicHistoryFormProps {
+  applicationId?: string | null;
   onSubmit: () => void;
   onBack?: () => void;
-  onDataChange?: (data: AcademicHistoryData) => void; // Add this prop
+  onDataChange?: (data: AcademicHistoryData) => void;
 }
 
-const AcademicHistoryForm: React.FC<AcademicHistoryFormProps> = ({ onSubmit, onBack, onDataChange }) => {
+const AcademicHistoryForm: React.FC<AcademicHistoryFormProps> = ({ applicationId, onSubmit, onBack, onDataChange }) => {
   const { addToast } = useToast();
   const [formData, setFormData] = useState<AcademicHistoryData>(() => { // Removed initialData from here
     // Load saved progress from localStorage
@@ -77,6 +78,7 @@ const AcademicHistoryForm: React.FC<AcademicHistoryFormProps> = ({ onSubmit, onB
 
   const [validationErrors, setValidationErrors] = useState<{[key: string]: string}>({});
   const [isNextEnabled, setIsNextEnabled] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Auto-validate form when formData changes
   React.useEffect(() => {
@@ -107,7 +109,7 @@ const AcademicHistoryForm: React.FC<AcademicHistoryFormProps> = ({ onSubmit, onB
       setFormData(prev => ({ ...prev, reportCard: file }));
   };
 
-  const validateForm = () => {
+  const validateForm = (): boolean => {
     const errors: {[key: string]: string} = {};
     
     // Only require core fields - report card is now optional
@@ -154,6 +156,8 @@ const AcademicHistoryForm: React.FC<AcademicHistoryFormProps> = ({ onSubmit, onB
     setValidationErrors(errors);
     const isValid = Object.keys(errors).length === 0;
     setIsNextEnabled(isValid);
+    
+    console.log('Form validation result:', { isValid, errors, formData });
     return isValid;
   };
 
@@ -174,22 +178,35 @@ const AcademicHistoryForm: React.FC<AcademicHistoryFormProps> = ({ onSubmit, onB
   }, [formData, onDataChange]);
 
   const handleSubmit = async (e?: React.FormEvent | React.MouseEvent) => {
+    console.log('handleSubmit called with event:', e);
+    
     if (e) {
       e.preventDefault?.();
     }
 
+    console.log('Current form data:', formData);
+    console.log('Current isNextEnabled:', isNextEnabled);
+    console.log('Current validationErrors:', validationErrors);
+
     // Validate required fields
-    if (!validateForm()) {
-      console.log('Form validation failed:', validationErrors);
+    const isValid = validateForm();
+    console.log('validateForm returned:', isValid);
+    
+    if (!isValid) {
+      console.log('Form validation failed, showing errors:', validationErrors);
       return;
     }
 
+    console.log('Validation passed, proceeding with submission');
+    setIsSubmitting(true);
+
     try {
-      // Get application ID from localStorage
-      const applicationId = localStorage.getItem('applicationId');
+      // Use applicationId passed from props (from Supabase - source of truth)
+      console.log('Application ID (from props):', applicationId);
 
       if (!applicationId || applicationId.startsWith('temp_')) {
         addToast('Application ID not found. Please complete Step 1 first.', 'error');
+        setIsSubmitting(false);
         return;
       }
 
@@ -227,7 +244,7 @@ const AcademicHistoryForm: React.FC<AcademicHistoryFormProps> = ({ onSubmit, onB
         report_card_url: reportCardUrl || null
       };
 
-      console.log('Submitting academic history:', payload);
+      console.log('Submitting academic history with payload:', payload);
       const result = await apiService.submitAcademicHistory(payload);
       console.log('Submit response:', result);
 
@@ -235,6 +252,8 @@ const AcademicHistoryForm: React.FC<AcademicHistoryFormProps> = ({ onSubmit, onB
       
       // Wait a moment to ensure UI updates
       setTimeout(() => {
+        setIsSubmitting(false);
+        console.log('Calling onSubmit callback');
         onSubmit();
       }, 500);
       
@@ -242,6 +261,7 @@ const AcademicHistoryForm: React.FC<AcademicHistoryFormProps> = ({ onSubmit, onB
       console.error('Submit error:', error);
       const errorMessage = error.response?.data?.detail || error.message || 'Unknown error';
       addToast('Error: ' + errorMessage, 'error');
+      setIsSubmitting(false);
     }
   };
 
@@ -403,7 +423,7 @@ const AcademicHistoryForm: React.FC<AcademicHistoryFormProps> = ({ onSubmit, onB
         nextLabel="Continue to Next Step"
         showSave={false}
         showSkip={false}
-        isLoading={!isNextEnabled}
+        isLoading={isSubmitting}
       />
     </div>
   );

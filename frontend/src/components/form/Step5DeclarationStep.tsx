@@ -45,11 +45,9 @@ const Step5DeclarationStep: React.FC<Step5DeclarationStepProps> = ({
       <div className="max-w-6xl mx-auto px-3 sm:px-4 md:px-6 lg:px-8 pt-16 md:pt-24 pb-16 md:pb-24">
         <DeclarationStep
           onBack={() => onStepChange && onStepChange(4)}
-          onNext={() => {
-            onStepComplete && onStepComplete(5);
-            onDeclarationComplete && onDeclarationComplete();
-          }}
-          onDataChange={onDataChange} // Pass the prop down
+          onStepChange={onStepChange}
+          onStepComplete={onStepComplete}
+          onDataChange={onDataChange}
         />
       </div>
 

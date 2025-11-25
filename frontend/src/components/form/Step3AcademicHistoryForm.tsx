@@ -13,6 +13,7 @@ interface Step3AcademicHistoryFormProps {
 }
 
 const Step3AcademicHistoryForm: React.FC<Step3AcademicHistoryFormProps> = ({
+  applicationId,
   onStepComplete,
   onAcademicHistoryComplete,
   onStepChange
@@ -27,6 +28,7 @@ const Step3AcademicHistoryForm: React.FC<Step3AcademicHistoryFormProps> = ({
   return (
     <>
       <AcademicHistoryForm
+        applicationId={applicationId}
         onSubmit={handleSubmit}
       />
     </>

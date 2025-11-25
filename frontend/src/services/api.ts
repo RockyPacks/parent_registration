@@ -122,6 +122,10 @@ class ApiService {
   async request<T>(endpoint: string, options?: RequestInit): Promise<T> {
     const url = `${API_BASE_URL}${endpoint}`;
 
+    console.log('API request - URL:', url);
+    console.log('API request - Method:', options?.method || 'GET');
+    console.log('API request - Body:', options?.body);
+
     const session = await this.getCachedSession();
 
     const headers: HeadersInit = {
@@ -134,33 +138,45 @@ class ApiService {
       Object.assign(headers, options.headers);
     }
 
-    const response = await fetch(url, {
-      headers,
-      ...options,
-    });
+    try {
+      console.log('Fetching URL:', url);
+      const response = await fetch(url, {
+        headers,
+        ...options,
+      });
 
-    if (!response.ok) {
-      let errorMessage = `API request failed: ${response.status} ${response.statusText}`;
-      try {
-        const errorBody = await response.json();
-        errorMessage += ` - ${JSON.stringify(errorBody)}`;
-      } catch {
-        // If parsing fails, use default message
+      console.log('API response - Status:', response.status, response.statusText);
+
+      if (!response.ok) {
+        let errorMessage = `API request failed: ${response.status} ${response.statusText}`;
+        try {
+          const errorBody = await response.json();
+          errorMessage += ` - ${JSON.stringify(errorBody)}`;
+        } catch {
+          // If parsing fails, use default message
+        }
+
+        console.error('API error response:', errorMessage);
+
+        // Handle 401 Unauthorized specifically
+        if (response.status === 401) {
+          // Clear cache and session
+          this.sessionCache = null;
+          const { supabase } = await import('./supabase');
+          await supabase.auth.signOut();
+          throw new Error('Authentication required. Please log in again.');
+        }
+
+        throw new Error(errorMessage);
       }
 
-      // Handle 401 Unauthorized specifically
-      if (response.status === 401) {
-        // Clear cache and session
-        this.sessionCache = null;
-        const { supabase } = await import('./supabase');
-        await supabase.auth.signOut();
-        throw new Error('Authentication required. Please log in again.');
-      }
-
-      throw new Error(errorMessage);
+      const data = await response.json();
+      console.log('API response - Data:', data);
+      return data;
+    } catch (error) {
+      console.error('API request error:', error);
+      throw error;
     }
-
-    return response.json();
   }
 
   async uploadFile(
@@ -542,12 +558,22 @@ class ApiService {
       ...snakeCaseData
     };
     
-    console.log('API submitAcademicHistory payload:', payload);
+    console.log('API submitAcademicHistory - Extracted application_id:', application_id);
+    console.log('API submitAcademicHistory - Form data:', formData);
+    console.log('API submitAcademicHistory - Final payload:', payload);
     
-    return this.request('/academic/academic-history', {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    });
+    try {
+      console.log('Starting API request to /academic/academic-history');
+      const result = await this.request('/academic/academic-history', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      });
+      console.log('API submitAcademicHistory - Success:', result);
+      return result;
+    } catch (error) {
+      console.error('API submitAcademicHistory - Error:', error);
+      throw error;
+    }
   }
 }
 
