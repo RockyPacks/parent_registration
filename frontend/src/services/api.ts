@@ -264,6 +264,7 @@ class ApiService {
     }
     // Handle empty strings for optional fields
     if (snakeCaseData.family) {
+      // Mother fields
       if (snakeCaseData.family.mother_id_number === '') {
         snakeCaseData.family.mother_id_number = undefined;
       }
@@ -272,6 +273,15 @@ class ApiService {
       }
       if (snakeCaseData.family.mother_email === '') {
         snakeCaseData.family.mother_email = undefined;
+      }
+      
+      // Next of kin fields - convert 'none' or empty strings to undefined
+      const nokFields = ['next_of_kin_surname', 'next_of_kin_first_name', 'next_of_kin_relationship', 'next_of_kin_mobile', 'next_of_kin_email'];
+      for (const field of nokFields) {
+        const value = snakeCaseData.family[field];
+        if (!value || value === '' || String(value).toLowerCase() === 'none') {
+          snakeCaseData.family[field] = undefined;
+        }
       }
     }
     return this.request('/enrollment/submit', {
@@ -392,6 +402,15 @@ class ApiService {
       }
       if (snakeCaseData.family.mother_email === '') {
         snakeCaseData.family.mother_email = undefined;
+      }
+      
+      // Next of kin fields - convert 'none' or empty strings to undefined
+      const nokFields = ['next_of_kin_surname', 'next_of_kin_first_name', 'next_of_kin_relationship', 'next_of_kin_mobile', 'next_of_kin_email'];
+      for (const field of nokFields) {
+        const value = snakeCaseData.family[field];
+        if (!value || value === '' || String(value).toLowerCase() === 'none') {
+          snakeCaseData.family[field] = undefined;
+        }
       }
     }
 

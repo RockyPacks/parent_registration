@@ -185,19 +185,53 @@ class EnrollmentRepository(BaseRepository):
 
             # Sanitize and validate inputs with correct casing
             if "next_of_kin_surname" in data:
-                data["next_of_kin_surname"] = str(data["next_of_kin_surname"]).strip().title()
+                value = data["next_of_kin_surname"]
+                # Convert string 'None' to actual None, strip and title case
+                if value and str(value).lower() != 'none':
+                    data["next_of_kin_surname"] = str(value).strip().title()
+                else:
+                    data["next_of_kin_surname"] = None
+            
             if "next_of_kin_first_name" in data:
-                data["next_of_kin_first_name"] = str(data["next_of_kin_first_name"]).strip().title()
+                value = data["next_of_kin_first_name"]
+                # Convert string 'None' to actual None, strip and title case
+                if value and str(value).lower() != 'none':
+                    data["next_of_kin_first_name"] = str(value).strip().title()
+                else:
+                    data["next_of_kin_first_name"] = None
+            
             if "next_of_kin_relationship" in data:
-                data["next_of_kin_relationship"] = str(data["next_of_kin_relationship"]).strip().lower()
+                value = data["next_of_kin_relationship"]
+                # Convert string 'None' or 'none' to actual None
+                if value and str(value).lower() != 'none':
+                    data["next_of_kin_relationship"] = str(value).strip().lower()
+                else:
+                    data["next_of_kin_relationship"] = None
+            
             if "next_of_kin_mobile" in data:
-                # Sanitize mobile number - keep only digits, spaces, hyphens, parentheses, plus
-                mobile = str(data["next_of_kin_mobile"]).strip()
-                import re
-                mobile = re.sub(r'[^\d\s\-\(\)\+]', '', mobile)
-                data["next_of_kin_mobile"] = mobile
+                value = data["next_of_kin_mobile"]
+                # Only include if it has actual content
+                if value and str(value).strip():
+                    # Sanitize mobile number - keep only digits, spaces, hyphens, parentheses, plus
+                    mobile = str(value).strip()
+                    import re
+                    mobile = re.sub(r'[^\d\s\-\(\)\+]', '', mobile)
+                    data["next_of_kin_mobile"] = mobile if mobile else None
+                else:
+                    data["next_of_kin_mobile"] = None
+            
             if "next_of_kin_email" in data:
-                data["next_of_kin_email"] = str(data["next_of_kin_email"]).strip().lower()
+                value = data["next_of_kin_email"]
+                # Convert string 'None' or 'none' to actual None, validate email format
+                if value and str(value).lower() not in ('none', ''):
+                    email = str(value).strip().lower()
+                    # Basic email validation - must contain @ and be non-empty
+                    if '@' in email and len(email) > 3:
+                        data["next_of_kin_email"] = email
+                    else:
+                        data["next_of_kin_email"] = None
+                else:
+                    data["next_of_kin_email"] = None
 
             logger.info(f"Saving family data: {data}") # Add this line for logging
             # Fields are already in correct snake_case casing for database
@@ -287,19 +321,53 @@ class EnrollmentRepository(BaseRepository):
 
                 # Sanitize and validate inputs with correct casing
                 if "next_of_kin_surname" in data:
-                    data["next_of_kin_surname"] = str(data["next_of_kin_surname"]).strip().title()
+                    value = data["next_of_kin_surname"]
+                    # Convert string 'None' to actual None, strip and title case
+                    if value and str(value).lower() != 'none':
+                        data["next_of_kin_surname"] = str(value).strip().title()
+                    else:
+                        data["next_of_kin_surname"] = None
+                
                 if "next_of_kin_first_name" in data:
-                    data["next_of_kin_first_name"] = str(data["next_of_kin_first_name"]).strip().title()
+                    value = data["next_of_kin_first_name"]
+                    # Convert string 'None' to actual None, strip and title case
+                    if value and str(value).lower() != 'none':
+                        data["next_of_kin_first_name"] = str(value).strip().title()
+                    else:
+                        data["next_of_kin_first_name"] = None
+                
                 if "next_of_kin_relationship" in data:
-                    data["next_of_kin_relationship"] = str(data["next_of_kin_relationship"]).strip().lower()
+                    value = data["next_of_kin_relationship"]
+                    # Convert string 'None' or 'none' to actual None
+                    if value and str(value).lower() != 'none':
+                        data["next_of_kin_relationship"] = str(value).strip().lower()
+                    else:
+                        data["next_of_kin_relationship"] = None
+                
                 if "next_of_kin_mobile" in data:
-                    # Sanitize mobile number - keep only digits, spaces, hyphens, parentheses, plus
-                    mobile = str(data["next_of_kin_mobile"]).strip()
-                    import re
-                    mobile = re.sub(r'[^\d\s\-\(\)\+]', '', mobile)
-                    data["next_of_kin_mobile"] = mobile
+                    value = data["next_of_kin_mobile"]
+                    # Only include if it has actual content
+                    if value and str(value).strip():
+                        # Sanitize mobile number - keep only digits, spaces, hyphens, parentheses, plus
+                        mobile = str(value).strip()
+                        import re
+                        mobile = re.sub(r'[^\d\s\-\(\)\+]', '', mobile)
+                        data["next_of_kin_mobile"] = mobile if mobile else None
+                    else:
+                        data["next_of_kin_mobile"] = None
+                
                 if "next_of_kin_email" in data:
-                    data["next_of_kin_email"] = str(data["next_of_kin_email"]).strip().lower()
+                    value = data["next_of_kin_email"]
+                    # Convert string 'None' or 'none' to actual None, validate email format
+                    if value and str(value).lower() not in ('none', ''):
+                        email = str(value).strip().lower()
+                        # Basic email validation - must contain @ and be non-empty
+                        if '@' in email and len(email) > 3:
+                            data["next_of_kin_email"] = email
+                        else:
+                            data["next_of_kin_email"] = None
+                    else:
+                        data["next_of_kin_email"] = None
 
                 # Fields are already in correct snake_case casing for database
                 self.supabase.table("family_info").upsert(data).execute()
