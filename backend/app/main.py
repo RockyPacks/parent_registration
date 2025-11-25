@@ -97,7 +97,20 @@ app.include_router(academic_router, prefix="/api/v1/academic", tags=["academic"]
 async def health_check():
     return {"status": "healthy"}
 
+# Global exception handler for better error reporting
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    logger.error(f"Unhandled exception: {str(exc)}", exc_info=True)
+    return {
+        "detail": str(exc),
+        "error_type": type(exc).__name__,
+        "path": request.url.path
+    }
+
 @app.on_event("startup")
 async def startup():
-    pass
+    logger.info("Application starting up...")
+    logger.info(f"Frontend URL: {os.getenv('FRONTEND_URL', 'Not set')}")
+    logger.info(f"Supabase URL: {os.getenv('SUPABASE_URL', 'Not set')}")
+
 app.include_router(financing_router, prefix='/api/v1', tags=['financing'])

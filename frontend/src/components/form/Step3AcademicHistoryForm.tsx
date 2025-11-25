@@ -26,9 +26,23 @@ const Step3AcademicHistoryForm: React.FC<Step3AcademicHistoryFormProps> = ({
   onStepChange
 }) => {
   const [formData, setFormData] = useState({});
+  // Define the initial state with a complete structure, as you recommended.
+  // This ensures the form's data structure is stable and predictable.
+  const initialAcademicHistory = {
+    highSchoolName: "",
+    grade: "",
+    startYear: "",
+    endYear: "",
+    subjects: [], // Assuming subjects is an array
+    schoolAddress: "",
+    qualification: "",
+    // Add any other fields required by the backend schema
+  };
+
+  const [formData, setFormData] = useState(initialAcademicHistory);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Use useCallback to prevent re-creation of this function on every render
+  // This function now reliably merges partial updates into the well-defined state object.
   const handleDataChange = useCallback((data: any) => {
     setFormData(prevData => ({ ...prevData, ...data }));
   }, []);
@@ -42,7 +56,8 @@ const Step3AcademicHistoryForm: React.FC<Step3AcademicHistoryFormProps> = ({
     setIsSubmitting(true);
     try {
       // Combine form data with the application ID and call the API
-      await apiService.submitAcademicHistory({ ...formData, applicationId });
+      // The `formData` object now contains the full, stable structure.
+      await apiService.submitAcademicHistory({ ...formData, applicationId }); // or apiService.updateAcademicHistory(applicationId, formData)
       toast.success("Academic history saved successfully!");
 
       // Mark step as complete and navigate

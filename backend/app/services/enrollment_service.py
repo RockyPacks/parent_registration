@@ -116,6 +116,9 @@ class EnrollmentService:
     def submit_enrollment(self, data: EnrollmentData, user_id: str) -> SubmitEnrollmentResponse:
         """Submit complete enrollment"""
         try:
+            logger.info(f"Submit enrollment called for user {user_id}")
+            logger.debug(f"Enrollment data: {data}")
+            
             # Check if user already has an application
             existing_app = self.repository.get_user_application(user_id)
             if existing_app:
@@ -132,17 +135,22 @@ class EnrollmentService:
             logger.info(f"Submitting enrollment for user {user_id}, application {application_id}")
 
             # Save all enrollment data
+            logger.debug("Saving student data...")
             self.repository.save_student_data(application_id, data.student)
+            logger.debug("Saving medical data...")
             self.repository.save_medical_data(application_id, data.medical)
+            logger.debug("Saving family data...")
             self.repository.save_family_data(application_id, data.family)
+            logger.debug("Saving fee data...")
             self.repository.save_fee_data(application_id, data.fee)
 
+            logger.info(f"Successfully submitted enrollment for application {application_id}")
             return SubmitEnrollmentResponse(
                 message="Enrollment submitted successfully",
                 application_id=application_id
             )
         except Exception as e:
-            logger.error(f"Failed to submit enrollment: {str(e)}")
+            logger.error(f"Failed to submit enrollment: {str(e)}", exc_info=True)
             raise HTTPException(status_code=500, detail=f"Failed to submit enrollment: {str(e)}")
 
     def get_application(self, application_id: str, user_id: str) -> ApplicationResponse:
