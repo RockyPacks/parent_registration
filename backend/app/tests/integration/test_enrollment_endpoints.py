@@ -5,7 +5,11 @@ Tests the complete enrollment flow including auto-save, submission, and retrieva
 """
 
 import pytest
-from httpx import AsyncClient
+
+pytestmark = pytest.mark.asyncio
+
+import pytest_asyncio
+from httpx import AsyncClient, ASGITransport
 from fastapi import FastAPI
 from unittest.mock import Mock, patch
 
@@ -14,6 +18,17 @@ from app.api.v1.schemas.enrollment import (
     AutoSaveRequest, EnrollmentData, SubmitApplicationRequest,
     StudentInfo, MedicalInfo, FamilyInfo, FeeResponsibilityInfo
 )
+
+@pytest_asyncio.fixture
+async def client():
+    """Create test client"""
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://testserver") as client:
+        yield client
+
+@pytest.fixture
+def auth_headers():
+    """Mock authentication headers"""
+    return {"Authorization": "Bearer mock-token"}
 
 
 @pytest.mark.asyncio

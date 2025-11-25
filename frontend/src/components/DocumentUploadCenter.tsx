@@ -80,6 +80,7 @@ interface DocumentUploadCenterProps {
   applicationId?: string;
   onDocumentUploadComplete?: () => void;
   onBack?: () => void;
+  onDocumentsChange?: (data: any[]) => void; // Add this prop
 }
 
 export const DocumentUploadCenter: React.FC<DocumentUploadCenterProps> = ({
@@ -411,7 +412,7 @@ export const DocumentUploadCenter: React.FC<DocumentUploadCenterProps> = ({
   return (
     <div className="flex-1 bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50 min-h-screen">
       {/* Header Section */}
-      <div className="bg-white/80 backdrop-blur-sm border-b border-white/20 sticky top-0 z-30">
+      <div className="bg-white/80 backdrop-blur-sm border-b border-white/20">
         <div className="max-w-6xl mx-auto px-6 sm:px-8 py-12">
           <div className="flex items-center justify-between">
             <div>

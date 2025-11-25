@@ -40,10 +40,6 @@ class AuthService {
         user,
       };
 
-      // Store in localStorage
-      localStorage.setItem('access_token', response.access_token);
-      localStorage.setItem('user', JSON.stringify(response.user));
-
       return response;
     } catch (error: any) {
       console.error('Login error:', error);
@@ -52,25 +48,26 @@ class AuthService {
   }
 
   async signup(fullName: string, email: string, password: string): Promise<AuthResponse> {
+    // First, perform custom password validation.
+    const passwordErrors = this.validatePassword(password);
+    if (passwordErrors.length > 0) {
+      // If custom validation fails, throw the specific error message from the validator.
+      throw new Error(passwordErrors[0]);
+    }
+
     try {
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
-          data: {
-            full_name: fullName,
-          },
+          data: { full_name: fullName },
           emailRedirectTo: `${window.location.origin}/login`,
         },
       });
 
+      // If Supabase returns an error, throw it. This is the key change.
       if (error) {
         throw new Error(error.message);
-      }
-
-      if (!data.session?.access_token) {
-        // User might need to confirm email
-        throw new Error('Please check your email to confirm your account before logging in.');
       }
 
       const user: AuthUser = {
@@ -79,20 +76,18 @@ class AuthService {
         full_name: data.user?.user_metadata?.full_name || data.user?.email?.split('@')[0] || '',
       };
 
-      const response: AuthResponse = {
-        access_token: data.session.access_token,
+      // After signup with email confirmation, the session is null.
+      // We return the user data but the access_token will be empty,
+      // indicating that the user needs to confirm their email.
+      return {
+        access_token: data.session?.access_token || '',
         token_type: 'bearer',
         user,
       };
-
-      // Store in localStorage
-      localStorage.setItem('access_token', response.access_token);
-      localStorage.setItem('user', JSON.stringify(response.user));
-
-      return response;
     } catch (error: any) {
       console.error('Signup error:', error);
-      throw new Error(error.message || 'Signup failed');
+      // Re-throw the error (either from Supabase or another issue) to be handled by the UI.
+      throw error;
     }
   }
 
@@ -102,33 +97,29 @@ class AuthService {
       if (error) {
         console.error('Logout error:', error);
       }
-
-      // Clear localStorage
-      localStorage.removeItem('access_token');
-      localStorage.removeItem('user');
-      localStorage.removeItem('applicationId');
     } catch (error) {
       console.error('Logout error:', error);
     }
   }
 
-  getCurrentUser(): AuthUser | null {
-    try {
-      const userStr = localStorage.getItem('user');
-      return userStr ? JSON.parse(userStr) : null;
-    } catch {
-      return null;
+  validatePassword = (password: string): string[] => {
+    // This single regex checks for all conditions:
+    // - (?=.*[a-z]): at least one lowercase letter
+    // - (?=.*[A-Z]): at least one uppercase letter
+    // - (?=.*\d): at least one number
+    // - (?=.*[^A-Za-z0-9]): at least one special character (anything not a letter or number)
+    // - .{8,}: at least 8 characters long
+    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/;
+    if (passwordRegex.test(password)) {
+      return []; // Password is valid, no errors.
+    } else {
+      return ["Password must be at least 8 characters and include one uppercase, one lowercase, one number, and one special character."];
     }
-  }
+  };
 
-  getAccessToken(): string | null {
-    return localStorage.getItem('access_token');
-  }
-
-  isAuthenticated(): boolean {
-    const token = this.getAccessToken();
-    const user = this.getCurrentUser();
-    return !!(token && user);
+  async isAuthenticated(): Promise<boolean> {
+    const { data: { session } } = await supabase.auth.getSession();
+    return !!session;
   }
 
   // Initialize auth state listener
@@ -149,8 +140,6 @@ class AuthService {
             email: session.user.email || '',
             full_name: session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || '',
           };
-          localStorage.setItem('access_token', session.access_token);
-          localStorage.setItem('user', JSON.stringify(user));
           callback(user);
         } else {
           console.log("AuthService: No initial session found");
@@ -169,31 +158,19 @@ class AuthService {
     supabase.auth.onAuthStateChange(async (event, session) => {
       console.log("AuthService: Auth state change event:", event, !!session?.user);
 
-      if (event === 'SIGNED_IN' && session?.user) {
+      if (session?.user) {
         const user: AuthUser = {
           id: session.user.id,
           email: session.user.email || '',
           full_name: session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || '',
         };
-        localStorage.setItem('access_token', session.access_token);
-        localStorage.setItem('user', JSON.stringify(user));
-        console.log("AuthService: User signed in:", user.email);
-        callback(user);
+        if (event === 'SIGNED_IN') {
+          console.log("AuthService: User signed in:", user.email);
+          callback(user);
+        }
       } else if (event === 'SIGNED_OUT') {
         console.log("AuthService: User signed out");
-        localStorage.removeItem('access_token');
-        localStorage.removeItem('user');
         callback(null);
-      } else if (event === 'TOKEN_REFRESHED' && session?.user) {
-        console.log("AuthService: Token refreshed");
-        const user: AuthUser = {
-          id: session.user.id,
-          email: session.user.email || '',
-          full_name: session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || '',
-        };
-        localStorage.setItem('access_token', session.access_token);
-        localStorage.setItem('user', JSON.stringify(user));
-        // Don't call callback for token refresh to avoid unnecessary re-renders
       }
     });
   }

@@ -6,7 +6,7 @@ including user registration, login, enrollment submission, and document upload.
 """
 
 import pytest
-from httpx import AsyncClient
+from httpx import AsyncClient, ASGITransport
 from fastapi import FastAPI
 from unittest.mock import Mock, patch
 
@@ -286,5 +286,5 @@ class TestCompleteEnrollmentFlow:
 @pytest.fixture
 async def client():
     """Create test client for integration tests"""
-    async with AsyncClient(app=app, base_url="http://testserver") as client:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://testserver") as client:
         yield client

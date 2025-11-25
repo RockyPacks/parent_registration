@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import FormSection from './FormSection';
 import InputField from '../ui/InputField';
@@ -6,13 +5,15 @@ import { FamilyIcon } from '../Icons';
 import { useToast } from '../../hooks/useToast';
 
 interface FamilyInformationProps {
-  initialData?: any;
-  onDataChange?: (data: any) => void;
+  initialFamilyData?: any;
+  initialNextOfKinData?: any;
+  onFamilyDataChange?: (data: any) => void;
+  onNextOfKinDataChange?: (data: any) => void;
 }
 
-const FamilyInformation: React.FC<FamilyInformationProps> = ({ initialData, onDataChange }) => {
+const FamilyInformation: React.FC<FamilyInformationProps> = ({ initialFamilyData, initialNextOfKinData, onFamilyDataChange, onNextOfKinDataChange }) => {
   const { addToast } = useToast();
-  const [formData, setFormData] = useState({
+  const [familyFormData, setFamilyFormData] = useState({
     fatherSurname: '',
     fatherFirstName: '',
     fatherIdNumber: '',
@@ -23,12 +24,17 @@ const FamilyInformation: React.FC<FamilyInformationProps> = ({ initialData, onDa
     motherIdNumber: '',
     motherMobile: '',
     motherEmail: '',
+    ...initialFamilyData
+  });
+
+  const [nextOfKinFormData, setNextOfKinFormData] = useState({
     nextOfKinSurname: '',
     nextOfKinFirstName: '',
     nextOfKinRelationship: '',
     nextOfKinMobile: '',
     nextOfKinEmail: '',
-    ...initialData
+    nextOfKinIdNumber: '', // Added missing nextOfKinIdNumber
+    ...initialNextOfKinData
   });
 
   const [errors, setErrors] = useState({
@@ -46,28 +52,32 @@ const FamilyInformation: React.FC<FamilyInformationProps> = ({ initialData, onDa
     nextOfKinFirstName: '',
     nextOfKinRelationship: '',
     nextOfKinMobile: '',
-    nextOfKinEmail: ''
+    nextOfKinEmail: '',
+    nextOfKinIdNumber: '' // Added missing nextOfKinIdNumber
   });
 
-
+  useEffect(() => {
+    if (onFamilyDataChange) {
+      onFamilyDataChange(familyFormData);
+    }
+  }, [familyFormData, onFamilyDataChange]);
 
   useEffect(() => {
-    if (onDataChange) {
-      onDataChange(formData);
+    if (onNextOfKinDataChange) {
+      onNextOfKinDataChange(nextOfKinFormData);
     }
-    // Save to localStorage whenever form data changes
-    localStorage.setItem('familyInformation', JSON.stringify(formData));
-  }, [formData, onDataChange]);
+  }, [nextOfKinFormData, onNextOfKinDataChange]);
+
 
   // Check if at least one parent is fully filled
   useEffect(() => {
-    const isFatherComplete = formData.fatherSurname && formData.fatherFirstName && formData.fatherIdNumber && formData.fatherMobile && formData.fatherEmail;
-    const isMotherComplete = formData.motherSurname && formData.motherFirstName && formData.motherIdNumber && formData.motherMobile && formData.motherEmail;
+    const isFatherComplete = familyFormData.fatherSurname && familyFormData.fatherFirstName && familyFormData.fatherIdNumber && familyFormData.fatherMobile && familyFormData.fatherEmail;
+    const isMotherComplete = familyFormData.motherSurname && familyFormData.motherFirstName && familyFormData.motherIdNumber && familyFormData.motherMobile && familyFormData.motherEmail;
 
     if (!isFatherComplete && !isMotherComplete) {
       addToast('Please provide complete information for at least one parent (Father or Mother)', 'warning');
     }
-  }, [formData, addToast]);
+  }, [familyFormData, addToast]);
 
   const validateField = (field: string, value: string) => {
     let error = '';
@@ -97,6 +107,7 @@ const FamilyInformation: React.FC<FamilyInformationProps> = ({ initialData, onDa
         break;
       case 'fatherIdNumber':
       case 'motherIdNumber':
+      case 'nextOfKinIdNumber': // Added validation for nextOfKinIdNumber
         if (!value.trim()) {
           error = 'ID number is required';
         } else if (!/^\d{13}$/.test(value)) {
@@ -139,14 +150,21 @@ const FamilyInformation: React.FC<FamilyInformationProps> = ({ initialData, onDa
   };
 
   const handleInputChange = (field: string, value: string) => {
-    setFormData(prev => ({
-      ...prev,
-      [field]: value
-    }));
+    // Determine if the field belongs to familyFormData or nextOfKinFormData
+    if (field.startsWith('nextOfKin')) {
+      setNextOfKinFormData(prev => ({
+        ...prev,
+        [field]: value
+      }));
+    } else {
+      setFamilyFormData(prev => ({
+        ...prev,
+        [field]: value
+      }));
+    }
     validateField(field, value);
   };
 
-  // Auto-save functionality removed - handled by parent component
   return (
     <FormSection icon={<FamilyIcon className="w-6 h-6 text-green-500" />} title="Family Information">
       <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
@@ -178,13 +196,13 @@ const FamilyInformation: React.FC<FamilyInformationProps> = ({ initialData, onDa
               <h3 className="text-xl font-bold text-gray-800">Father/Guardian</h3>
               <div className="flex-1 h-px bg-gradient-to-r from-blue-200 to-transparent"></div>
             </div>
-            <div className="space-y-5">
-              <div className="grid grid-cols-1 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-5">
+              {/* Use grid for responsive layout */}
                 <InputField
                   id="fatherSurname"
                   label="Surname"
                   required
-                  value={formData.fatherSurname}
+                  value={familyFormData.fatherSurname}
                   onChange={(e) => handleInputChange('fatherSurname', e.target.value)}
                   error={errors.fatherSurname}
                 />
@@ -192,40 +210,39 @@ const FamilyInformation: React.FC<FamilyInformationProps> = ({ initialData, onDa
                   id="fatherFirstName"
                   label="First Name"
                   required
-                  value={formData.fatherFirstName}
+                  value={familyFormData.fatherFirstName}
                   onChange={(e) => handleInputChange('fatherFirstName', e.target.value)}
                   error={errors.fatherFirstName}
                 />
-              </div>
+              <div className="md:col-span-2">
               <InputField
                 id="fatherIdNumber"
                 label="ID Number"
                 required
-                value={formData.fatherIdNumber}
+                value={familyFormData.fatherIdNumber}
                 onChange={(e) => handleInputChange('fatherIdNumber', e.target.value)}
                 error={errors.fatherIdNumber}
                 placeholder="13-digit South African ID number"
               />
-              <div className="grid grid-cols-1 gap-4">
-                <InputField
+              </div>
+              <InputField
                   id="fatherMobile"
                   label="Mobile Number"
                   required
-                  value={formData.fatherMobile}
+                  value={familyFormData.fatherMobile}
                   onChange={(e) => handleInputChange('fatherMobile', e.target.value)}
                   error={errors.fatherMobile}
                   placeholder="+27 or 0XXXXXXXXX"
                 />
-                <InputField
+              <InputField
                   id="fatherEmail"
                   label="Email Address"
                   required
-                  value={formData.fatherEmail}
+                  value={familyFormData.fatherEmail}
                   onChange={(e) => handleInputChange('fatherEmail', e.target.value)}
                   error={errors.fatherEmail}
                   placeholder="example@email.com"
                 />
-              </div>
             </div>
           </div>
         </div>
@@ -243,13 +260,13 @@ const FamilyInformation: React.FC<FamilyInformationProps> = ({ initialData, onDa
               <h3 className="text-xl font-bold text-gray-800">Mother/Guardian</h3>
               <div className="flex-1 h-px bg-gradient-to-r from-purple-200 to-transparent"></div>
             </div>
-            <div className="space-y-5">
-              <div className="grid grid-cols-1 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-5">
+              {/* Use grid for responsive layout */}
                 <InputField
                   id="motherSurname"
                   label="Surname"
                   required
-                  value={formData.motherSurname}
+                  value={familyFormData.motherSurname}
                   onChange={(e) => handleInputChange('motherSurname', e.target.value)}
                   error={errors.motherSurname}
                 />
@@ -257,103 +274,110 @@ const FamilyInformation: React.FC<FamilyInformationProps> = ({ initialData, onDa
                   id="motherFirstName"
                   label="First Name"
                   required
-                  value={formData.motherFirstName}
+                  value={familyFormData.motherFirstName}
                   onChange={(e) => handleInputChange('motherFirstName', e.target.value)}
                   error={errors.motherFirstName}
                 />
-              </div>
+              <div className="md:col-span-2">
               <InputField
                 id="motherIdNumber"
                 label="ID Number"
                 required
-                value={formData.motherIdNumber}
+                value={familyFormData.motherIdNumber}
                 onChange={(e) => handleInputChange('motherIdNumber', e.target.value)}
                 error={errors.motherIdNumber}
                 placeholder="13-digit South African ID number"
               />
-              <div className="grid grid-cols-1 gap-4">
-                <InputField
+              </div>
+              <InputField
                   id="motherMobile"
                   label="Mobile Number"
                   required
-                  value={formData.motherMobile}
+                  value={familyFormData.motherMobile}
                   onChange={(e) => handleInputChange('motherMobile', e.target.value)}
                   error={errors.motherMobile}
                   placeholder="+27 or 0XXXXXXXXX"
                 />
-                <InputField
+              <InputField
                   id="motherEmail"
                   label="Email Address"
                   required
-                  value={formData.motherEmail}
+                  value={familyFormData.motherEmail}
                   onChange={(e) => handleInputChange('motherEmail', e.target.value)}
                   error={errors.motherEmail}
                   placeholder="example@email.com"
                 />
-              </div>
             </div>
           </div>
         </div>
 
         {/* Next of Kin Card */}
-        <div className="relative bg-gradient-to-br from-green-50 via-green-25 to-emerald-50 rounded-2xl p-8 border border-green-200/50 shadow-sm hover:shadow-lg transition-all duration-300 group">
-          <div className="absolute -top-4 -left-4 w-12 h-12 bg-gradient-to-br from-green-500 to-green-600 rounded-full flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-300">
+        <div className="relative bg-gradient-to-br from-indigo-50 via-indigo-25 to-blue-50 rounded-2xl p-8 border border-indigo-200/50 shadow-sm hover:shadow-lg transition-all duration-300 group">
+          <div className="absolute -top-4 -left-4 w-12 h-12 bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-full flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-300">
             <svg className="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 20 20">
-              <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
+              <path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17.555 17.555A8 8 0 102.444 2.444a8 8 0 0015.111 15.111zM10 12a4 4 0 00-4 4v1a2 2 0 002 2h4a2 2 0 002-2v-1a4 4 0 00-4-4z" />
             </svg>
           </div>
           <div className="ml-8">
             <div className="flex items-center gap-3 mb-6">
-              <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
+              <div className="w-3 h-3 bg-indigo-500 rounded-full animate-pulse"></div>
               <h3 className="text-xl font-bold text-gray-800">Next of Kin</h3>
-              <div className="flex-1 h-px bg-gradient-to-r from-green-200 to-transparent"></div>
+              <div className="flex-1 h-px bg-gradient-to-r from-indigo-200 to-transparent"></div>
             </div>
-            <div className="space-y-5">
-              <div className="grid grid-cols-1 gap-4">
-                <InputField
-                  id="nextOfKinSurname"
-                  label="Surname"
-                  required
-                  value={formData.nextOfKinSurname}
-                  onChange={(e) => handleInputChange('nextOfKinSurname', e.target.value)}
-                  error={errors.nextOfKinSurname}
-                />
-                <InputField
-                  id="nextOfKinFirstName"
-                  label="First Name"
-                  required
-                  value={formData.nextOfKinFirstName}
-                  onChange={(e) => handleInputChange('nextOfKinFirstName', e.target.value)}
-                  error={errors.nextOfKinFirstName}
-                />
-              </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-5">
+              <InputField
+                id="nextOfKinSurname"
+                label="Surname"
+                required
+                value={nextOfKinFormData.nextOfKinSurname}
+                onChange={(e) => handleInputChange('nextOfKinSurname', e.target.value)}
+                error={errors.nextOfKinSurname}
+              />
+              <InputField
+                id="nextOfKinFirstName"
+                label="First Name"
+                required
+                value={nextOfKinFormData.nextOfKinFirstName}
+                onChange={(e) => handleInputChange('nextOfKinFirstName', e.target.value)}
+                error={errors.nextOfKinFirstName}
+              />
               <InputField
                 id="nextOfKinRelationship"
-                label="Relationship"
+                label="Relationship to Student"
                 required
-                value={formData.nextOfKinRelationship}
+                value={nextOfKinFormData.nextOfKinRelationship}
                 onChange={(e) => handleInputChange('nextOfKinRelationship', e.target.value)}
                 error={errors.nextOfKinRelationship}
-                placeholder="e.g., Aunt, Uncle, Grandparent"
               />
-              <div className="grid grid-cols-1 gap-4">
-                <InputField
-                  id="nextOfKinMobile"
-                  label="Mobile Number"
-                  required
-                  value={formData.nextOfKinMobile}
-                  onChange={(e) => handleInputChange('nextOfKinMobile', e.target.value)}
-                  error={errors.nextOfKinMobile}
-                  placeholder="+27 or 0XXXXXXXXX"
-                />
+              <InputField
+                id="nextOfKinMobile"
+                label="Mobile Number"
+                required
+                value={nextOfKinFormData.nextOfKinMobile}
+                onChange={(e) => handleInputChange('nextOfKinMobile', e.target.value)}
+                error={errors.nextOfKinMobile}
+                placeholder="+27 or 0XXXXXXXXX"
+              />
+              <div className="md:col-span-2">
                 <InputField
                   id="nextOfKinEmail"
                   label="Email Address"
                   required
-                  value={formData.nextOfKinEmail}
+                  value={nextOfKinFormData.nextOfKinEmail}
                   onChange={(e) => handleInputChange('nextOfKinEmail', e.target.value)}
                   error={errors.nextOfKinEmail}
                   placeholder="example@email.com"
+                />
+              </div>
+              <div className="md:col-span-2">
+                <InputField
+                  id="nextOfKinIdNumber"
+                  label="ID Number"
+                  required
+                  value={nextOfKinFormData.nextOfKinIdNumber}
+                  onChange={(e) => handleInputChange('nextOfKinIdNumber', e.target.value)}
+                  error={errors.nextOfKinIdNumber}
+                  placeholder="13-digit South African ID number"
                 />
               </div>
             </div>

@@ -1,4 +1,4 @@
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 from datetime import datetime
 import logging
 from fastapi import HTTPException
@@ -9,7 +9,8 @@ from app.api.v1.schemas.enrollment import (
     AutoSaveRequest, AutoSaveResponse, EnrollmentData,
     SubmitEnrollmentResponse, ApplicationResponse,
     UploadSummaryResponse, SubmitApplicationRequest,
-    SubmitApplicationResponse, ApplicationStatus,
+    SubmitApplicationResponse, ApplicationStatus, AcademicHistorySchema,
+    ApplicationSummary, # Add this import
     StudentInfoPartial, MedicalInfoPartial, FamilyInfoPartial, FeeResponsibilityInfoPartial
 )
 
@@ -22,19 +23,42 @@ class EnrollmentService:
     def __init__(self):
         self.repository = enrollment_repository
 
+    def get_or_create_application_for_user(self, user_id: str) -> Dict[str, Any]:
+        """
+        Retrieves an existing application for a user or creates a new one.
+        This ensures every authenticated user has an application ID upon login.
+        """
+        try:
+            # Check if user already has ANY application (in_progress or submitted)
+            existing_app = self.repository.get_user_application(user_id)
+
+            if existing_app:
+                application_id = str(existing_app['id'])
+                status = existing_app.get('status', ApplicationStatus.IN_PROGRESS)
+                logger.info(f"Found existing application {application_id} for user {user_id}")
+                return {"application_id": application_id, "status": status}
+            else:
+                # Create a new application if none exists
+                application_id = self.repository.create_application(user_id)
+                logger.info(f"Created new application {application_id} for user {user_id}")
+                return {"application_id": application_id, "status": ApplicationStatus.IN_PROGRESS}
+        except Exception as e:
+            logger.error(f"Failed to get or create application for user {user_id}: {str(e)}")
+            raise HTTPException(status_code=500, detail="Could not retrieve or create user application.")
+
     def auto_save_enrollment(self, data: AutoSaveRequest, user_id: str) -> AutoSaveResponse:
         """Auto-save enrollment progress"""
         try:
-            # Check if user already has ANY application (in_progress or submitted)
+            # This is the single source of truth. Get the application ID based ONLY on the authenticated user.
+            # Ignore any application_id that might be sent in the request body.
             existing_app = self.repository.get_user_application(user_id)
             if existing_app:
                 application_id = str(existing_app['id'])
                 logger.info(f"Using existing application: {application_id}")
             else:
-                # Create new application if none exists
                 application_id = self.repository.create_application(user_id)
-                logger.info(f"Created new application with ID: {application_id}")
-
+                logger.info(f"Created new application with ID: {application_id} for auto-save")
+ 
             # Save provided data sections with error handling for each section
             saved_sections = []
             failed_sections = []
@@ -85,8 +109,8 @@ class EnrollmentService:
             # Instead of raising HTTPException, return a graceful response
             # This prevents the frontend from getting 422/500 errors
             return AutoSaveResponse(
-                message="Auto-save encountered issues but continued",
-                application_id=data.application_id or "unknown"
+                message="Auto-save encountered a critical error.",
+                application_id="unknown"
             )
 
     def submit_enrollment(self, data: EnrollmentData, user_id: str) -> SubmitEnrollmentResponse:
@@ -126,15 +150,13 @@ class EnrollmentService:
         try:
             # First check if user owns this application
             app_check = self.repository.get_application_by_id_and_user(application_id, user_id)
-            if not app_check:
-                # If not owned by user, check if application exists at all
-                app_exists = self.repository.get_application_by_id(application_id)
-                if not app_exists:
-                    raise HTTPException(status_code=404, detail="Application not found")
-                else:
-                    raise HTTPException(status_code=403, detail="Access denied")
 
-            application_data = self.repository.get_full_application(application_id)
+            if not app_check:
+                # If the user does not own the application, deny access.
+                # We can also check if the app exists to return a 404 vs 403, but a 404 is often better for security.
+                raise HTTPException(status_code=404, detail="Application not found or access denied")
+ 
+            application_data = self.repository.get_full_application(application_id, user_id)
 
             return ApplicationResponse(**application_data)
         except HTTPException:
@@ -267,6 +289,27 @@ class EnrollmentService:
             logger.error(f"Failed to submit declaration: {str(e)}")
             raise HTTPException(status_code=500, detail=f"Failed to submit declaration: {str(e)}")
 
+    def submit_academic_history(self, data: AcademicHistorySchema, user_id: str) -> Dict[str, Any]:
+        """Create or update academic history for an application."""
+        try:
+            application_id = data.application_id
+            # Verify user owns this application
+            app_check = self.repository.get_application_by_id_and_user(application_id, user_id)
+            if not app_check:
+                raise HTTPException(status_code=403, detail="Access denied: You do not own this application.")
+
+            from app.repositories.academic_repository import academic_repository
+            
+            # The create_academic_history method should handle both creation and updates (upsert)
+            academic_repository.create_academic_history(data)
+
+            return {
+                "message": "Academic history submitted successfully",
+                "application_id": application_id
+            }
+        except Exception as e:
+            logger.error(f"Failed to submit academic history for application {data.application_id}: {str(e)}")
+            raise HTTPException(status_code=500, detail=f"Failed to submit academic history: {str(e)}")
 
 # Global instance
 enrollment_service = EnrollmentService()

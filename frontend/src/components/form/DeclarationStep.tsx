@@ -29,22 +29,36 @@ const CONFIRMATIONS = [
 type ConfirmationKeys = typeof CONFIRMATIONS[number]['id'];
 
 interface DeclarationStepProps {
-  onBack?: () => void;
-  onNext?: () => void;
+  applicationId?: string | null;
+  onDataChange?: (data: any) => void;
+  onStepChange?: (step: number) => void;
+  onStepComplete?: (step: number) => void;
+  // The 'onDeclarationComplete' prop is passed but not used, we'll use onStepChange/onStepComplete instead.
+  onDeclarationComplete?: () => void;
 }
 
-const DeclarationStep: React.FC<DeclarationStepProps> = ({ onBack, onNext }) => {
-  const [confirmations, setConfirmations] = useState<ConfirmationChecks>({
-    agree_truth: false,
-    agree_policies: false,
-    agree_financial: false,
-    agree_verification: false,
-    agree_data_processing: false,
-    agree_audit_storage: false,
-    agree_affordability_processing: false,
+const DeclarationStep: React.FC<DeclarationStepProps> = ({ applicationId, onDataChange, onStepChange, onStepComplete }) => {
+  const [confirmations, setConfirmations] = useState<ConfirmationChecks>(() => {
+    const savedData = localStorage.getItem('declarationData');
+    const parsed = savedData ? JSON.parse(savedData) : {};
+    return {
+      agree_truth: parsed.agree_truth || false,
+      agree_policies: parsed.agree_policies || false,
+      agree_financial: parsed.agree_financial || false,
+      agree_verification: parsed.agree_verification || false,
+      agree_data_processing: parsed.agree_data_processing || false,
+      agree_audit_storage: parsed.agree_audit_storage || false,
+      agree_affordability_processing: parsed.agree_affordability_processing || false,
+    };
   });
-  const [fullName, setFullName] = useState('');
-  const [city, setCity] = useState('');
+  const [fullName, setFullName] = useState(() => {
+    const savedData = localStorage.getItem('declarationData');
+    return savedData ? JSON.parse(savedData).fullName || '' : '';
+  });
+  const [city, setCity] = useState(() => {
+    const savedData = localStorage.getItem('declarationData');
+    return savedData ? JSON.parse(savedData).city || '' : '';
+  });
   const [isContinueDisabled, setIsContinueDisabled] = useState(true);
   const [touched, setTouched] = useState<{ [key: string]: boolean }>({});
 
@@ -82,11 +96,13 @@ const DeclarationStep: React.FC<DeclarationStepProps> = ({ onBack, onNext }) => 
   useEffect(() => {
     const allChecked = Object.values(confirmations).every(Boolean);
     const isNameValid = fullName.trim().length >= 3;
-    setIsContinueDisabled(!(allChecked && isNameValid));
+    const isValid = allChecked && isNameValid;
+    setIsContinueDisabled(!isValid);
     validateDeclaration();
+    
     // Save to localStorage whenever form data changes
     const declarationData = {
-      application_id: localStorage.getItem('applicationId'),
+      application_id: applicationId,
       agree_truth: confirmations.agree_truth,
       agree_policies: confirmations.agree_policies,
       agree_financial: confirmations.agree_financial,
@@ -96,10 +112,12 @@ const DeclarationStep: React.FC<DeclarationStepProps> = ({ onBack, onNext }) => 
       agree_affordability_processing: confirmations.agree_affordability_processing,
       fullName,
       city,
-      status: 'in_progress'
+      status: isValid ? 'completed' : 'in_progress', // Set status to 'completed' only if valid
+      signed: isValid // Explicitly set signed status for PDF rendering
     };
     localStorage.setItem('declarationData', JSON.stringify(declarationData));
-  }, [confirmations, fullName, city]);
+    onDataChange && onDataChange(declarationData); // Call onDataChange
+  }, [confirmations, fullName, city, onDataChange]);
 
   const validateDeclaration = () => {
     const errors: {[key: string]: string} = {};
@@ -123,7 +141,7 @@ const DeclarationStep: React.FC<DeclarationStepProps> = ({ onBack, onNext }) => 
       console.log('Saving progress...');
       try {
         const declarationData = {
-          application_id: localStorage.getItem('applicationId'),
+          application_id: applicationId,
           agree_truth: confirmations.agree_truth,
           agree_policies: confirmations.agree_policies,
           agree_financial: confirmations.agree_financial,
@@ -141,7 +159,7 @@ const DeclarationStep: React.FC<DeclarationStepProps> = ({ onBack, onNext }) => 
 
         const responseData = await apiService.submitDeclaration(declarationData);
         if (responseData.application_id) {
-            localStorage.setItem('applicationId', responseData.application_id);
+            // The parent component is responsible for managing the application ID state
         }
         alert('Your progress has been saved!');
       } catch (error) {
@@ -151,37 +169,35 @@ const DeclarationStep: React.FC<DeclarationStepProps> = ({ onBack, onNext }) => 
   };
 
   const handleContinue = async () => {
-      if(isContinueDisabled) return;
-      console.log('Continuing to next step...');
-      try {
-        const declarationData = {
-          application_id: localStorage.getItem('applicationId'),
-          agree_truth: confirmations.agree_truth,
-          agree_policies: confirmations.agree_policies,
-          agree_financial: confirmations.agree_financial,
-          agree_verification: confirmations.agree_verification,
-          agree_data_processing: confirmations.agree_data_processing,
-          agree_audit_storage: confirmations.agree_audit_storage,
-          agree_affordability_processing: confirmations.agree_affordability_processing,
-          fullName,
-          city,
-          status: 'completed'
-        };
+      if(isContinueDisabled) return; // Prevent continuation if validation fails
+      
+      const declarationData = {
+        application_id: applicationId,
+        agree_truth: confirmations.agree_truth,
+        agree_policies: confirmations.agree_policies,
+        agree_financial: confirmations.agree_financial,
+        agree_verification: confirmations.agree_verification,
+        agree_data_processing: confirmations.agree_data_processing,
+        agree_audit_storage: confirmations.agree_audit_storage,
+        agree_affordability_processing: confirmations.agree_affordability_processing,
+        fullName,
+        city,
+        status: 'completed',
+        signed: true // Explicitly mark as signed upon successful continuation
+      };
 
+      try {
+        await apiService.submitDeclaration(declarationData);
         // Save to localStorage
         localStorage.setItem('declarationData', JSON.stringify(declarationData));
+        onDataChange && onDataChange(declarationData); // Ensure parent also gets the updated data with signed: true
 
-        const responseData = await apiService.submitDeclaration(declarationData);
-        if (responseData.application_id) {
-            localStorage.setItem('applicationId', responseData.application_id);
-        }
-       // alert('Declaration complete! Moving to the next step.');
-        if (onNext) {
-            onNext();
-        }
+        // Use the props from MainContent to navigate
+        onStepComplete && onStepComplete(5);
+        onStepChange && onStepChange(6);
       } catch (error) {
         console.error('Error submitting declaration:', error);
-       // alert('Failed to submit declaration. Please try again.');
+        alert('Failed to submit declaration. Please try again.');
       }
   };
 
@@ -350,12 +366,8 @@ const DeclarationStep: React.FC<DeclarationStepProps> = ({ onBack, onNext }) => 
         {/* Submit Button */}
         <div className="mt-6 pt-4 border-t border-gray-200">
           <button
-            onClick={() => {
-              if (validateDeclaration()) {
-                handleContinue();
-              }
-            }}
-            disabled={!isNextEnabled}
+            onClick={handleContinue} // Call handleContinue directly
+            disabled={isContinueDisabled} // Use isContinueDisabled state
             className="w-full bg-gradient-to-r from-indigo-500 to-purple-500 text-white py-3 px-6 rounded-lg hover:from-indigo-600 hover:to-purple-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 font-medium shadow-sm"
           >
             Submit Declaration & Continue to Review
@@ -366,13 +378,13 @@ const DeclarationStep: React.FC<DeclarationStepProps> = ({ onBack, onNext }) => 
         </div>
 
         <Footer
-            onBack={onBack}
+            onBack={() => onStepChange && onStepChange(4)}
             onSave={handleSaveProgress}
-            onNext={() => {}}
+            // onNext is now handled by the DeclarationStep's internal logic
             showBack={true}
             showSave={true}
             showNext={false}
-            nextLabel="Next: Review and Submit"
+            // nextLabel="Next: Review and Submit" // Not needed if showNext is false
             isLoading={false}
         />
     </div>

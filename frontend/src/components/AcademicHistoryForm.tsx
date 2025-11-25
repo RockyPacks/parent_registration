@@ -8,18 +8,20 @@ import { Button } from './ui/Button';
 import { SaveIcon, ArrowRightIcon, ChevronDownIcon, ChevronUpIcon, AcademicCapIcon as SchoolIcon, BriefcaseIcon as ContactIcon, ChartBarIcon as PerformanceIcon } from './Icons';
 import Footer from './Footer';
 import { useToast } from '../hooks/useToast';
+import { apiService } from '../services/api';
 
 interface AcademicHistoryFormProps {
   onSubmit: () => void;
   onBack?: () => void;
+  onDataChange?: (data: AcademicHistoryData) => void; // Add this prop
 }
 
-const AcademicHistoryForm: React.FC<AcademicHistoryFormProps> = ({ onSubmit, onBack }) => {
+const AcademicHistoryForm: React.FC<AcademicHistoryFormProps> = ({ onSubmit, onBack, onDataChange }) => {
   const { addToast } = useToast();
-  const [formData, setFormData] = useState<AcademicHistoryData>(() => {
+  const [formData, setFormData] = useState<AcademicHistoryData>(() => { // Removed initialData from here
     // Load saved progress from localStorage
     const savedData = localStorage.getItem('academicHistoryFormData');
-    return savedData ? JSON.parse(savedData) : {
+    return savedData ? JSON.parse(savedData) : { // It will now always start with localStorage or a clean slate
       schoolName: '',
       schoolType: '',
       lastGradeCompleted: '',
@@ -30,7 +32,7 @@ const AcademicHistoryForm: React.FC<AcademicHistoryFormProps> = ({ onSubmit, onB
       schoolEmail: '',
       schoolAddress: '',
       reportCard: null,
-      additionalNotes: '',
+      additionalNotes: ''
     };
   });
 
@@ -40,7 +42,6 @@ const AcademicHistoryForm: React.FC<AcademicHistoryFormProps> = ({ onSubmit, onB
       try {
         const applicationId = localStorage.getItem('applicationId');
         if (applicationId) {
-          const { apiService } = await import('../services/api');
           const backendData = await apiService.getAcademicHistory(applicationId);
           // Populate form with backend data
           if (backendData) {
@@ -55,6 +56,7 @@ const AcademicHistoryForm: React.FC<AcademicHistoryFormProps> = ({ onSubmit, onB
               schoolPhoneNumber: backendData.school_phone_number || prev.schoolPhoneNumber,
               schoolEmail: backendData.school_email || prev.schoolEmail,
               schoolAddress: backendData.school_address || prev.schoolAddress,
+              reportCardUrl: backendData.report_card_url || prev.reportCardUrl, // *** THE KEY FIX ***
               additionalNotes: backendData.additional_notes || prev.additionalNotes,
             }));
           }
@@ -190,6 +192,11 @@ const AcademicHistoryForm: React.FC<AcademicHistoryFormProps> = ({ onSubmit, onB
     localStorage.setItem('academicHistoryFormData', JSON.stringify(formData));
   }, [formData]);
 
+  // Call onDataChange whenever formData changes to pass data to parent
+  React.useEffect(() => {
+    onDataChange && onDataChange(formData);
+  }, [formData, onDataChange]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -211,7 +218,6 @@ const AcademicHistoryForm: React.FC<AcademicHistoryFormProps> = ({ onSubmit, onB
       // If there's a report card file, upload it first
       let reportCardUrl = null;
       if (formData.reportCard) {
-        const { apiService } = await import('../services/api');
         const uploadResult = await apiService.uploadFile(
           formData.reportCard,
           applicationId,
@@ -236,7 +242,6 @@ const AcademicHistoryForm: React.FC<AcademicHistoryFormProps> = ({ onSubmit, onB
         report_card_url: reportCardUrl
       };
 
-      const { apiService } = await import('../services/api');
       const result = await apiService.submitAcademicHistory(formDataToSubmit);
 
       // Update localStorage with the real application ID if it was a temp ID
@@ -244,13 +249,12 @@ const AcademicHistoryForm: React.FC<AcademicHistoryFormProps> = ({ onSubmit, onB
         localStorage.setItem('applicationId', result.application_id);
       }
       addToast('Academic history saved successfully!', 'success');
-      // Clear saved progress after successful submission
-      localStorage.removeItem('academicHistoryFormData');
-      onSubmit(); // Call the onSubmit prop to update the stepper
+      
+      // Call onSubmit to proceed to the next step AFTER successful submission.
+      onSubmit(); 
     } catch (error: any) {
       addToast('Error saving academic history: ' + (error.message || 'Unknown error'), 'error');
-      // Still proceed to next step even if backend fails
-      onSubmit();
+      // Do NOT proceed to next step if backend submission fails.
     }
   };
 

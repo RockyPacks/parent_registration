@@ -48,6 +48,7 @@ export interface DocumentStatus {
 }
 
 export interface EnrollmentData {
+  application_id: string;
   student: {
     surname: string;
     firstName: string;
@@ -83,6 +84,7 @@ export interface EnrollmentData {
     nextOfKinRelationship: string;
     nextOfKinMobile: string;
     nextOfKinEmail: string;
+    nextOfKinIdNumber?: string; // Added missing property
   };
   fee: {
     feePerson: string;
@@ -163,12 +165,16 @@ class ApiService {
 
   async uploadFile(
     file: File,
-    applicationId: string,
+    applicationId: string | null, // applicationId can be null
     documentType: string,
     onProgress?: (progress: number) => void,
     signal?: AbortSignal
   ): Promise<UploadResponse> {
     const session = await this.getCachedSession();
+
+    if (!applicationId || applicationId === "unknown") {
+      throw new Error("Cannot upload file: Application ID is missing or invalid.");
+    }
 
     const formData = new FormData();
     formData.append('file', file);
@@ -196,6 +202,17 @@ class ApiService {
       console.error('Upload error caught in frontend:', error);
       throw error;
     }
+  }
+
+  /**
+   * Calls the backend to get an existing application ID for the current user
+   * or create a new one. This is the authoritative way to get the ID after login.
+   */
+  async initiateApplication(): Promise<{ application_id: string; status: string }> {
+    // This makes a POST request to the correct, secure endpoint.
+    return this.request('/enrollment/initiate-application', {
+      method: 'POST',
+    });
   }
 
   async getApplication(applicationId: string): Promise<any> {
@@ -272,14 +289,13 @@ class ApiService {
     // Helper function to check if an object has any non-empty values
     const hasData = (obj: any): boolean => {
       if (!obj || typeof obj !== 'object') return false;
-      return Object.values(obj).some(value =>
-        value !== null && value !== undefined && value !== '' &&
-        !(Array.isArray(value) && value.length === 0) &&
-        !(typeof value === 'object' && !hasData(value))
-      );
+      // Check if there is at least one own property that is not null or undefined.
+      // This is less strict than the previous check and allows empty strings to be saved.
+      return Object.keys(obj).some(key => obj[key] !== null && obj[key] !== undefined);
     };
 
     // Helper function to sanitize data before sending
+    // This function is no longer used with the simplified hasData check, but kept for potential future use.
     const sanitizeData = (obj: any): any => {
       if (!obj || typeof obj !== 'object') return obj;
 
@@ -334,19 +350,19 @@ class ApiService {
     };
 
     if (hasData(data.student)) {
-      filteredData.student = sanitizeData(data.student);
+      filteredData.student = data.student;
     }
     if (hasData(data.medical)) {
-      filteredData.medical = sanitizeData(data.medical);
+      filteredData.medical = data.medical;
     }
     if (hasData(data.family)) {
-      filteredData.family = sanitizeData(data.family);
+      filteredData.family = data.family;
     }
     if (hasData(data.fee)) {
-      filteredData.fee = sanitizeData(data.fee);
+      filteredData.fee = data.fee;
     }
 
-    // Only proceed if we have at least some data to save
+    // Only proceed if we have at least some data to save besides the application_id
     if (!hasData(filteredData) || Object.keys(filteredData).length <= 1) {
       console.log('Auto-save skipped: no valid data to save');
       return { message: 'No data to save', application_id: data.application_id };
@@ -420,6 +436,7 @@ class ApiService {
         mother_id_number: data.family.motherIdNumber || null,
         mother_mobile: data.family.motherMobile || null,
         mother_email: data.family.motherEmail || null,
+        // Add next_of_kin fields directly into the family object
         next_of_kin_surname: data.family.nextOfKinSurname || null,
         next_of_kin_first_name: data.family.nextOfKinFirstName || null,
         next_of_kin_relationship: data.family.nextOfKinRelationship || null,
@@ -486,17 +503,33 @@ class ApiService {
     return this.request(`/academic/academic-history/${applicationId}`);
   }
 
-  async submitAcademicHistory(data: any): Promise<any> {
-    return this.request('/academic/academic-history', {
+  async submitDeclaration(data: any): Promise<{ message: string; application_id: string }> {
+    return this.request('/enrollment/declaration', {
       method: 'POST',
       body: JSON.stringify(data),
     });
   }
 
-  async submitDeclaration(data: any): Promise<{ message: string; application_id: string }> {
-    return this.request('/enrollment/declaration', {
+  async submitAcademicHistory(data: any): Promise<{ message: string; application_id: string }> {
+    // Separate the applicationId from the rest of the form data.
+    const { applicationId, ...formData } = data;
+
+    // Convert the form data to snake_case for the backend.
+    const snakeCaseData = toSnakeCase(formData);
+
+    // Nest the academic history data under an 'academic_history' key to match the full submission schema.
+
+    // Construct the final payload
+    const payload = {
+      ...snakeCaseData,
+      application_id: applicationId
+    };
+    return this.request('/academic/academic-history', {
       method: 'POST',
-      body: JSON.stringify(data),
+      body: JSON.stringify({
+        application_id: applicationId,
+        ...snakeCaseData
+      }),
     });
   }
 }

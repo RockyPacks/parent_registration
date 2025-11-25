@@ -199,6 +199,7 @@ class EnrollmentRepository(BaseRepository):
             if "next_of_kin_email" in data:
                 data["next_of_kin_email"] = str(data["next_of_kin_email"]).strip().lower()
 
+            logger.info(f"Saving family data: {data}") # Add this line for logging
             # Fields are already in correct snake_case casing for database
             self.supabase.table("family_info").upsert(data).execute()
         except Exception as e:
@@ -330,12 +331,13 @@ class EnrollmentRepository(BaseRepository):
             logger.error(f"Failed to save partial fee data for application {application_id}: {str(e)}")
             raise ExternalServiceError("Database", "Failed to save fee responsibility information")
 
-    def get_full_application(self, application_id: str) -> Dict[str, Any]:
+    def get_full_application(self, application_id: str, user_id: str) -> Dict[str, Any]:
         """
-        Get complete application with all related data.
+        Get complete application with all related data and verify ownership.
 
         Args:
             application_id: Application ID to retrieve
+            user_id: User ID for ownership verification
 
         Returns:
             Complete application data with all sections
@@ -344,8 +346,12 @@ class EnrollmentRepository(BaseRepository):
             ExternalServiceError: If database operation fails
         """
         try:
-            application = self.get_by_id(application_id)
+            # Use the ownership-verified method
+            application = self.get_application_by_id_and_user(application_id, user_id)
             if not application:
+                # If application is not found or not owned by the user, return empty or raise specific error
+                # Based on get_application in service, a 403/404 will be raised there.
+                # Here we return empty if it's not found/owned.
                 return {}
 
             # Get related data
@@ -406,6 +412,45 @@ class EnrollmentRepository(BaseRepository):
         except Exception as e:
             logger.error(f"Failed to get upload summary for {application_id}: {str(e)}")
             raise ExternalServiceError("Database", "Failed to retrieve upload summary")
+
+
+    def get_applications_by_user_email(self, user_email: str, user_id: str) -> List[Dict[str, Any]]:
+        """
+        Get all applications associated with a user email, verifying ownership.
+
+        Args:
+            user_email: The email of the user to search for applications.
+            user_id: The ID of the authenticated user for ownership verification.
+
+        Returns:
+            A list of application dictionaries.
+
+        Raises:
+            ExternalServiceError: If database operation fails.
+        """
+        try:
+            # First, check if there's a user in the 'users' table matching the email
+            # This step is important for security and data integrity.
+            user_check_result = self.supabase.table("users").select("id").eq("email", user_email).execute()
+
+            if not user_check_result.data:
+                logger.warning(f"No user found with email {user_email}.")
+                return [] # No user found, so no applications.
+
+            target_user_id = user_check_result.data[0]['id']
+
+            # Ensure the authenticated user (user_id) is either the target user
+            # or has appropriate permissions (not implemented here, but good to consider).
+            # For now, we'll assume the user can only fetch their own applications by email.
+            if str(user_id) != str(target_user_id):
+                logger.warning(f"User {user_id} attempted to access applications for email {user_email} (ID: {target_user_id}) without ownership.")
+                return [] # Deny access if not the owner
+
+            result = self.supabase.table(self.table_name).select("id").eq("user_id", target_user_id).execute()
+            return result.data if result.data else []
+        except Exception as e:
+            logger.error(f"Failed to get applications for user email {user_email}: {str(e)}")
+            raise ExternalServiceError("Database", f"Failed to retrieve applications for email {user_email}")
 
 
 # Global instance

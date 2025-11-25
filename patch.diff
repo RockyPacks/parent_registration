@@ -1,0 +1,6 @@
+interface Step1StudentGuardianProps {
+=======
+import { MedicalIcon, FamilyIcon, FeeIcon } from '../Icons';
+import PurpleUserIcon from '../icons/PurpleUserIcon'; // added import
+
+interface Step1StudentGuardianProps {

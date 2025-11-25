@@ -30,16 +30,29 @@
 
 #### Frontend (.env)
 ```bash
-VITE_API_BASE_URL=https://your-backend-domain.com
+VITE_API_BASE_URL=https://your-backend-domain.com/api/v1
+VITE_SUPABASE_URL=your_supabase_project_url
+VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
 ```
+
+**Important Notes:**
+- `VITE_API_BASE_URL` must include `/api/v1` at the end (e.g., `https://your-backend.com/api/v1`)
+- These variables are embedded at build time, not runtime
+- Rebuild the frontend if you change these values
 
 #### Backend (.env)
 ```bash
 SUPABASE_URL=your_supabase_project_url
 SUPABASE_ANON_KEY=your_supabase_anon_key
 SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
+SUPABASE_JWT_SECRET=your_supabase_jwt_secret
 FRONTEND_URL=https://your-frontend-domain.com
 ```
+
+**Important Notes:**
+- `FRONTEND_URL` is required for CORS configuration (e.g., `https://parent-registration-frontend.onrender.com`)
+- All four Supabase variables are required for the backend to start
+- The backend API is available at `/api/v1/*` endpoints
 
 ## Deployment Options
 

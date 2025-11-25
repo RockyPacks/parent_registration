@@ -5,6 +5,7 @@ import knitIcon from 'assets/knit-icon.png';
 
 interface ApplicationFormProps {
   summaryData: SummaryData;
+  applicationId?: string | null; // Add applicationId prop
 }
 
 const InfoItem: React.FC<{ label: string; value?: string }> = ({ label, value }) => (
@@ -23,7 +24,7 @@ const InfoItem: React.FC<{ label: string; value?: string }> = ({ label, value })
   </div>
 );
 
-const ApplicationForm: React.FC<ApplicationFormProps> = ({ summaryData }) => {
+const ApplicationForm: React.FC<ApplicationFormProps> = ({ summaryData, applicationId }) => {
   const componentRef = useRef<HTMLDivElement>(null);
 
   const handlePrint = useReactToPrint({
@@ -34,13 +35,41 @@ const ApplicationForm: React.FC<ApplicationFormProps> = ({ summaryData }) => {
       @media print {
         body { -webkit-print-color-adjust: exact; }
         div { page-break-inside: avoid; }
+        /* Mobile-friendly adjustments for print */
+        @media (max-width: 768px) {
+          @page { margin: 1cm; }
+          .page-content {
+            padding: 1cm;
+          }
+          .header-title {
+            font-size: 1.2rem;
+          }
+          .header-subtitle {
+            font-size: 0.7rem;
+          }
+          .section-title {
+            font-size: 1rem;
+          }
+          .info-item p {
+            font-size: 0.8rem;
+          }
+        }
       }
     `
   });
 
   if (!summaryData) return <div>Loading...</div>;
 
-  const { student, guardian, documents, academicHistory, subjects, financing, fee, declaration } = summaryData;
+  const { 
+    student, 
+    guardian, 
+    documents = [], // Provide default empty array
+    academicHistory = [], // Provide default empty array
+    subjects = { core: [], electives: [] }, // Provide default object with empty arrays
+    financing = { plan: 'Not provided' }, // Provide default for financing to ensure it's never undefined
+    fee = {}, // Provide default for fee to ensure it's never undefined
+    declaration = { signed: false } // Provide default for declaration
+  } = summaryData;
 
   const sectionStyle: React.CSSProperties = {
     marginTop: '1.5rem',
@@ -111,8 +140,13 @@ const ApplicationForm: React.FC<ApplicationFormProps> = ({ summaryData }) => {
         <header style={headerStyle}>
           <img src={knitIcon} alt="School Logo" style={{ height: '60px' }} />
           <div style={{ textAlign: 'right' }}>
-            <h1 style={titleStyle}>Enrollment Application</h1>
-            <p style={subtitleStyle}>Private & Confidential</p>
+            <h1 style={titleStyle} className="header-title">Enrollment Application</h1>
+            <p style={subtitleStyle} className="header-subtitle">Private & Confidential</p>
+            {applicationId && (
+              <p style={{ fontSize: '0.85rem', color: '#6b7280', margin: '0.25rem 0 0 0' }}>
+                Application ID: <span style={{ fontWeight: 'bold', color: '#111827' }}>{applicationId}</span>
+              </p>
+            )}
           </div>
         </header>
 
@@ -132,24 +166,64 @@ const ApplicationForm: React.FC<ApplicationFormProps> = ({ summaryData }) => {
         <section style={sectionStyle}>
           <h2 style={sectionTitleStyle}>Guardian Information</h2>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '1rem 2rem' }}>
-            <InfoItem label="Full Name" value={guardian.name} />
-            <InfoItem label="Relationship" value={guardian.relationship} />
-            <InfoItem label="Email Address" value={guardian.email} />
-            <InfoItem label="Phone Number" value={guardian.phone} />
+            {guardian.fatherName && (
+              <div style={{gridColumn: '1 / -1'}}>
+                <h3 style={{ fontWeight: 500, marginBottom: '0.25rem' }}>Father Information</h3>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '1rem 2rem' }}>
+                  <InfoItem label="Full Name" value={guardian.fatherName} />
+                  <InfoItem label="Relationship" value={guardian.fatherRelationship || 'Father'} />
+                  <InfoItem label="Email Address" value={guardian.fatherEmail} />
+                  <InfoItem label="Phone Number" value={guardian.fatherPhone} />
+                  <InfoItem label="ID Number" value={guardian.fatherIdNumber} />
+                </div>
+              </div>
+            )}
+            {guardian.motherName && (
+              <div style={{gridColumn: '1 / -1'}}>
+                <h3 style={{ fontWeight: 500, marginBottom: '0.25rem', marginTop: '1rem' }}>Mother Information</h3>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '1rem 2rem' }}>
+                  <InfoItem label="Full Name" value={guardian.motherName} />
+                  <InfoItem label="Relationship" value={guardian.motherRelationship || 'Mother'} />
+                  <InfoItem label="Email Address" value={guardian.motherEmail} />
+                  <InfoItem label="Phone Number" value={guardian.motherPhone} />
+                  <InfoItem label="ID Number" value={guardian.motherIdNumber} />
+                </div>
+              </div>
+            )}
+            {guardian.nextOfKinName && (
+              <div style={{gridColumn: '1 / -1'}}>
+                <h3 style={{ fontWeight: 500, marginBottom: '0.25rem', marginTop: '1rem' }}>Next of Kin Information</h3>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '1rem 2rem' }}>
+                  <InfoItem label="Full Name" value={guardian.nextOfKinName} />
+                  <InfoItem label="Relationship" value={guardian.nextOfKinRelationship} />
+                  <InfoItem label="Email Address" value={guardian.nextOfKinEmail} />
+                  <InfoItem label="Phone Number" value={guardian.nextOfKinPhone} />
+                  <InfoItem label="ID Number" value={guardian.nextOfKinIdNumber} />
+                </div>
+              </div>
+            )}
           </div>
         </section>
 
         {/* Academic History */}
         <section style={sectionStyle}>
           <h2 style={sectionTitleStyle}>Academic History</h2>
-          {academicHistory.map((history, idx) => (
+          {academicHistory && academicHistory.length > 0 ? (
+          academicHistory.map((history, idx) => (
             <div key={idx} style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '1rem 2rem', marginBottom: '1rem' }}>
               <InfoItem label="Previous School" value={history.schoolName} />
+              <InfoItem label="School Type" value={history.schoolType} />
               <InfoItem label="Last Grade Completed" value={history.lastGradeCompleted} />
-              <InfoItem label="Year of Completion" value={history.academicYearCompleted} />
+              <InfoItem label="Academic Year Completed" value={history.academicYearCompleted} />
+              <InfoItem label="Reason for Leaving" value={history.reasonForLeaving} />
               <InfoItem label="Principal's Name" value={history.principalName} />
+              <InfoItem label="School Phone Number" value={history.schoolPhoneNumber} />
+              <InfoItem label="School Email" value={history.schoolEmail} />
             </div>
-          ))}
+          ))
+        ) : (
+          <p style={{ fontStyle: 'italic', color: '#6b7280' }}>No academic history provided</p>
+        )}
         </section>
 
         {/* Subjects */}
@@ -159,13 +233,13 @@ const ApplicationForm: React.FC<ApplicationFormProps> = ({ summaryData }) => {
             <div>
               <h3 style={{ fontWeight: 500, marginBottom: '0.25rem' }}>Core Subjects</h3>
               <ul style={{ listStyleType: 'disc', listStylePosition: 'inside', margin: 0 }}>
-                {subjects.core.map(sub => <li key={sub}>{sub}</li>)}
+                {subjects.core && subjects.core.map(sub => <li key={sub}>{sub}</li>)}
               </ul>
             </div>
             <div>
               <h3 style={{ fontWeight: 500, marginBottom: '0.25rem' }}>Elective Subjects</h3>
               <ul style={{ listStyleType: 'disc', listStylePosition: 'inside', margin: 0 }}>
-                {subjects.electives.map(sub => <li key={sub}>{sub}</li>)}
+                {subjects.electives && subjects.electives.map(sub => <li key={sub}>{sub}</li>)}
               </ul>
             </div>
           </div>
@@ -175,9 +249,9 @@ const ApplicationForm: React.FC<ApplicationFormProps> = ({ summaryData }) => {
         <section style={sectionStyle}>
           <h2 style={sectionTitleStyle}>Financing</h2>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '1rem 2rem' }}>
-            <InfoItem label="Selected Plan" value={financing.plan} />
-            <InfoItem label="Fee Responsible Person" value={fee?.feePerson} />
-            <InfoItem label="Relationship to Student" value={fee?.relationship} />
+            <InfoItem label="Selected Plan" value={financing.plan || 'Not provided'} />
+            <InfoItem label="Fee Responsible Person" value={fee?.feePerson || 'Not specified'} />
+            <InfoItem label="Relationship to Student" value={fee?.relationship || 'Not specified'} />
             <InfoItem label="Terms Accepted" value={fee?.feeTermsAccepted ? 'Yes' : 'No'} />
           </div>
         </section>
@@ -197,7 +271,7 @@ const ApplicationForm: React.FC<ApplicationFormProps> = ({ summaryData }) => {
         {/* Declaration */}
         <section style={sectionStyle}>
           <h2 style={sectionTitleStyle}>Declaration</h2>
-          <p>{declaration.signed ? 'I confirm that all information is accurate and complete.' : 'Declaration not signed.'}</p>
+          <p>{declaration.signed ? 'I confirm that all information is accurate and complete.' : 'Declaration not signed (error in form progression).'}</p>
         </section>
 
         {/* Footer */}

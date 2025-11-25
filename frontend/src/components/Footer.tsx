@@ -41,15 +41,7 @@ const Footer: React.FC<FooterProps> = ({
             Back
           </button>
         )}
-        {showSave && (
-          <button
-            onClick={onSave}
-            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-blue-600 bg-white border border-blue-600 rounded-md hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200 hover:shadow-md"
-          >
-            <SaveIcon className="w-4 h-4" />
-            Save & Continue Later
-          </button>
-        )}
+    
         {showSkip && (
           <button
             onClick={onSkip}

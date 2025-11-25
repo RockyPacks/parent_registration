@@ -133,12 +133,16 @@ This document summarizes all critical deployment issues that have been identifie
 Before deploying to production, ensure:
 
 - [x] All commits have been pushed to the repository
-- [ ] Environment variables are set in hosting platform:
+- [ ] **Backend Environment Variables** are set in hosting platform:
   - `SUPABASE_URL`
   - `SUPABASE_ANON_KEY`
   - `SUPABASE_SERVICE_ROLE_KEY`
   - `SUPABASE_JWT_SECRET`
-  - `VITE_API_BASE_URL` (for frontend)
+  - `FRONTEND_URL` (e.g., `https://parent-registration-frontend.onrender.com`)
+- [ ] **Frontend Environment Variables** are set before build:
+  - `VITE_API_BASE_URL` (must include `/api/v1`, e.g., `https://your-backend.com/api/v1`)
+  - `VITE_SUPABASE_URL`
+  - `VITE_SUPABASE_ANON_KEY`
 - [ ] All database migrations have been run (see `backend/MIGRATIONS.md`)
 - [ ] Storage bucket `enrollment-documents` has been created in Supabase
 - [ ] Frontend is built with production environment variables
@@ -159,12 +163,20 @@ Before deploying to production, ensure:
    ```
 
 3. **Deploy Frontend**:
-   - Set `VITE_API_BASE_URL` environment variable
+   - Set environment variables:
+     - `VITE_API_BASE_URL=https://your-backend.com/api/v1` (must include `/api/v1`)
+     - `VITE_SUPABASE_URL=your_supabase_url`
+     - `VITE_SUPABASE_ANON_KEY=your_supabase_anon_key`
    - Run `npm run build`
    - Deploy `dist/` folder
 
 4. **Deploy Backend**:
-   - Set all required environment variables
+   - Set all required environment variables:
+     - `SUPABASE_URL`
+     - `SUPABASE_ANON_KEY`
+     - `SUPABASE_SERVICE_ROLE_KEY`
+     - `SUPABASE_JWT_SECRET`
+     - `FRONTEND_URL=https://parent-registration-frontend.onrender.com`
    - Run `pip install -r requirements.txt`
    - Start with `uvicorn main:app --host 0.0.0.0 --port $PORT`
 

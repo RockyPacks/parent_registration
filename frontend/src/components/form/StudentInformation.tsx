@@ -16,31 +16,55 @@ interface StudentInformationProps {
 
 const StudentInformation: React.FC<StudentInformationProps> = ({ initialData, onDataChange, onNext }) => {
   const { addToast } = useToast();
-  const [formData, setFormData] = useState({
-    surname: '',
-    firstName: '',
-    middleName: '',
-    preferredName: '',
-    email: '',
-    phone: '',
-    dob: null,
-    gender: '',
-    homeLanguage: '',
-    idNumber: '',
-    previousGrade: '',
-    gradeAppliedFor: '',
-    previousSchool: '',
-    ...initialData
+  const [formData, setFormData] = useState(() => {
+    const initialFormData = {
+      surname: '',
+      firstName: '',
+      middleName: '',
+      preferredName: '',
+      email: '',
+      phone: '',
+      dob: null, // Internal state will be Date object or null
+      gender: '', // Internal state will be lowercase string
+      homeLanguage: '',
+      idNumber: '',
+      previousGrade: '',
+      gradeAppliedFor: '',
+      previousSchool: '',
+      ...initialData,
+    };
+
+    // Ensure dob is a Date object if it's a valid date string
+    if (initialFormData.dob && typeof initialFormData.dob === 'string') {
+      initialFormData.dob = new Date(initialFormData.dob);
+    } else if (typeof initialFormData.dob === 'number') { // if it's a timestamp
+      initialFormData.dob = new Date(initialFormData.dob);
+    }
+
+    // Ensure gender is lowercase
+    if (initialFormData.gender && typeof initialFormData.gender === 'string') {
+      initialFormData.gender = initialFormData.gender.toLowerCase();
+    }
+    return initialFormData;
   });
 
   const [errors, setErrors] = useState<{[key: string]: string}>({});
 
   useEffect(() => {
     if (onDataChange) {
-      onDataChange(formData);
+      // Format data before sending to parent and localStorage
+      const dataToSave = { ...formData };
+      if (dataToSave.dob instanceof Date) {
+        dataToSave.dob = dataToSave.dob.toISOString().split('T')[0]; // 'YYYY-MM-DD'
+      } else if (dataToSave.dob === null) {
+        dataToSave.dob = ''; // Ensure it's an empty string if null
+      }
+      if (typeof dataToSave.gender === 'string') {
+        dataToSave.gender = dataToSave.gender.toLowerCase();
+      }
+      onDataChange(dataToSave);
+      localStorage.setItem('studentInformation', JSON.stringify(dataToSave));
     }
-    // Save to localStorage whenever form data changes
-    localStorage.setItem('studentInformation', JSON.stringify(formData));
   }, [formData, onDataChange]);
 
   const validateField = (field: string, value: string | Date | null) => {
@@ -114,12 +138,17 @@ const StudentInformation: React.FC<StudentInformationProps> = ({ initialData, on
   };
 
   const handleInputChange = (field: string, value: string | Date | null) => {
-    setFormData(prev => ({
-      ...prev,
-      [field]: value
-    }));
+    setFormData(prev => {
+      const newFormData = { ...prev, [field]: value };
+      // Keep gender lowercase in internal state
+      if (field === 'gender' && typeof value === 'string') {
+        newFormData.gender = value.toLowerCase();
+      }
+      return newFormData;
+    });
 
     if (field !== 'middleName' && field !== 'preferredName') {
+      // For validation, use the raw value passed from the input component (e.g., Date object for DatePicker)
       validateField(field, value);
     }
   };
@@ -210,7 +239,7 @@ const StudentInformation: React.FC<StudentInformationProps> = ({ initialData, on
                   key={option.id}
                   htmlFor={option.id}
                   className={`relative flex items-center justify-center px-4 py-3 border-2 rounded-lg cursor-pointer transition-all duration-200 hover:shadow-md ${
-                    formData.gender === option.value
+                    formData.gender === option.value.toLowerCase()
                       ? 'border-blue-500 bg-blue-50 text-blue-700 shadow-sm'
                       : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
                   }`}
@@ -220,12 +249,12 @@ const StudentInformation: React.FC<StudentInformationProps> = ({ initialData, on
                     name="gender"
                     type="radio"
                     value={option.value}
-                    checked={formData.gender === option.value}
+                    checked={formData.gender === option.value.toLowerCase()}
                     onChange={(e) => handleInputChange('gender', e.target.value)}
                     className="sr-only"
                   />
                   <span className="text-sm font-medium">{option.label}</span>
-                  {formData.gender === option.value && (
+                  {formData.gender === option.value.toLowerCase() && (
                     <div className="absolute top-1 right-1 w-3 h-3 bg-blue-500 rounded-full flex items-center justify-center">
                       <svg className="w-2 h-2 text-white" fill="currentColor" viewBox="0 0 20 20">
                         <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />

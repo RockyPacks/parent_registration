@@ -1,10 +1,11 @@
+import os
+
 from fastapi import FastAPI, Depends, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 import logging
 import uuid
-import os
 import time
 
 from app.core.config import settings

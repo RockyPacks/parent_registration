@@ -1,12 +1,13 @@
 from fastapi import APIRouter, HTTPException, Depends
-from typing import Dict, Any
+from typing import Dict, Any, List # Added List import
 import logging
 
 from app.api.v1.schemas.enrollment import (
     AutoSaveRequest, AutoSaveResponse, EnrollmentData,
     SubmitEnrollmentResponse, ApplicationResponse,
     UploadSummaryResponse, SubmitApplicationRequest,
-    SubmitApplicationResponse
+    SubmitApplicationResponse, ApplicationSummary,
+    AcademicHistorySchema
 )
 from app.services.enrollment_service import enrollment_service
 from app.core.security import get_current_user
@@ -31,6 +32,17 @@ async def auto_save_enrollment(
             message="Auto-save completed with warnings",
             application_id=data.application_id or "unknown"
         )
+
+@router.post("/initiate-application", response_model=Dict[str, Any])
+async def initiate_application(
+    current_user: dict = Depends(get_current_user)
+) -> Dict[str, Any]:
+    """
+    Get the user's existing application ID and status, or create a new one.
+    This should be called by the frontend immediately after login.
+    """
+    return enrollment_service.get_or_create_application_for_user(current_user.get("id"))
+
 
 @router.post("/submit", response_model=SubmitEnrollmentResponse)
 async def submit_enrollment(
@@ -71,3 +83,13 @@ async def submit_declaration(
 ) -> Dict[str, Any]:
     """Submit declaration data"""
     return enrollment_service.submit_declaration(data, current_user.get("id"))
+
+@router.post("/academic-history", response_model=Dict[str, Any])
+async def submit_academic_history(
+    data: AcademicHistorySchema,
+    current_user: dict = Depends(get_current_user)
+) -> Dict[str, Any]:
+    """
+    Create or update academic history for a given application.
+    """
+    return enrollment_service.submit_academic_history(data, current_user.get("id"))

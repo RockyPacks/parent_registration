@@ -46,6 +46,7 @@ export interface AcademicHistoryData {
   schoolEmail?: string;
   schoolAddress?: string;
   reportCard?: File | null;
+  reportCardUrl?: string;
   additionalNotes?: string;
   subjects?: string[];
 }
@@ -93,12 +94,37 @@ export interface SummaryData {
     phone: string;
     dob?: string;
     gender?: string;
+    idNumber?: string;
+    homeLanguage?: string;
+    previousGrade?: string;
+    gradeAppliedFor?: string;
+    previousSchool?: string;
   };
   guardian?: {
-    name: string;
-    relationship: string;
-    email: string;
-    phone: string;
+    fatherName?: string;
+    fatherRelationship?: string;
+    fatherEmail?: string;
+    fatherPhone?: string;
+    fatherIdNumber?: string;
+    motherName?: string;
+    motherRelationship?: string;
+    motherEmail?: string;
+    motherPhone?: string;
+    motherIdNumber?: string;
+    nextOfKinName?: string;
+    nextOfKinRelationship?: string;
+    nextOfKinEmail?: string;
+    nextOfKinPhone?: string;
+    nextOfKinIdNumber?: string;
+  };
+  medical?: {
+    medicalAidName?: string;
+    memberNumber?: string;
+    mainMemberName?: string;
+    conditions?: string[];
+    allergies?: string;
+    doctorName?: string;
+    doctorPhoneNumber?: string;
   };
   subjects?: {
     core: string[];
@@ -106,14 +132,32 @@ export interface SummaryData {
   };
   financing?: {
     plan?: string;
+    feePerson?: string;
+    relationship?: string;
+    email?: string;
+    mobile?: string;
+    idNumber?: string;
+    occupation?: string;
+    employer?: string;
+    employerAddress?: string;
+    employerPhoneNumber?: string;
   };
   fee?: {
     feePerson?: string;
     relationship?: string;
     feeTermsAccepted?: boolean;
+    bankName?: string;
+    branchCode?: string;
+    accountNumber?: string;
   };
   declaration?: {
     signed: boolean;
+    agree_truth?: boolean;
+    agree_policies?: boolean;
+    agree_financial?: boolean;
+    agree_verification?: boolean;
+    agree_data_processing?: boolean;
+    fullName?: string;
   };
 }
 
@@ -138,21 +182,30 @@ export interface LocalStorageData {
     fatherSurname?: string;
     fatherEmail?: string;
     fatherMobile?: string;
+    fatherIdNumber?: string;
     motherFirstName?: string;
     motherSurname?: string;
     motherEmail?: string;
     motherMobile?: string;
+    motherIdNumber?: string;
   };
+  nextOfKinInformation: NextOfKinData;
   medicalInformation: {
     medicalAidName?: string;
     memberNumber?: string;
+    mainMemberName?: string;
     conditions?: string[];
     allergies?: string;
+    doctorName?: string;
+    doctorPhoneNumber?: string;
   };
   feeResponsibility: {
     feePerson?: string;
     relationship?: string;
     feeTermsAccepted?: boolean;
+    bankName?: string;
+    branchCode?: string;
+    accountNumber?: string;
   };
   academicHistoryFormData: AcademicHistoryData;
   selectedSubjects: {
@@ -161,8 +214,32 @@ export interface LocalStorageData {
   };
   financingPlan: {
     plan?: string;
+    feePerson?: string;
+    relationship?: string;
+    email?: string;
+    mobile?: string;
+    idNumber?: string;
+    occupation?: string;
+    employer?: string;
+    employerAddress?: string;
+    employerPhoneNumber?: string;
   };
   declarationData: {
     status?: string;
+    agree_truth?: boolean;
+    agree_policies?: boolean;
+    agree_financial?: boolean;
+    agree_verification?: boolean;
+    agree_data_processing?: boolean;
+    fullName?: string;
   };
+}
+
+export interface NextOfKinData {
+  firstName?: string;
+  surname?: string;
+  relationship?: string;
+  email?: string;
+  mobile?: string;
+  idNumber?: string;
 }

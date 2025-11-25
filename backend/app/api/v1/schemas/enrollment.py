@@ -248,7 +248,32 @@ class SubmitApplicationRequest(BaseModel):
     declaration: Optional[Dict[str, Any]] = None
 
 
+class ApplicationSummary(BaseModel):
+    """
+    Summary schema for an application.
+    Used when listing applications, e.g., by user email.
+    """
+    application_id: str = Field(..., description="Unique identifier for the application")
+
 class SubmitApplicationResponse(BaseModel):
     """Submit application response schema."""
     message: str
     application_id: str
+
+
+class AcademicHistorySchema(BaseModel):
+    """
+    Academic history schema.
+    """
+    application_id: str
+    school_name: str
+    school_type: str
+    last_grade_completed: str
+    academic_year_completed: int
+    reason_for_leaving: Optional[str] = None
+    principal_name: Optional[str] = None
+    school_phone_number: Optional[str] = None
+    school_email: Optional[str] = None
+    school_address: Optional[str] = None
+    additional_notes: Optional[str] = Field(None, alias='additionalNotes')
+    report_card_url: Optional[str] = Field(None, alias='reportCardUrl')
