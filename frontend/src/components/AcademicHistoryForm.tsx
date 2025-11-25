@@ -83,25 +83,7 @@ const AcademicHistoryForm: React.FC<AcademicHistoryFormProps> = ({ onSubmit, onB
     validateForm();
   }, [formData]);
 
-  // Calculate progress percentage
-  const progressPercentage = useMemo(() => {
-    const totalFields = 12; // All fields including optional ones for better UX
-    let filledFields = 0;
-
-    if (formData.schoolName) filledFields++;
-    if (formData.schoolType) filledFields++;
-    if (formData.lastGradeCompleted) filledFields++;
-    if (formData.academicYearCompleted) filledFields++;
-    if (formData.reasonForLeaving) filledFields++;
-    if (formData.principalName) filledFields++;
-    if (formData.schoolPhoneNumber) filledFields++;
-    if (formData.schoolEmail) filledFields++;
-    if (formData.schoolAddress) filledFields++;
-    if (formData.reportCard) filledFields++; // Now required
-    if (formData.additionalNotes) filledFields++;
-
-    return Math.round((filledFields / totalFields) * 100);
-  }, [formData]);
+  // Progress percentage calculation removed - progress bar hidden on Step 3
 
   const toggleSection = (section: keyof typeof expandedSections) => {
     setExpandedSections(prev => ({
@@ -160,14 +142,15 @@ const AcademicHistoryForm: React.FC<AcademicHistoryFormProps> = ({ onSubmit, onB
       errors.schoolEmail = 'Please enter a valid email address';
     }
 
-    // Validate phone number (South African format: +27 or 0, followed by 10 digits)
+    // Validate phone number: exactly 10 digits only
     if (formData.schoolPhoneNumber) {
-      // Remove spaces, dashes, parentheses for validation
-      const cleanPhone = formData.schoolPhoneNumber.replace(/[\s\-()]/g, '');
-      // Check if it starts with +27 or 0 and has exactly 10 digits after that
-      const isValid = /^(\+27|0)\d{10}$/.test(cleanPhone);
-      if (!isValid) {
-        errors.schoolPhoneNumber = 'Please enter a valid South African phone number (starting with +27 or 0, followed by 10 digits)';
+      // Remove all non-digit characters for validation
+      const cleanPhone = formData.schoolPhoneNumber.replace(/\D/g, '');
+      // Check if it's exactly 10 digits
+      if (cleanPhone.length !== 10) {
+        errors.schoolPhoneNumber = 'Phone number must be exactly 10 digits';
+      } else if (!/^\d{10}$/.test(cleanPhone)) {
+        errors.schoolPhoneNumber = 'Phone number must contain only digits';
       }
     }
 
@@ -268,29 +251,14 @@ const AcademicHistoryForm: React.FC<AcademicHistoryFormProps> = ({ onSubmit, onB
 
   return (
     <div className="w-full flex flex-col min-h-screen">
-      {/* Add scroll-to-top padding to prevent header overlap */}
-      <div id="academic-form-top" className="pt-8"></div>
-
-      <form onSubmit={handleSubmit} className="flex-1 w-full max-w-6xl mx-auto px-4 pb-8">
+      <form onSubmit={handleSubmit} className="flex-1 w-full max-w-6xl mx-auto px-4 pt-20 pb-40">
         {/* Form Title */}
         <div className="mb-8">
           <h2 className="text-3xl font-bold text-gray-900 mb-2">Academic History</h2>
           <p className="text-gray-600">Provide details about your previous school and academic performance</p>
         </div>
 
-        {/* Progress Bar */}
-        <div className="mb-8">
-          <div className="flex justify-between items-center mb-2">
-            <span className="text-sm font-medium text-gray-600">Progress</span>
-            <span className="text-sm font-medium text-gray-900">{progressPercentage}%</span>
-          </div>
-          <div className="w-full bg-gray-200 rounded-full h-2">
-            <div
-              className="bg-gradient-to-r from-blue-500 to-purple-500 h-2 rounded-full transition-all duration-300"
-              style={{ width: `${progressPercentage}%` }}
-            />
-          </div>
-        </div>
+        {/* Progress Bar - Hidden on Step 3 */}
 
         {/* Cards Container - Fixed spacing */}
         <div className="space-y-6">
@@ -426,8 +394,6 @@ const AcademicHistoryForm: React.FC<AcademicHistoryFormProps> = ({ onSubmit, onB
           </div>
         )}
 
-        {/* Add bottom padding to prevent footer overlap */}
-        <div className="pb-28"></div>
       </form>
 
       {/* Footer Navigation */}
@@ -439,7 +405,7 @@ const AcademicHistoryForm: React.FC<AcademicHistoryFormProps> = ({ onSubmit, onB
         nextLabel="Continue to Next Step"
         showSave={false}
         showSkip={false}
-        isLoading={false}
+        isLoading={!isNextEnabled}
       />
     </div>
   );
