@@ -261,188 +261,185 @@ const AcademicHistoryForm: React.FC<AcademicHistoryFormProps> = ({ onSubmit, onB
 
 
   return (
-    <div className="flex flex-col min-h-full">
+    <div className="w-full flex flex-col min-h-screen">
+      {/* Add scroll-to-top padding to prevent header overlap */}
+      <div id="academic-form-top" className="pt-8"></div>
 
+      <form onSubmit={handleSubmit} className="flex-1 w-full max-w-6xl mx-auto px-4 pb-32">
+        {/* Form Title */}
+        <div className="mb-8">
+          <h2 className="text-3xl font-bold text-gray-900 mb-2">Academic History</h2>
+          <p className="text-gray-600">Provide details about your previous school and academic performance</p>
+        </div>
 
-      <div className="flex-grow space-y-8 pb-24">
-        <div className="bg-white rounded-lg border border-gray-300 shadow-md overflow-hidden">
-        <button
-          onClick={() => toggleSection('schoolDetails')}
-          className="w-full px-6 py-4 text-left flex items-center justify-between hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors duration-200"
-        >
-          <div className="flex items-center space-x-3">
-            <SchoolIcon className="h-6 w-6 text-blue-600" />
-            <h3 className="text-xl font-semibold text-gray-800">Previous School Details</h3>
+        {/* Progress Bar */}
+        <div className="mb-8">
+          <div className="flex justify-between items-center mb-2">
+            <span className="text-sm font-medium text-gray-600">Progress</span>
+            <span className="text-sm font-medium text-gray-900">{progressPercentage}%</span>
           </div>
-          {expandedSections.schoolDetails ? (
-            <ChevronUpIcon className="h-5 w-5 text-gray-500" />
-          ) : (
-            <ChevronDownIcon className="h-5 w-5 text-gray-500" />
-          )}
-        </button>
-        <div className={`transition-all duration-300 ease-in-out ${expandedSections.schoolDetails ? 'max-h-screen opacity-100' : 'max-h-0 opacity-0 overflow-hidden'}`}>
-          <div className="px-6 pb-6 space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <Input label="School Name" name="schoolName" value={formData.schoolName} onChange={handleChange} placeholder="Enter school name" required />
-              <Select label="School Type" name="schoolType" value={formData.schoolType} onChange={handleChange} options={SCHOOL_TYPES} placeholder="Select school type" required />
-              <Select label="Last Grade Completed" name="lastGradeCompleted" value={formData.lastGradeCompleted} onChange={handleChange} options={GRADES} placeholder="Select grade" required />
-              <Select
-                label="Academic Year Completed"
-                name="academicYearCompleted"
-                value={formData.academicYearCompleted}
-                onChange={handleChange}
-                options={(() => {
-                  const currentYear = new Date().getFullYear();
-                  const years = [];
-                  for (let i = 0; i < 5; i++) {
-                    const year = currentYear - i;
-                    years.push({ value: year.toString(), label: year.toString() });
-                  }
-                  return years;
-                })()}
-                placeholder="Select year"
-                required
-              />
-            </div>
-            <Textarea label="Reason for Leaving" name="reasonForLeaving" value={formData.reasonForLeaving} onChange={handleChange} placeholder="Optional - Please explain the reason for leaving the previous school" rows={4} />
+          <div className="w-full bg-gray-200 rounded-full h-2">
+            <div
+              className="bg-gradient-to-r from-blue-500 to-purple-500 h-2 rounded-full transition-all duration-300"
+              style={{ width: `${progressPercentage}%` }}
+            />
           </div>
         </div>
-      </div>
 
-      <div className="bg-white rounded-lg border border-gray-300 shadow-md overflow-hidden">
-        <button
-          onClick={() => toggleSection('schoolContact')}
-          className="w-full px-6 py-4 text-left flex items-center justify-between hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors duration-200"
-        >
-          <div className="flex items-center space-x-3">
-            <ContactIcon className="h-6 w-6 text-blue-600" />
-            <h3 className="text-xl font-semibold text-gray-800">School Contact Information</h3>
+        {/* Cards Container - Fixed spacing */}
+        <div className="space-y-6">
+          {/* Card 1: School Details */}
+          <div className="bg-white rounded-lg border border-gray-300 shadow-md overflow-hidden hover:shadow-lg transition-shadow duration-200">
+            <button
+              type="button"
+              onClick={() => toggleSection('schoolDetails')}
+              className="w-full px-6 py-4 text-left flex items-center justify-between hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors duration-200"
+            >
+              <div className="flex items-center space-x-3">
+                <SchoolIcon className="h-6 w-6 text-blue-600" />
+                <h3 className="text-xl font-semibold text-gray-800">Previous School Details</h3>
+              </div>
+              {expandedSections.schoolDetails ? (
+                <ChevronUpIcon className="h-5 w-5 text-gray-500" />
+              ) : (
+                <ChevronDownIcon className="h-5 w-5 text-gray-500" />
+              )}
+            </button>
+            {expandedSections.schoolDetails && (
+              <div className="px-6 pb-6 space-y-6 border-t border-gray-200">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <Input label="School Name" name="schoolName" value={formData.schoolName} onChange={handleChange} placeholder="Enter school name" required />
+                  <Select label="School Type" name="schoolType" value={formData.schoolType} onChange={handleChange} options={SCHOOL_TYPES} placeholder="Select school type" required />
+                  <Select label="Last Grade Completed" name="lastGradeCompleted" value={formData.lastGradeCompleted} onChange={handleChange} options={GRADES} placeholder="Select grade" required />
+                  <Select
+                    label="Academic Year Completed"
+                    name="academicYearCompleted"
+                    value={formData.academicYearCompleted}
+                    onChange={handleChange}
+                    options={(() => {
+                      const currentYear = new Date().getFullYear();
+                      const years = [];
+                      for (let i = 0; i < 5; i++) {
+                        const year = currentYear - i;
+                        years.push({ value: year.toString(), label: year.toString() });
+                      }
+                      return years;
+                    })()}
+                    placeholder="Select year"
+                    required
+                  />
+                </div>
+                <Textarea label="Reason for Leaving" name="reasonForLeaving" value={formData.reasonForLeaving} onChange={handleChange} placeholder="Optional - Please explain the reason for leaving the previous school" rows={4} />
+              </div>
+            )}
           </div>
-          {expandedSections.schoolContact ? (
-            <ChevronUpIcon className="h-5 w-5 text-gray-500" />
-          ) : (
-            <ChevronDownIcon className="h-5 w-5 text-gray-500" />
-          )}
-        </button>
-        <div className={`transition-all duration-300 ease-in-out ${expandedSections.schoolContact ? 'max-h-screen opacity-100' : 'max-h-0 opacity-0 overflow-hidden'}`}>
-          <div className="px-6 pb-6 space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <Input label="Principal / Teacher Name" name="principalName" value={formData.principalName} onChange={handleChange} placeholder="Enter name" />
-              <Input label="School Phone Number" name="schoolPhoneNumber" value={formData.schoolPhoneNumber} onChange={handleChange} placeholder="+27 (0)11 123 4567" pattern="^\+27\s?\(0\)\d{2}\s?\d{3}\s?\d{4}$" />
-            </div>
-            <Input label="School Email Address" name="schoolEmail" type="email" value={formData.schoolEmail} onChange={handleChange} placeholder="school@example.com" />
-            <Textarea label="School Address" name="schoolAddress" value={formData.schoolAddress} onChange={handleChange} placeholder="Enter complete school address" rows={4} />
+
+          {/* Card 2: School Contact Information */}
+          <div className="bg-white rounded-lg border border-gray-300 shadow-md overflow-hidden hover:shadow-lg transition-shadow duration-200">
+            <button
+              type="button"
+              onClick={() => toggleSection('schoolContact')}
+              className="w-full px-6 py-4 text-left flex items-center justify-between hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors duration-200"
+            >
+              <div className="flex items-center space-x-3">
+                <ContactIcon className="h-6 w-6 text-blue-600" />
+                <h3 className="text-xl font-semibold text-gray-800">School Contact Information</h3>
+              </div>
+              {expandedSections.schoolContact ? (
+                <ChevronUpIcon className="h-5 w-5 text-gray-500" />
+              ) : (
+                <ChevronDownIcon className="h-5 w-5 text-gray-500" />
+              )}
+            </button>
+            {expandedSections.schoolContact && (
+              <div className="px-6 pb-6 space-y-6 border-t border-gray-200">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <Input label="Principal / Teacher Name" name="principalName" value={formData.principalName} onChange={handleChange} placeholder="Enter name" />
+                  <Input label="School Phone Number" name="schoolPhoneNumber" value={formData.schoolPhoneNumber} onChange={handleChange} placeholder="+27 (0)11 123 4567" pattern="^\+27\s?\(0\)\d{2}\s?\d{3}\s?\d{4}$" />
+                </div>
+                <Input label="School Email Address" name="schoolEmail" type="email" value={formData.schoolEmail} onChange={handleChange} placeholder="school@example.com" />
+                <Textarea label="School Address" name="schoolAddress" value={formData.schoolAddress} onChange={handleChange} placeholder="Enter complete school address" rows={4} />
+              </div>
+            )}
+          </div>
+
+          {/* Card 3: Academic Performance */}
+          <div className="bg-white rounded-lg border border-gray-300 shadow-md overflow-hidden hover:shadow-lg transition-shadow duration-200">
+            <button
+              type="button"
+              onClick={() => toggleSection('academicPerformance')}
+              className="w-full px-6 py-4 text-left flex items-center justify-between hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors duration-200"
+            >
+              <div className="flex items-center space-x-3">
+                <PerformanceIcon className="h-6 w-6 text-blue-600" />
+                <h3 className="text-xl font-semibold text-gray-800">Academic Performance & Comments</h3>
+              </div>
+              {expandedSections.academicPerformance ? (
+                <ChevronUpIcon className="h-5 w-5 text-gray-500" />
+              ) : (
+                <ChevronDownIcon className="h-5 w-5 text-gray-500" />
+              )}
+            </button>
+            {expandedSections.academicPerformance && (
+              <div className="px-6 pb-6 space-y-6 border-t border-gray-200">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Upload Last Report Card <span className="text-red-500">*</span></label>
+                  <p className="text-xs text-gray-500 mb-2">Upload your most recent report card to help us assess the learner's academic progress. This upload is required before moving on.</p>
+                  <FileUpload onFileChange={handleFileChange} />
+                </div>
+
+                <Textarea label="Additional Notes / Comments" name="additionalNotes" value={formData.additionalNotes} onChange={handleChange} placeholder="Any additional information about the student's academic history or special considerations" rows={4} />
+              </div>
+            )}
           </div>
         </div>
-      </div>
 
-      <div className="bg-white rounded-lg border border-gray-300 shadow-md overflow-hidden">
-        <button
-          onClick={() => toggleSection('academicPerformance')}
-          className="w-full px-6 py-4 text-left flex items-center justify-between hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors duration-200"
-        >
-          <div className="flex items-center space-x-3">
-            <PerformanceIcon className="h-6 w-6 text-blue-600" />
-            <h3 className="text-xl font-semibold text-gray-800">Academic Performance & Comments</h3>
-          </div>
-          {expandedSections.academicPerformance ? (
-            <ChevronUpIcon className="h-5 w-5 text-gray-500" />
-          ) : (
-            <ChevronDownIcon className="h-5 w-5 text-gray-500" />
-          )}
-        </button>
-        <div className={`transition-all duration-300 ease-in-out ${expandedSections.academicPerformance ? 'max-h-screen opacity-100' : 'max-h-0 opacity-0 overflow-hidden'}`}>
-          <div className="px-6 pb-6 space-y-6">
-            <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Upload Last Report Card <span className="text-red-500">*</span></label>
-                <p className="text-xs text-gray-500 mb-2">Upload your most recent report card to help us assess the learner's academic progress. This upload is required before moving on.</p>
-                <FileUpload onFileChange={handleFileChange} />
-            </div>
-
-            <Textarea label="Additional Notes / Comments" name="additionalNotes" value={formData.additionalNotes} onChange={handleChange} placeholder="Any additional information about the student's academic history or special considerations" rows={4} />
-          </div>
-        </div>
-      </div>
-      </div>
-
-      {/* Enhanced Validation Errors Summary */}
-      {Object.keys(validationErrors).length > 0 && (
-        <div className="bg-gradient-to-r from-red-50 to-pink-50 border-l-4 border-red-500 rounded-r-lg p-6 shadow-sm animate-fade-in">
-          <div className="flex items-start">
-            <div className="flex-shrink-0">
-              <svg className="h-6 w-6 text-red-500 animate-pulse" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-              </svg>
-            </div>
-            <div className="ml-4 flex-1">
-              <div className="flex items-center justify-between">
-                <h4 className="text-lg font-bold text-red-800 mb-1">
+        {/* Validation Errors */}
+        {Object.keys(validationErrors).length > 0 && (
+          <div className="mt-8 bg-gradient-to-r from-red-50 to-pink-50 border-l-4 border-red-500 rounded-r-lg p-6 shadow-sm">
+            <div className="flex items-start">
+              <div className="flex-shrink-0">
+                <svg className="h-6 w-6 text-red-500" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                </svg>
+              </div>
+              <div className="ml-4 flex-1">
+                <h4 className="text-lg font-bold text-red-800 mb-2">
                   Required Information Missing
                 </h4>
-                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
-                  {Object.keys(validationErrors).length} field{Object.keys(validationErrors).length !== 1 ? 's' : ''} required
-                </span>
-              </div>
-              <p className="text-red-700 mb-4 text-sm">
-                Please complete all required fields below before proceeding to the next step.
-              </p>
-
-              <div className="space-y-4">
-                <div className="bg-white/50 rounded-lg p-4 border border-red-200">
-                  <div className="flex items-center mb-3">
-                    <div className="w-2 h-2 bg-red-500 rounded-full mr-2"></div>
-                    <h5 className="font-semibold text-red-800 text-sm">Academic History</h5>
-                  </div>
-                  <ul className="space-y-2">
-                    {Object.entries(validationErrors).map(([key, message]) => (
-                      <li key={key} className="flex items-start text-sm">
-                        <span className="text-red-500 mr-2 mt-1">•</span>
-                        <span className="text-red-700">{message}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              </div>
-
-              <div className="mt-6 pt-4 border-t border-red-200">
-                <p className="text-xs text-red-600 flex items-center">
-                  <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-                  </svg>
-                  Complete all required fields to continue with your enrollment
-                </p>
+                <ul className="space-y-2">
+                  {Object.entries(validationErrors).map(([key, message]) => (
+                    <li key={key} className="flex items-start text-sm">
+                      <span className="text-red-500 mr-2 mt-1">•</span>
+                      <span className="text-red-700">{message}</span>
+                    </li>
+                  ))}
+                </ul>
               </div>
             </div>
           </div>
+        )}
+
+        {/* Fixed Bottom Submit Button */}
+        <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-300 shadow-lg">
+          <div className="max-w-6xl mx-auto px-4 py-4 flex gap-4">
+            <button
+              type="button"
+              onClick={onBack}
+              className="flex-1 bg-gray-500 hover:bg-gray-600 text-white py-3 px-6 rounded-lg transition-colors duration-200 font-medium"
+            >
+              Back
+            </button>
+            <button
+              type="submit"
+              disabled={!isNextEnabled}
+              className="flex-1 bg-gradient-to-r from-blue-500 to-purple-500 text-white py-3 px-6 rounded-lg hover:from-blue-600 hover:to-purple-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 font-medium disabled:bg-gray-400"
+            >
+              {isNextEnabled ? 'Continue to Next Step' : 'Complete Required Fields'}
+            </button>
+          </div>
         </div>
-      )}
-
-
-
-      {/* Submit Button */}
-      <div className="mt-6 pt-4 border-t border-gray-200">
-        <button
-          onClick={handleSubmit}
-          disabled={!isNextEnabled}
-          className="w-full bg-gradient-to-r from-blue-500 to-purple-500 text-white py-3 px-6 rounded-lg hover:from-blue-600 hover:to-purple-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 font-medium shadow-sm"
-        >
-          Submit Academic History & Continue to Subjects
-        </button>
-        <p className="text-center text-sm text-gray-500 mt-3">
-          Complete all required fields above to submit and proceed to the next step
-        </p>
-      </div>
-
-      <Footer
-        onBack={onBack}
-        onSave={handleSaveProgress}
-        onNext={() => {}}
-        showBack={true}
-        showSave={true}
-        showNext={false}
-        nextLabel="Next: Subjects Selection"
-        isLoading={false}
-      />
+      </form>
     </div>
   );
 };

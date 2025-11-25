@@ -40,15 +40,20 @@ const MainContent: React.FC<MainContentProps> = (props) => {
   onDeclarationComplete,
   onStepChange,
   onStepComplete,
-  completedSteps = [],
+    completedSteps = [],
 } = props;
 
-  const handleDocumentUploadComplete = useCallback(() => {
-    onStepComplete && onStepComplete(2); // Mark step 2 as complete
-    onStepChange && onStepChange(3); // Then move to the next step (Academic History)
-  }, [onStepComplete, onStepChange]);
+  // Track completed steps locally to enforce progression
+  const [localCompletedSteps, setLocalCompletedSteps] = useState<number[]>(completedSteps || []);
 
-const [academicHistoryData, setAcademicHistoryData] = useState<any>({});
+  const handleDocumentUploadComplete = useCallback(() => {
+    // Mark step 2 as complete before moving forward
+    if (!localCompletedSteps.includes(2)) {
+      setLocalCompletedSteps(prev => [...prev, 2]);
+    }
+    onStepComplete && onStepComplete(2);
+    onStepChange && onStepChange(3); // Then move to the next step (Academic History)
+  }, [onStepComplete, onStepChange, localCompletedSteps]);const [academicHistoryData, setAcademicHistoryData] = useState<any>({});
 const [subjectsData, setSubjectsData] = useState<any>({});
 const [financingData, setFinancingData] = useState<any>({});
 const [declarationData, setDeclarationData] = useState<any>({});
@@ -437,6 +442,9 @@ const handleCombinedSubmit = useCallback(async (submitOnly = false) => {
       addToast('Enrollment data saved successfully.', 'success');
 
       // Mark step 1 as completed and proceed to step 2 (document upload)
+      if (!localCompletedSteps.includes(1)) {
+        setLocalCompletedSteps(prev => [...prev, 1]);
+      }
       onStepComplete && onStepComplete(1);
       onStepChange && onStepChange(2);
       storage.set('activeStep', 2);
@@ -495,6 +503,23 @@ const handleCombinedSubmit = useCallback(async (submitOnly = false) => {
       </ErrorBoundary>
     );
   } else if (activeStep === 2) {
+    // Check if Step 1 is completed before allowing Step 2
+    if (!localCompletedSteps.includes(1)) {
+      return (
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="text-center">
+            <h2 className="text-2xl font-bold text-gray-900 mb-4">Step 1 Not Complete</h2>
+            <p className="text-gray-600 mb-6">Please complete Step 1 (Student & Guardian Information) before proceeding to document upload.</p>
+            <button
+              onClick={() => onStepChange && onStepChange(1)}
+              className="bg-blue-500 hover:bg-blue-600 text-white py-2 px-6 rounded-lg transition-colors"
+            >
+              Go to Step 1
+            </button>
+          </div>
+        </div>
+      );
+    }
     return (
       <Suspense fallback={<div>Loading Step 2...</div>}>
         <Step2DocumentUploadCenter
@@ -505,14 +530,40 @@ const handleCombinedSubmit = useCallback(async (submitOnly = false) => {
       </Suspense>
     );
   } else if (activeStep === 3) {
+    // Check if Step 2 is completed before allowing Step 3
+    if (!localCompletedSteps.includes(2)) {
+      return (
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="text-center">
+            <h2 className="text-2xl font-bold text-gray-900 mb-4">Step 2 Not Complete</h2>
+            <p className="text-gray-600 mb-6">Please complete Step 2 (Document Upload) before proceeding to academic history.</p>
+            <button
+              onClick={() => onStepChange && onStepChange(2)}
+              className="bg-blue-500 hover:bg-blue-600 text-white py-2 px-6 rounded-lg transition-colors"
+            >
+              Go to Step 2
+            </button>
+          </div>
+        </div>
+      );
+    }
     return (
       <ErrorBoundary>
         <Suspense fallback={<div>Loading Step 3...</div>}>
           <Step3AcademicHistoryForm
             applicationId={applicationId}
-            onStepComplete={onStepComplete}
+            onStepComplete={(step) => {
+              // Mark step 3 as complete
+              if (!localCompletedSteps.includes(3)) {
+                setLocalCompletedSteps(prev => [...prev, 3]);
+              }
+              onStepComplete && onStepComplete(step);
+            }}
             onStepChange={onStepChange}
             onAcademicHistoryComplete={() => {
+              if (!localCompletedSteps.includes(3)) {
+                setLocalCompletedSteps(prev => [...prev, 3]);
+              }
               onStepComplete && onStepComplete(3); // Mark step 3 as complete
               onStepChange && onStepChange(4); // Then move to the next step
             }}
@@ -525,6 +576,23 @@ const handleCombinedSubmit = useCallback(async (submitOnly = false) => {
       </ErrorBoundary>
     );
   } else if (activeStep === 4) {
+    // Check if Step 3 is completed before allowing Step 4
+    if (!localCompletedSteps.includes(3)) {
+      return (
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="text-center">
+            <h2 className="text-2xl font-bold text-gray-900 mb-4">Step 3 Not Complete</h2>
+            <p className="text-gray-600 mb-6">Please complete Step 3 (Academic History) before proceeding to fee agreement.</p>
+            <button
+              onClick={() => onStepChange && onStepChange(3)}
+              className="bg-blue-500 hover:bg-blue-600 text-white py-2 px-6 rounded-lg transition-colors"
+            >
+              Go to Step 3
+            </button>
+          </div>
+        </div>
+      );
+    }
     return (
       <ErrorBoundary>
         <Suspense fallback={<div>Loading Step 4...</div>}>
@@ -532,13 +600,35 @@ const handleCombinedSubmit = useCallback(async (submitOnly = false) => {
             applicationId={applicationId}
             onFeeAgreementComplete={onFeeAgreementComplete}
             onStepChange={onStepChange}
-            onStepComplete={onStepComplete}
+            onStepComplete={(step) => {
+              if (!localCompletedSteps.includes(4)) {
+                setLocalCompletedSteps(prev => [...prev, 4]);
+              }
+              onStepComplete && onStepComplete(step);
+            }}
             onDataChange={handleFinancingDataChange}
           />
         </Suspense>
       </ErrorBoundary>
     );
   } else if (activeStep === 5) {
+    // Check if Step 4 is completed before allowing Step 5
+    if (!localCompletedSteps.includes(4)) {
+      return (
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="text-center">
+            <h2 className="text-2xl font-bold text-gray-900 mb-4">Step 4 Not Complete</h2>
+            <p className="text-gray-600 mb-6">Please complete Step 4 (Fee Agreement) before proceeding to declaration.</p>
+            <button
+              onClick={() => onStepChange && onStepChange(4)}
+              className="bg-blue-500 hover:bg-blue-600 text-white py-2 px-6 rounded-lg transition-colors"
+            >
+              Go to Step 4
+            </button>
+          </div>
+        </div>
+      );
+    }
     return (
       <ErrorBoundary>
         <Suspense fallback={<div>Loading Step 5...</div>}>
@@ -546,7 +636,12 @@ const handleCombinedSubmit = useCallback(async (submitOnly = false) => {
             applicationId={applicationId}
             onDeclarationComplete={onDeclarationComplete}
             onStepChange={onStepChange}
-            onStepComplete={onStepComplete}
+            onStepComplete={(step) => {
+              if (!localCompletedSteps.includes(5)) {
+                setLocalCompletedSteps(prev => [...prev, 5]);
+              }
+              onStepComplete && onStepComplete(step);
+            }}
             onDataChange={handleDeclarationDataChange}
           />
         </Suspense>
