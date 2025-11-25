@@ -173,8 +173,10 @@ const AcademicHistoryForm: React.FC<AcademicHistoryFormProps> = ({ onSubmit, onB
     onDataChange && onDataChange(formData);
   }, [formData, onDataChange]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (e?: React.FormEvent | React.MouseEvent) => {
+    if (e) {
+      e.preventDefault?.();
+    }
 
     // Validate required fields
     if (!validateForm()) {
@@ -395,17 +397,7 @@ const AcademicHistoryForm: React.FC<AcademicHistoryFormProps> = ({ onSubmit, onB
       {/* Footer Navigation */}
       <Footer
         onBack={onBack}
-        onNext={(e) => {
-          // If it's a synthetic event, prevent default
-          if (e && typeof e.preventDefault === 'function') {
-            e.preventDefault();
-          }
-          // Trigger form submission
-          const form = document.querySelector('form');
-          if (form) {
-            form.dispatchEvent(new Event('submit', { bubbles: true }));
-          }
-        }}
+        onNext={handleSubmit as any}
         showBack={true}
         showNext={true}
         nextLabel="Continue to Next Step"

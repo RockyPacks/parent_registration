@@ -530,25 +530,23 @@ class ApiService {
   }
 
   async submitAcademicHistory(data: any): Promise<{ message: string; application_id: string }> {
-    // Separate the applicationId from the rest of the form data.
-    const { applicationId, ...formData } = data;
+    // Extract application_id from the payload (it's already snake_case)
+    const { application_id, ...formData } = data;
 
-    // Convert the form data to snake_case for the backend.
+    // Convert the form data to snake_case for the backend (already mostly snake_case, but ensure consistency)
     const snakeCaseData = toSnakeCase(formData);
-
-    // Nest the academic history data under an 'academic_history' key to match the full submission schema.
 
     // Construct the final payload
     const payload = {
-      ...snakeCaseData,
-      application_id: applicationId
+      application_id,
+      ...snakeCaseData
     };
+    
+    console.log('API submitAcademicHistory payload:', payload);
+    
     return this.request('/academic/academic-history', {
       method: 'POST',
-      body: JSON.stringify({
-        application_id: applicationId,
-        ...snakeCaseData
-      }),
+      body: JSON.stringify(payload),
     });
   }
 }
