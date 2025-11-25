@@ -160,9 +160,15 @@ const AcademicHistoryForm: React.FC<AcademicHistoryFormProps> = ({ onSubmit, onB
       errors.schoolEmail = 'Please enter a valid email address';
     }
 
-    // Validate phone number (South African format)
-    if (formData.schoolPhoneNumber && !/^\+27\s?\(?(0)?\)?\s?\d{2}\s?\d{3}\s?\d{4}$/.test(formData.schoolPhoneNumber)) {
-      errors.schoolPhoneNumber = 'Please enter a valid South African phone number (+27 (0)xx xxx xxxx)';
+    // Validate phone number (South African format: +27 or 0, followed by 10 digits)
+    if (formData.schoolPhoneNumber) {
+      // Remove spaces, dashes, parentheses for validation
+      const cleanPhone = formData.schoolPhoneNumber.replace(/[\s\-()]/g, '');
+      // Check if it starts with +27 or 0 and has exactly 10 digits after that
+      const isValid = /^(\+27|0)\d{10}$/.test(cleanPhone);
+      if (!isValid) {
+        errors.schoolPhoneNumber = 'Please enter a valid South African phone number (starting with +27 or 0, followed by 10 digits)';
+      }
     }
 
     // Validate principal name if provided
@@ -265,7 +271,7 @@ const AcademicHistoryForm: React.FC<AcademicHistoryFormProps> = ({ onSubmit, onB
       {/* Add scroll-to-top padding to prevent header overlap */}
       <div id="academic-form-top" className="pt-8"></div>
 
-      <form onSubmit={handleSubmit} className="flex-1 w-full max-w-6xl mx-auto px-4 pb-32">
+      <form onSubmit={handleSubmit} className="flex-1 w-full max-w-6xl mx-auto px-4 pb-8">
         {/* Form Title */}
         <div className="mb-8">
           <h2 className="text-3xl font-bold text-gray-900 mb-2">Academic History</h2>
@@ -355,7 +361,7 @@ const AcademicHistoryForm: React.FC<AcademicHistoryFormProps> = ({ onSubmit, onB
               <div className="px-6 pb-6 space-y-6 border-t border-gray-200">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <Input label="Principal / Teacher Name" name="principalName" value={formData.principalName} onChange={handleChange} placeholder="Enter name" />
-                  <Input label="School Phone Number" name="schoolPhoneNumber" value={formData.schoolPhoneNumber} onChange={handleChange} placeholder="+27 (0)11 123 4567" pattern="^\+27\s?\(0\)\d{2}\s?\d{3}\s?\d{4}$" />
+                  <Input label="School Phone Number" name="schoolPhoneNumber" value={formData.schoolPhoneNumber} onChange={handleChange} placeholder="+27 11 123 4567 or 011 123 4567" />
                 </div>
                 <Input label="School Email Address" name="schoolEmail" type="email" value={formData.schoolEmail} onChange={handleChange} placeholder="school@example.com" />
                 <Textarea label="School Address" name="schoolAddress" value={formData.schoolAddress} onChange={handleChange} placeholder="Enter complete school address" rows={4} />
@@ -420,26 +426,21 @@ const AcademicHistoryForm: React.FC<AcademicHistoryFormProps> = ({ onSubmit, onB
           </div>
         )}
 
-        {/* Fixed Bottom Submit Button */}
-        <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-300 shadow-lg">
-          <div className="max-w-6xl mx-auto px-4 py-4 flex gap-4">
-            <button
-              type="button"
-              onClick={onBack}
-              className="flex-1 bg-gray-500 hover:bg-gray-600 text-white py-3 px-6 rounded-lg transition-colors duration-200 font-medium"
-            >
-              Back
-            </button>
-            <button
-              type="submit"
-              disabled={!isNextEnabled}
-              className="flex-1 bg-gradient-to-r from-blue-500 to-purple-500 text-white py-3 px-6 rounded-lg hover:from-blue-600 hover:to-purple-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 font-medium disabled:bg-gray-400"
-            >
-              {isNextEnabled ? 'Continue to Next Step' : 'Complete Required Fields'}
-            </button>
-          </div>
-        </div>
+        {/* Add bottom padding to prevent footer overlap */}
+        <div className="pb-28"></div>
       </form>
+
+      {/* Footer Navigation */}
+      <Footer
+        onBack={onBack}
+        onNext={handleSubmit}
+        showBack={true}
+        showNext={true}
+        nextLabel="Continue to Next Step"
+        showSave={false}
+        showSkip={false}
+        isLoading={false}
+      />
     </div>
   );
 };
