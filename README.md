@@ -153,3 +153,41 @@ FastAPI provides automatic, interactive documentation:
 
 - **Swagger UI**: http://localhost:8000/docs
 - **ReDoc**: http://localhost:8000/redoc
+
+## 🚀 7. Production Deployment (Render)
+
+### Quick Start
+The application is production-ready and can be deployed to Render.com:
+
+**For detailed deployment instructions:**
+- 📖 **See `RENDER_DEPLOYMENT_GUIDE.md`** - Complete step-by-step guide for deploying to Render
+
+**Quick fix for 500 errors:**
+- ⚡ **See `QUICK_FIX_500_ERROR.md`** - Fast troubleshooting for common issues
+- 🔍 **See `TROUBLESHOOTING_500_ERROR.md`** - Comprehensive debugging guide
+
+### Key Deployment Points
+
+1. **Frontend:**
+   - Build: `cd frontend && npm install && npm run build`
+   - Environment: Set `VITE_API_BASE_URL` to your backend API URL
+   - Environment: Set Supabase `VITE_SUPABASE_*` keys
+
+2. **Backend:**
+   - Build: `pip install -r backend/requirements.txt`
+   - Start: `cd backend && uvicorn app.main:app --host 0.0.0.0 --port 8000`
+   - Environment: Set all `SUPABASE_*` keys
+   - Environment: Set `FRONTEND_URL` for CORS
+
+3. **Database:**
+   - Run all migrations from `backend/db/migrations/`
+   - Enable RLS policies in Supabase
+
+### Common Issues
+
+**Getting 500 errors when submitting forms?**
+1. Verify `VITE_API_BASE_URL` is set correctly in frontend
+2. Verify all Supabase variables are set in backend
+3. Check backend logs in Render for detailed error messages
+4. See `TROUBLESHOOTING_500_ERROR.md` for comprehensive debugging
+
