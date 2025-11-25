@@ -119,6 +119,11 @@ class EnrollmentService:
             logger.info(f"Submit enrollment called for user {user_id}")
             logger.debug(f"Enrollment data: {data}")
             
+            # Validate user_id is not None or empty
+            if not user_id or user_id == "unknown":
+                logger.error("Invalid user_id for enrollment submission")
+                raise HTTPException(status_code=401, detail="User authentication required")
+            
             # Check if user already has an application
             existing_app = self.repository.get_user_application(user_id)
             if existing_app:
@@ -134,24 +139,54 @@ class EnrollmentService:
             # Log the data being inserted
             logger.info(f"Submitting enrollment for user {user_id}, application {application_id}")
 
-            # Save all enrollment data
-            logger.debug("Saving student data...")
-            self.repository.save_student_data(application_id, data.student)
-            logger.debug("Saving medical data...")
-            self.repository.save_medical_data(application_id, data.medical)
-            logger.debug("Saving family data...")
-            self.repository.save_family_data(application_id, data.family)
-            logger.debug("Saving fee data...")
-            self.repository.save_fee_data(application_id, data.fee)
+            # Save all enrollment data with error handling for each step
+            try:
+                logger.debug("Saving student data...")
+                self.repository.save_student_data(application_id, data.student)
+            except Exception as e:
+                logger.error(f"Failed to save student data: {str(e)}")
+                raise
+                
+            try:
+                logger.debug("Saving medical data...")
+                self.repository.save_medical_data(application_id, data.medical)
+            except Exception as e:
+                logger.error(f"Failed to save medical data: {str(e)}")
+                raise
+                
+            try:
+                logger.debug("Saving family data...")
+                self.repository.save_family_data(application_id, data.family)
+            except Exception as e:
+                logger.error(f"Failed to save family data: {str(e)}")
+                raise
+                
+            try:
+                logger.debug("Saving fee data...")
+                self.repository.save_fee_data(application_id, data.fee)
+            except Exception as e:
+                logger.error(f"Failed to save fee data: {str(e)}")
+                raise
 
             logger.info(f"Successfully submitted enrollment for application {application_id}")
             return SubmitEnrollmentResponse(
                 message="Enrollment submitted successfully",
                 application_id=application_id
             )
+        except HTTPException:
+            raise
         except Exception as e:
             logger.error(f"Failed to submit enrollment: {str(e)}", exc_info=True)
-            raise HTTPException(status_code=500, detail=f"Failed to submit enrollment: {str(e)}")
+            # Provide more specific error information
+            error_detail = str(e)
+            if "unique constraint" in error_detail.lower() or "duplicate" in error_detail.lower():
+                raise HTTPException(status_code=409, detail="Application data conflict. Please refresh and try again.")
+            elif "foreign key" in error_detail.lower():
+                raise HTTPException(status_code=400, detail="Invalid application reference. Please start fresh.")
+            elif "authentication" in error_detail.lower() or "unauthorized" in error_detail.lower():
+                raise HTTPException(status_code=401, detail="Authentication failed. Please log in again.")
+            else:
+                raise HTTPException(status_code=500, detail=f"Failed to submit enrollment: {error_detail}")
 
     def get_application(self, application_id: str, user_id: str) -> ApplicationResponse:
         """Get application by ID"""

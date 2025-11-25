@@ -62,6 +62,20 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(securit
             # Decode without verification for development
             decoded = jwt.decode(token, options={"verify_signature": False})
             if decoded.get("sub"):  # Valid user token should have 'sub' claim
+                # Verify the token has a valid session_id or is recent
+                import time
+                iat = decoded.get("iat", 0)
+                exp = decoded.get("exp", 0)
+                current_time = int(time.time())
+                
+                if current_time > exp:
+                    logger.error(f"Token expired: {current_time} > {exp}")
+                    raise HTTPException(
+                        status_code=status.HTTP_401_UNAUTHORIZED,
+                        detail="Token expired",
+                        headers={"WWW-Authenticate": "Bearer"},
+                    )
+                
                 logger.warning("Using fallback JWT decoding for development")
                 return {
                     "id": decoded.get("sub"),
@@ -69,6 +83,8 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(securit
                     "role": decoded.get("role", "authenticated"),
                     "aud": decoded.get("aud", "authenticated"),
                 }
+        except HTTPException:
+            raise
         except Exception as jwt_error:
             logger.error(f"JWT fallback also failed: {jwt_error}")
 
