@@ -1,6 +1,7 @@
 
 import React, { useState, useRef, useCallback } from 'react';
 import { UploadCloudIcon } from '../Icons';
+import { useToast } from '../../hooks/useToast';
 
 interface FileUploadProps {
   onFileChange: (file: File | null) => void;
@@ -17,6 +18,7 @@ const FileUpload: React.FC<FileUploadProps> = ({
   const [fileName, setFileName] = useState<string | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { addToast } = useToast();
 
   const handleFile = useCallback((file: File | null) => {
     const allowedTypes = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png'];
@@ -40,10 +42,10 @@ const FileUpload: React.FC<FileUploadProps> = ({
       setFileName(null);
       setPreviewUrl(null);
       onFileChange(null);
-      // Optional: Add user feedback for invalid file
-      alert('Please upload a PDF, JPG, or PNG file under 5MB.');
+      // Use toast for better UX
+      addToast('Please upload a PDF, JPG, or PNG file under 5MB.', 'error');
     }
-  }, [onFileChange]);
+  }, [onFileChange, addToast]);
 
   const handleDragEnter = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();

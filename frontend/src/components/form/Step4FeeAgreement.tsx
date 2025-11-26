@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import FeeAgreement from './FeeAgreement';
 import Footer from '../Footer';
 import { apiService } from '../../services/api';
+import { useToast } from '../../hooks/useToast';
 
 interface Step4FeeAgreementProps {
   applicationId?: string | null;
@@ -22,6 +23,7 @@ const Step4FeeAgreement: React.FC<Step4FeeAgreementProps> = ({
     const saved = localStorage.getItem('financingPlan');
     return saved ? JSON.parse(saved).plan || 'Pay Once Per Year' : 'Pay Once Per Year';
   });
+  const { addToast } = useToast();
 
   // Call onDataChange whenever selectedPlan changes or initialData is loaded
   React.useEffect(() => {
@@ -50,7 +52,7 @@ const Step4FeeAgreement: React.FC<Step4FeeAgreementProps> = ({
 
   const handleNext = async () => {
     if (!selectedPlan) {
-      alert('Please select a financing plan before continuing.');
+      addToast('Please select a financing plan before continuing.', 'error');
       return;
     }
 
@@ -61,7 +63,7 @@ const Step4FeeAgreement: React.FC<Step4FeeAgreementProps> = ({
 
       let currentApplicationId = applicationId || localStorage.getItem('applicationId');
       if (!currentApplicationId) {
-        alert('No application ID found. Please complete the enrollment form first.');
+        addToast('No application ID found. Please complete the enrollment form first.', 'error');
         return;
       }
 
@@ -75,12 +77,13 @@ const Step4FeeAgreement: React.FC<Step4FeeAgreementProps> = ({
         body: JSON.stringify(formDataToSubmit),
       });
 
+      addToast('Financing plan saved successfully!', 'success');
       onStepComplete && onStepComplete(4);
       onStepChange && onStepChange(5);
 
     } catch (error) {
       console.error('Error saving financing plan:', error);
-      alert('Error saving financing plan. Please try again.');
+      addToast('Error saving financing plan. Please try again.', 'error');
     }
   };
 

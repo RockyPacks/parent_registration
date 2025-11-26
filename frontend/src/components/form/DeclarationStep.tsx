@@ -3,6 +3,7 @@ import axios from 'axios';
 import { apiService } from '../../services/api';
 import { DownloadIcon, ArrowLeftIcon, ArrowRightIcon } from '../Icons';
 import Footer from '../Footer';
+import { useToast } from '../../hooks/useToast';
 
 interface ConfirmationChecks {
   agree_truth: boolean;
@@ -56,6 +57,7 @@ const DeclarationStep: React.FC<DeclarationStepProps> = ({ applicationId, onData
 
   const [validationErrors, setValidationErrors] = useState<{[key: string]: string}>({});
   const [isNextEnabled, setIsNextEnabled] = useState(false);
+  const { addToast } = useToast();
 
   // Load existing declaration from backend when user returns to this step
   useEffect(() => {
@@ -190,10 +192,10 @@ const DeclarationStep: React.FC<DeclarationStepProps> = ({ applicationId, onData
         if (responseData.application_id) {
             // The parent component is responsible for managing the application ID state
         }
-        alert('Your progress has been saved!');
+        addToast('Your progress has been saved!', 'success');
       } catch (error) {
         console.error('Error saving progress:', error);
-        alert('Failed to save progress. Please try again.');
+        addToast('Failed to save progress. Please try again.', 'error');
       }
   };
 
@@ -243,7 +245,7 @@ const DeclarationStep: React.FC<DeclarationStepProps> = ({ applicationId, onData
         console.log('Navigation callbacks completed');
       } catch (error) {
         console.error('Error submitting declaration:', error);
-        alert('Failed to submit declaration. Please try again.');
+        addToast('Failed to submit declaration. Please try again.', 'error');
       } finally {
         setIsSubmitting(false);
       }
