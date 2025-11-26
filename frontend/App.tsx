@@ -5,7 +5,6 @@ import MainContent from './src/components/MainContent';
 import Footer from './src/components/Footer';
 import LoginPage from './src/components/LoginPage';
 import SignupPage from './src/components/SignupPage';
-import PaymentConfirmation from './src/components/PaymentConfirmation';
 
 import { EnrollmentData } from './src/services/api';
 import { storage } from './src/utils/storage';
@@ -25,6 +24,7 @@ const App: React.FC = () => {
   const [enrollmentData, setEnrollmentData] = useState<Partial<EnrollmentData>>({});
   const [applicationId, setApplicationId] = useState<string | null>(null);
   const [userEmail, setUserEmail] = useState<string | null>(null);
+  const [userName, setUserName] = useState<string | null>(null);
   const [completedSteps, setCompletedSteps] = useState<number[]>([]);
   const [currentView, setCurrentView] = useState<'enrollment' | 'payment-confirmation'>('enrollment');
   const [authInitialized, setAuthInitialized] = useState(false);
@@ -48,40 +48,28 @@ const App: React.FC = () => {
       const { authService } = await import('./src/services/auth');
       console.log("App.tsx: authService loaded, checking authentication");
 
-      // Check URL params for payment return first
-      const urlParams = new URLSearchParams(window.location.search);
-      if (urlParams.has('reference')) {
-        console.log("App.tsx: Payment confirmation detected in URL");
-        setCurrentView('payment-confirmation');
-        storage.set('currentView', 'payment-confirmation');
-      }
-
-      // Initialize auth state listener first - only once at the top level
-      console.log("App.tsx: Setting up auth state listener");
+      // Initialize auth state listener - now tab-specific with sessionStorage
+      console.log("App.tsx: Setting up tab-specific auth state listener");
       let currentUserEmailRef = { current: null as string | null };
       authService.initAuthListener(async (user) => {
-        console.log("App.tsx: Auth state changed, user:", !!user);
+        console.log("App.tsx: Auth state changed in THIS TAB, user:", !!user);
         const wasAuthenticated = isAuthenticated;
         setIsAuthenticated(!!user);
         setUserEmail(user?.email || null);
+        setUserName(user?.full_name || null);
 
         if (!!user && !wasAuthenticated) {
-          // User just became authenticated, load their application
-          console.log("App.tsx: User became authenticated, loading application");
+          // User just became authenticated in this tab, load their application
+          console.log("App.tsx: User became authenticated in this tab, loading application");
           currentUserEmailRef.current = user.email;
           await loadUserApplication(user.email);
         } else if (!user && wasAuthenticated) {
-          // User became unauthenticated, clear application state
-          console.log("App.tsx: User became unauthenticated, clearing application state");
-          clearApplicationState(currentUserEmailRef.current); // Pass the email of the user who just logged out
+          // User became unauthenticated in this tab, clear application state
+          console.log("App.tsx: User logged out from this tab, clearing application state");
+          clearApplicationState(currentUserEmailRef.current);
           currentUserEmailRef.current = null;
-        } else if (!!user && wasAuthenticated && user.email !== currentUserEmailRef.current) {
-          // User changed (different email), reload application
-          console.log("App.tsx: User changed, reloading application");
-          currentUserEmailRef.current = user.email;
-          await loadUserApplication(user.email);
         }
-        // Ignore SIGNED_OUT -> SIGNED_IN events for the same user
+        // With sessionStorage, each tab is independent - no cross-tab user changes
       });
 
       // Check initial auth state
@@ -90,6 +78,7 @@ const App: React.FC = () => {
         if (session?.user?.email) {
           console.log("App.tsx: User is initially authenticated");
           setUserEmail(session.user.email);
+          setUserName(session.user.user_metadata?.full_name || null);
           setIsAuthenticated(true);
           await loadUserApplication(session.user.email);
         }
@@ -119,36 +108,64 @@ const App: React.FC = () => {
         const initialAppId = appDataResponse.application_id;
 
         if (initialAppId) {
-          console.log("App.tsx: Setting application ID:", initialAppId);
+          console.log("App.tsx: Application ID from backend:", initialAppId);
           setApplicationId(initialAppId);
-
-          // Save the authoritative application ID to localStorage
-          const userAppIdKey = getUserKey(userEmail, 'application_id');
-          localStorage.setItem(userAppIdKey, initialAppId);
 
           // Restore other user-specific state
           const userActiveStepKey = getUserKey(userEmail, 'activeStep');
           const userCompletedStepsKey = getUserKey(userEmail, 'completedSteps');
           const userCurrentViewKey = getUserKey(userEmail, 'currentView');
 
-          const savedActiveStep = storage.get(userActiveStepKey, 1);
-          const savedCompletedSteps = storage.get(userCompletedStepsKey, []);
           const savedCurrentView = storage.get(userCurrentViewKey, 'enrollment');
 
-          console.log("App.tsx: Restoring state - step:", savedActiveStep, "completed:", savedCompletedSteps, "view:", savedCurrentView);
-
-          setActiveStep(savedActiveStep);
-          setCompletedSteps(savedCompletedSteps);
-          setCurrentView(savedCurrentView);
-
-          // Load existing application data from backend
+          // Load existing application data from backend first to determine actual completed steps
           try {
             console.log("App.tsx: Loading application data for:", initialAppId);
             const { apiService } = await import('./src/services/api');
             let appData = await apiService.getApplication(initialAppId);
 
+            // Determine completed steps based on actual backend data
+            const backendCompletedSteps: number[] = [];
+            
             if (appData) {
               console.log("App.tsx: Application data loaded successfully");
+              
+              // Check if step 1 data exists
+              if (appData.student?.surname && appData.student?.first_name && 
+                  appData.family && appData.fee?.fee_person) {
+                backendCompletedSteps.push(1);
+              }
+              
+              // Check if step 2 data exists (documents)
+              if (appData.documents && appData.documents.length > 0) {
+                backendCompletedSteps.push(2);
+              }
+              
+              // Check if step 3 data exists (academic history)
+              if (appData.academic_history && appData.academic_history.length > 0) {
+                backendCompletedSteps.push(3);
+              }
+              
+              // Check if step 4 data exists (fee agreement - financing selections)
+              if (appData.financing_selections && appData.financing_selections.length > 0) {
+                backendCompletedSteps.push(4);
+              }
+              
+              // Check if step 5 data exists (declaration)
+              if (appData.declaration?.signed) {
+                backendCompletedSteps.push(5);
+              }
+              
+              // IMPORTANT: Step 6 is ONLY complete when the application has been submitted
+              // This happens when user clicks "Submit Application" button in Step 6
+              // The backend status changes to 'submitted' or 'completed' only after successful submission
+              if (appData.status === 'submitted' || appData.status === 'completed') {
+                backendCompletedSteps.push(6);
+                console.log("App.tsx: Application has been submitted - Step 6 is complete");
+              }
+
+              console.log("App.tsx: Backend completed steps:", backendCompletedSteps);
+              
               // Transform backend data to frontend format
               const enrollmentData: Partial<EnrollmentData> = {};
 
@@ -208,11 +225,78 @@ const App: React.FC = () => {
 
               setEnrollmentData(enrollmentData);
               console.log("App.tsx: Enrollment data set successfully");
+              
+              // Save loaded data to localStorage so forms can access it
+              if (enrollmentData.student) {
+                storage.set(getUserKey(userEmail, 'studentData'), enrollmentData.student);
+              }
+              if (enrollmentData.medical) {
+                storage.set(getUserKey(userEmail, 'medicalData'), enrollmentData.medical);
+              }
+              if (enrollmentData.family) {
+                storage.set(getUserKey(userEmail, 'familyData'), enrollmentData.family);
+              }
+              if (enrollmentData.fee) {
+                storage.set(getUserKey(userEmail, 'feeData'), enrollmentData.fee);
+              }
+              
+              // Set completed steps based on backend data
+              setCompletedSteps(backendCompletedSteps);
+              storage.set(userCompletedStepsKey, backendCompletedSteps);
+              console.log("App.tsx: Completed steps saved to localStorage:", backendCompletedSteps);
+              
+              // Determine the active step
+              let targetStep = 1;
+              
+              if (backendCompletedSteps.includes(6)) {
+                // Application submitted, stay on step 6 to view summary
+                targetStep = 6;
+              } else if (backendCompletedSteps.length > 0) {
+                // User has made progress - restore their last saved position or go to next incomplete step
+                const savedActiveStep = storage.get(userActiveStepKey, null);
+                if (savedActiveStep && savedActiveStep >= 1 && savedActiveStep <= 6) {
+                  // Restore user's last position
+                  targetStep = savedActiveStep;
+                } else {
+                  // Go to next incomplete step
+                  targetStep = Math.min(backendCompletedSteps.length + 1, 6);
+                }
+              } else {
+                // New user with no data - start at step 1
+                targetStep = 1;
+              }
+              
+              console.log("App.tsx: Restoring state - step:", targetStep, "completed:", backendCompletedSteps, "view:", savedCurrentView);
+              
+              // IMPORTANT: Only set active step on initial load to prevent jumping while user is working
+              // After initial load, step changes are controlled by user navigation only
+              if (activeStep === 1 && !storage.get(userActiveStepKey, null)) {
+                // This is truly the initial load - no saved step exists
+                setActiveStep(targetStep);
+                console.log("App.tsx: Initial load - setting active step to:", targetStep);
+              } else {
+                // User is already working or has a saved position - preserve their current step
+                // Backend completion status updates won't cause navigation jumps
+                console.log("App.tsx: Preserving user's current active step, not jumping");
+              }
+              setCurrentView(savedCurrentView);
             } else {
-              console.log("App.tsx: No application data returned");
+              console.log("App.tsx: No application data returned - starting fresh at step 1");
+              // No backend data, fresh start at step 1
+              setCompletedSteps([]);
+              setActiveStep(1);
+              setCurrentView(savedCurrentView);
+              storage.set(userCompletedStepsKey, []);
+              storage.set(userActiveStepKey, 1);
             }
           } catch (dataError) {
             console.warn('App.tsx: Could not load application data:', dataError);
+            // On error, start fresh at step 1
+            setCompletedSteps([]);
+            setActiveStep(1);
+            setCurrentView(savedCurrentView);
+            storage.set(userCompletedStepsKey, []);
+            storage.set(userActiveStepKey, 1);
           }
         } else {
           console.log("App.tsx: No application ID available");
@@ -235,6 +319,9 @@ const App: React.FC = () => {
       storage.set(getUserKey(userEmail, 'activeStep'), activeStep);
     }
   }, [activeStep, userEmail]);
+
+  // Removed URL sync to prevent navigation bouncing
+  // Active step is now managed purely through React state and localStorage
 
   const handleLogin = () => {
     setIsAuthenticated(true);
@@ -264,14 +351,25 @@ const App: React.FC = () => {
     setCurrentView('enrollment');
     setApplicationInitialized(false);
     setIsAuthenticated(false);
+    setUserName(null);
 
     // Clear all relevant items from localStorage using user-specific keys if email is provided
     if (email) {
-      localStorage.removeItem(getUserKey(email, 'application_id'));
       storage.remove(getUserKey(email, 'paymentReference'));
       storage.remove(getUserKey(email, 'activeStep'));
       storage.remove(getUserKey(email, 'completedSteps'));
       storage.remove(getUserKey(email, 'currentView'));
+      // Clear all form data
+      storage.remove(getUserKey(email, 'studentData'));
+      storage.remove(getUserKey(email, 'medicalData'));
+      storage.remove(getUserKey(email, 'familyData'));
+      storage.remove(getUserKey(email, 'feeData'));
+      storage.remove(getUserKey(email, 'nextOfKinData'));
+      storage.remove(getUserKey(email, 'documentsData'));
+      storage.remove(getUserKey(email, 'academicHistoryData'));
+      storage.remove(getUserKey(email, 'financingData'));
+      storage.remove(getUserKey(email, 'declarationData'));
+      // Note: Application ID is managed by backend, not stored in localStorage
     }
   };
 
@@ -288,17 +386,16 @@ const App: React.FC = () => {
       const result = await apiService.submitEnrollment(data);
 
       setEnrollmentData(data);
-      setApplicationId(result.application_id); // Store the application ID
-      if (userEmail) {
-        localStorage.setItem(getUserKey(userEmail, 'application_id'), result.application_id);
-      }
+      setApplicationId(result.application_id); // Store the application ID from backend
       setCompletedSteps(prev => {
         const newSteps = [...new Set([...prev, 1])]; // Use Set to ensure uniqueness
-        storage.set(getUserKey(userEmail, 'completedSteps'), newSteps); // Save the clean array
+        if (userEmail) {
+          storage.set(getUserKey(userEmail, 'completedSteps'), newSteps); // Save the clean array
+          console.log('App.tsx: Step 1 completed. All completed steps:', newSteps);
+        }
         return newSteps;
       }); // Mark step 1 as completed
       setActiveStep(2); // Advance to document upload
-      storage.set('activeStep', 2);
     } catch (error) {
       alert('Failed to submit enrollment. Please try again.');
     } finally {
@@ -309,38 +406,34 @@ const App: React.FC = () => {
   const handleDocumentUploadComplete = () => {
     setCompletedSteps(prev => {
       const newSteps = [...new Set([...prev, 2])]; // Use Set to ensure uniqueness
-      storage.set(getUserKey(userEmail, 'completedSteps'), newSteps); // Save the clean array
+      if (userEmail) {
+        storage.set(getUserKey(userEmail, 'completedSteps'), newSteps); // Save the clean array
+        console.log('App.tsx: Step 2 completed. All completed steps:', newSteps);
+      }
       return newSteps;
     });
     setActiveStep(3); // Advance to academic history after document upload
-    storage.set(getUserKey(userEmail, 'activeStep'), 3);
   };
 
-  const handleAcademicHistoryComplete = async (data: any) => {
-    if (!applicationId) {
-      alert("Cannot submit academic history: Application ID is missing.");
-      return;
-    }
-    try {
-      const { apiService } = await import('./src/services/api');
-      await apiService.submitAcademicHistory({ ...data, applicationId });
-
-      setCompletedSteps(prev => {
-        const newSteps = [...new Set([...prev, 3])]; // Add 3 and ensure no duplicates
+  const handleAcademicHistoryComplete = () => {
+    setCompletedSteps(prev => {
+      const newSteps = [...new Set([...prev, 3])]; // Add 3 and ensure no duplicates
+      if (userEmail) {
         storage.set(getUserKey(userEmail, 'completedSteps'), newSteps);
-        return newSteps;
-      });
-      setActiveStep(4); // Advance to the next step on success
-    } catch (error) {
-      console.error("Failed to submit academic history:", error);
-      alert("There was an error submitting your academic history. Please try again.");
-    }
+        console.log('App.tsx: Step 3 completed. All completed steps:', newSteps);
+      }
+      return newSteps;
+    });
+    setActiveStep(4); // Advance to the next step on success
   };
 
   const handleFeeAgreementComplete = () => {
     setCompletedSteps(prev => {
       const newSteps = [...new Set([...prev, 4])]; // Use Set to ensure uniqueness
-      storage.set(getUserKey(userEmail, 'completedSteps'), newSteps); // Save the clean array
+      if (userEmail) {
+        storage.set(getUserKey(userEmail, 'completedSteps'), newSteps); // Save the clean array
+        console.log('App.tsx: Step 4 completed. All completed steps:', newSteps);
+      }
       return newSteps;
     }); // Mark step 4 as completed
     setActiveStep(5); // Advance to declaration
@@ -349,7 +442,10 @@ const App: React.FC = () => {
   const handleDeclarationComplete = () => {
     setCompletedSteps(prev => {
       const newSteps = [...new Set([...prev, 5])]; // Use Set to ensure uniqueness
-      storage.set(getUserKey(userEmail, 'completedSteps'), newSteps); // Save the clean array
+      if (userEmail) {
+        storage.set(getUserKey(userEmail, 'completedSteps'), newSteps); // Save the clean array
+        console.log('App.tsx: Step 5 completed. All completed steps:', newSteps);
+      }
       return newSteps;
     });
     setActiveStep(6); // Advance to review and submit
@@ -358,7 +454,10 @@ const App: React.FC = () => {
   const handleStepComplete = (stepNumber: number) => {
     setCompletedSteps(prev => {
       const newSteps = [...new Set([...prev, stepNumber])]; // Use Set to ensure uniqueness
-      storage.set(getUserKey(userEmail, 'completedSteps'), newSteps); // Save the clean array
+      if (userEmail) {
+        storage.set(getUserKey(userEmail, 'completedSteps'), newSteps); // Save the clean array
+        console.log(`App.tsx: Step ${stepNumber} marked as complete. All completed steps:`, newSteps);
+      }
       return newSteps;
     });
   };
@@ -383,33 +482,6 @@ const App: React.FC = () => {
     );
   }
 
-  if (currentView === 'payment-confirmation') {
-    return (
-      <>
-        <Header
-          onLogout={handleLogout}
-          onNavigate={(view) => {
-            setCurrentView(view);
-            storage.set(getUserKey(userEmail, 'currentView'), view);
-          }}
-          currentView={currentView}
-        />
-        <PaymentConfirmation
-          onBack={() => {
-            setCurrentView('enrollment');
-            storage.set(getUserKey(userEmail, 'currentView'), 'enrollment');
-          }}
-          onNext={() => {
-            setCurrentView('enrollment');
-            storage.set(getUserKey(userEmail, 'currentView'), 'enrollment');
-          }}
-        />
-      </>
-    );
-  }
-
-
-
   return (
     <>
       <Header
@@ -419,6 +491,8 @@ const App: React.FC = () => {
           storage.set(getUserKey(userEmail, 'currentView'), view);
         }}
         currentView={currentView}
+        userName={userName || undefined}
+        userEmail={userEmail || undefined}
       />
       <div className="min-h-screen bg-gray-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -435,9 +509,13 @@ const App: React.FC = () => {
               onAcademicHistoryComplete={handleAcademicHistoryComplete}
               onFeeAgreementComplete={handleFeeAgreementComplete}
               onDeclarationComplete={handleDeclarationComplete}
-              onStepChange={setActiveStep}
+              onStepChange={(step) => {
+                console.log(`App.tsx: Step change requested from ${activeStep} to ${step}`);
+                setActiveStep(step);
+              }}
               onStepComplete={handleStepComplete}
               completedSteps={completedSteps}
+              userEmail={userEmail}
             />
             </div>
           </main>

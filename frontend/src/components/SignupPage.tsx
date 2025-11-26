@@ -43,10 +43,24 @@ const SignupPage: React.FC<SignupPageProps> = ({ onSignupSuccess, onSwitchToLogi
       return 'Please enter a valid email address.';
     }
 
-    // Password validation: at least 8 characters, 1 uppercase, 1 lowercase, 1 special character, 1 number
-    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
-    if (!passwordRegex.test(trimmedPassword)) {
-      return 'Password must be at least 8 characters long and include at least one uppercase letter, one lowercase letter, one number, and one special character.';
+    // Password validation: at least 8 characters with 1 uppercase, 1 lowercase, 1 special character
+    if (trimmedPassword.length < 8) {
+      return 'Password must be at least 8 characters long.';
+    }
+
+    // Check for at least one uppercase letter
+    if (!/[A-Z]/.test(trimmedPassword)) {
+      return 'Password must contain at least one uppercase letter.';
+    }
+
+    // Check for at least one lowercase letter
+    if (!/[a-z]/.test(trimmedPassword)) {
+      return 'Password must contain at least one lowercase letter.';
+    }
+
+    // Check for at least one special character
+    if (!/[^A-Za-z0-9]/.test(trimmedPassword)) {
+      return 'Password must contain at least one special character.';
     }
 
     return null;
@@ -161,7 +175,7 @@ const SignupPage: React.FC<SignupPageProps> = ({ onSignupSuccess, onSwitchToLogi
                   className="block w-full appearance-none rounded-md border border-gray-300 px-3 py-2 placeholder-gray-400 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm"
                 />
                 <p className="mt-1 text-xs text-gray-500">
-                  Password must be at least 8 characters long and include at least one uppercase letter, one lowercase letter, one number, and one special character.
+                  Password must be at least 8 characters long and include at least one uppercase letter, one lowercase letter, and one special character.
                 </p>
               </div>
             </div>

@@ -280,6 +280,7 @@ class EnrollmentService:
 
             # Update application status to submitted
             self.repository.update_application_status(application_id, ApplicationStatus.SUBMITTED, submitted_at=True)
+            logger.info(f"Application {application_id} status updated to SUBMITTED - Step 6 is now complete")
 
             return SubmitApplicationResponse(
                 message="Application submitted successfully",
@@ -290,6 +291,28 @@ class EnrollmentService:
         except Exception as e:
             logger.error(f"Failed to submit application: {str(e)}")
             raise HTTPException(status_code=500, detail=f"Failed to submit application: {str(e)}")
+
+    def get_declaration(self, application_id: str, user_id: str) -> Dict[str, Any]:
+        """Get declaration data for an application"""
+        try:
+            # Verify user owns this application
+            app_check = self.repository.get_application_by_id_and_user(application_id, user_id)
+            if not app_check:
+                raise HTTPException(status_code=403, detail="Access denied")
+
+            # Get declaration data
+            declaration_data = declaration_repository.get_declaration(application_id)
+            
+            if not declaration_data:
+                raise HTTPException(status_code=404, detail="Declaration not found")
+            
+            return declaration_data
+
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error(f"Error retrieving declaration: {str(e)}")
+            raise HTTPException(status_code=500, detail="Failed to retrieve declaration")
 
     def submit_declaration(self, data: Dict[str, Any], user_id: str) -> Dict[str, Any]:
         """Submit declaration data"""

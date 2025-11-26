@@ -77,6 +77,10 @@ const Sidebar: React.FC<SidebarProps> = ({ steps, activeStep, onStepClick, compl
         <ul className="space-y-2">
           {steps.map((step) => {
             const status = getStepStatus(step.number);
+            // Check if step 6 can be accessed - requires steps 1-5 to be completed
+            const isStep6Locked = step.number === 6 && ![1, 2, 3, 4, 5].every(s => completedSteps.includes(s));
+            const isClickable = !isStep6Locked;
+            
             return (
               <li
                 key={step.number}
@@ -85,15 +89,12 @@ const Sidebar: React.FC<SidebarProps> = ({ steps, activeStep, onStepClick, compl
                     ? 'bg-blue-50 border-blue-200 text-blue-900 shadow-sm cursor-pointer'
                     : status === 'completed'
                     ? 'bg-green-50 border-green-200 text-green-800 hover:bg-green-100 cursor-pointer'
-                    : status === 'pending' && (step.number === activeStep + 1 || completedSteps.includes(step.number - 1))
-                    ? 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50 hover:border-gray-300 cursor-pointer'
-                    : 'bg-gray-50 border-gray-200 text-gray-400 cursor-not-allowed opacity-60'
+                    : isStep6Locked
+                    ? 'bg-gray-50 border-gray-200 text-gray-400 cursor-not-allowed opacity-60'
+                    : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50 hover:border-gray-300 cursor-pointer'
                 }`}
-                onClick={() => {
-                  if (status !== 'pending' || step.number === activeStep + 1 || completedSteps.includes(step.number - 1)) {
-                    onStepClick?.(step.number);
-                  }
-                }}
+                onClick={() => isClickable && onStepClick?.(step.number)}
+                title={isStep6Locked ? 'Complete all previous steps to access Review & Submit' : ''}
               >
                 <div
                   className={`flex-shrink-0 w-6 md:w-8 h-6 md:h-8 rounded-full flex items-center justify-center mr-2 md:mr-3 text-xs md:text-sm font-semibold ${

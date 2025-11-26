@@ -34,7 +34,7 @@ const MedicalInformation: React.FC<MedicalInformationProps> = ({ initialData, on
     }
     // Save to localStorage whenever form data changes
     localStorage.setItem('medicalInformation', JSON.stringify(formData));
-  }, [formData, onDataChange]);
+  }, [formData]);
 
   const validateField = (field: string, value: string) => {
     let error = '';

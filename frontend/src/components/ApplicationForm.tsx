@@ -210,15 +210,27 @@ const ApplicationForm: React.FC<ApplicationFormProps> = ({ summaryData, applicat
           <h2 style={sectionTitleStyle}>Academic History</h2>
           {academicHistory && academicHistory.length > 0 ? (
           academicHistory.map((history, idx) => (
-            <div key={idx} style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '1rem 2rem', marginBottom: '1rem' }}>
-              <InfoItem label="Previous School" value={history.schoolName} />
-              <InfoItem label="School Type" value={history.schoolType} />
-              <InfoItem label="Last Grade Completed" value={history.lastGradeCompleted} />
-              <InfoItem label="Academic Year Completed" value={history.academicYearCompleted} />
-              <InfoItem label="Reason for Leaving" value={history.reasonForLeaving} />
-              <InfoItem label="Principal's Name" value={history.principalName} />
-              <InfoItem label="School Phone Number" value={history.schoolPhoneNumber} />
-              <InfoItem label="School Email" value={history.schoolEmail} />
+            <div key={idx} style={{ marginBottom: '1rem' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '1rem 2rem' }}>
+                <InfoItem label="Previous School" value={history.schoolName} />
+                <InfoItem label="School Type" value={history.schoolType} />
+                <InfoItem label="Last Grade Completed" value={history.lastGradeCompleted} />
+                <InfoItem label="Academic Year Completed" value={history.academicYearCompleted} />
+                <InfoItem label="Principal's Name" value={history.principalName} />
+                <InfoItem label="School Phone Number" value={history.schoolPhoneNumber} />
+                <InfoItem label="School Email" value={history.schoolEmail} />
+                <InfoItem label="School Address" value={history.schoolAddress} />
+              </div>
+              {history.reasonForLeaving && (
+                <div style={{ marginTop: '1rem' }}>
+                  <InfoItem label="Reason for Leaving" value={history.reasonForLeaving} />
+                </div>
+              )}
+              {history.additionalNotes && (
+                <div style={{ marginTop: '1rem' }}>
+                  <InfoItem label="Additional Notes" value={history.additionalNotes} />
+                </div>
+              )}
             </div>
           ))
         ) : (

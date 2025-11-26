@@ -26,6 +26,7 @@ interface MainContentProps {
   onStepChange?: (step: number) => void;
   onStepComplete?: (stepNumber: number) => void;
   completedSteps?: number[];
+  userEmail?: string | null;
 }
 
 const MainContent: React.FC<MainContentProps> = (props) => {
@@ -34,32 +35,40 @@ const MainContent: React.FC<MainContentProps> = (props) => {
     applicationId,
     isSubmitting: isSubmittingProp,
     applicationInitialized = false,
-  onEnrollmentSubmit,
-  onAcademicHistoryComplete,
-  onFeeAgreementComplete,
-  onDeclarationComplete,
-  onStepChange,
-  onStepComplete,
+    onEnrollmentSubmit,
+    onAcademicHistoryComplete,
+    onFeeAgreementComplete,
+    onDeclarationComplete,
+    onStepChange,
+    onStepComplete,
     completedSteps = [],
-} = props;
+    userEmail = null,
+  } = props;
+
+  // Helper to generate user-specific localStorage keys
+  const getUserKey = useCallback((key: string) => userEmail ? `${userEmail}_${key}` : key, [userEmail]);
 
   // Track completed steps locally to enforce progression
   const [localCompletedSteps, setLocalCompletedSteps] = useState<number[]>(completedSteps || []);
 
   const handleDocumentUploadComplete = useCallback(() => {
+    console.log('MainContent: handleDocumentUploadComplete called - navigating from step 2 to step 3');
     // Mark step 2 as complete before moving forward
     if (!localCompletedSteps.includes(2)) {
       setLocalCompletedSteps(prev => [...prev, 2]);
     }
     onStepComplete && onStepComplete(2);
-    onStepChange && onStepChange(3); // Then move to the next step (Academic History)
-  }, [onStepComplete, onStepChange, localCompletedSteps]);const [academicHistoryData, setAcademicHistoryData] = useState<any>({});
-const [subjectsData, setSubjectsData] = useState<any>({});
-const [financingData, setFinancingData] = useState<any>({});
-const [declarationData, setDeclarationData] = useState<any>({});
-const [nextOfKinData, setNextOfKinData] = useState<any>({});
-const [documentsData, setDocumentsData] = useState<any[]>([]);
-const [fullApplicationData, setFullApplicationData] = useState<any>({});
+    
+    // IMPORTANT: Always navigate to step 3 (Academic History), never skip ahead
+    console.log('MainContent: Explicitly navigating to step 3 (Academic History)');
+    onStepChange && onStepChange(3);
+  }, [onStepComplete, onStepChange, localCompletedSteps]); const [academicHistoryData, setAcademicHistoryData] = useState<any>({});
+  const [subjectsData, setSubjectsData] = useState<any>({});
+  const [financingData, setFinancingData] = useState<any>({});
+  const [declarationData, setDeclarationData] = useState<any>({});
+  const [nextOfKinData, setNextOfKinData] = useState<any>({});
+  const [documentsData, setDocumentsData] = useState<any[]>([]);
+  const [fullApplicationData, setFullApplicationData] = useState<any>({});
 
   const firstRender = useRef(true);
 
@@ -88,17 +97,17 @@ const [fullApplicationData, setFullApplicationData] = useState<any>({});
   // Load all data from storage on initial mount
   useEffect(() => {
     console.log("MainContent: Initializing and loading all data from storage.");
-    setStudentData(storage.get('studentData', {}) || {});
-    setMedicalData(storage.get('medicalData', {}) || {});
-    setFamilyData(storage.get('familyData', {}) || {}); // Ensure default is an empty object
-    setFeeData(storage.get('feeData', {}) || {});
-    setDocumentsData(storage.get('documentsData', []) || []);
-    setAcademicHistoryData(storage.get('academicHistoryData', {}) || {});
-    setFinancingData(storage.get('financingData', { plan: 'Pay Once Per Year' }) || { plan: 'Pay Once Per Year' }); // Ensure financingData has a default plan
-    setDeclarationData(storage.get('declarationData', { signed: false }) || { signed: false }); // Ensure declarationData has a default signed status
-    setNextOfKinData(storage.get('nextOfKinData', {}) || {});
+    setStudentData(storage.get(getUserKey('studentData'), {}) || {});
+    setMedicalData(storage.get(getUserKey('medicalData'), {}) || {});
+    setFamilyData(storage.get(getUserKey('familyData'), {}) || {}); // Ensure default is an empty object
+    setFeeData(storage.get(getUserKey('feeData'), {}) || {});
+    setDocumentsData(storage.get(getUserKey('documentsData'), []) || []);
+    setAcademicHistoryData(storage.get(getUserKey('academicHistoryData'), {}) || {});
+    setFinancingData(storage.get(getUserKey('financingData'), { plan: 'Pay Once Per Year' }) || { plan: 'Pay Once Per Year' }); // Ensure financingData has a default plan
+    setDeclarationData(storage.get(getUserKey('declarationData'), { signed: false }) || { signed: false }); // Ensure declarationData has a default signed status
+    setNextOfKinData(storage.get(getUserKey('nextOfKinData'), {}) || {});
     setDataLoaded(true);
-  }, []);
+  }, [getUserKey]);
 
 
   const isStudentInfoCompleted = useMemo(() => {
@@ -227,18 +236,16 @@ const [fullApplicationData, setFullApplicationData] = useState<any>({});
         }
       }
 
-      let currentApplicationId = applicationId || localStorage.getItem('application_id');
-
-      // Auto-save skipped: no valid data to save if appId is null or 'unknown'
-      if (!currentApplicationId || currentApplicationId === "unknown") {
-        console.log("Auto-save skipped: no valid application ID to save against.");
+      // Application ID must come from props (backend manages it)
+      if (!applicationId) {
+        console.log("Auto-save skipped: no application ID available from backend.");
         setSavingStatus('idle');
         return false;
       }
 
       const { apiService } = await import('../services/api');
       const result = await apiService.autoSaveEnrollment({
-        application_id: currentApplicationId,
+        application_id: applicationId,
         student: combinedData.student,
         medical: combinedData.medical,
         family: combinedData.family,
@@ -247,13 +254,8 @@ const [fullApplicationData, setFullApplicationData] = useState<any>({});
 
       setSavingStatus('saved');
 
-      if (result.application_id && result.application_id !== currentApplicationId) {
-        localStorage.setItem('application_id', result.application_id);
-        // Note: For auto-save, we're not immediately updating the applicationId state here,
-        // as the source of truth for `applicationId` prop comes from `App.tsx`.
-        // `App.tsx` will eventually reload and pick up the new ID if needed.
-        currentApplicationId = result.application_id; // Update local variable for consistency
-      }
+      // Backend manages application ID, no need to update localStorage
+      console.log('Auto-save successful for application:', applicationId);
 
       setTimeout(() => setSavingStatus('idle'), 2000);
       return true;
@@ -300,78 +302,137 @@ const [fullApplicationData, setFullApplicationData] = useState<any>({});
   }, [studentData, medicalData, familyData, feeData, dataLoaded, applicationInitialized]);
 
   const handleStudentDataChange = useCallback((data: any) => {
-    setStudentData(prevData => ({ ...prevData, ...data }));
-    storage.set('studentData', { ...studentData, ...data });
-  }, []);
+    setStudentData(prevData => {
+      const newData = { ...prevData, ...data };
+      storage.set(getUserKey('studentData'), newData);
+      return newData;
+    });
+  }, [getUserKey]);
 
   const handleMedicalDataChange = useCallback((data: any) => {
-    setMedicalData(prevData => ({ ...prevData, ...data }));
-    storage.set('medicalData', { ...medicalData, ...data });
-  }, []);
+    setMedicalData(prevData => {
+      const newData = { ...prevData, ...data };
+      storage.set(getUserKey('medicalData'), newData);
+      return newData;
+    });
+  }, [getUserKey]);
 
   const handleFamilyDataChange = useCallback((data: any) => {
-    setFamilyData(prevData => ({ ...prevData, ...data }));
-    storage.set('familyData', { ...familyData, ...data });
-  }, []);
+    setFamilyData(prevData => {
+      const newData = { ...prevData, ...data };
+      storage.set(getUserKey('familyData'), newData);
+      return newData;
+    });
+  }, [getUserKey]);
 
   const handleFeeDataChange = useCallback((data: any) => {
-    setFeeData(prevData => ({ ...prevData, ...data }));
-    storage.set('feeData', { ...feeData, ...data });
-  }, []);
+    setFeeData(prevData => {
+      const newData = { ...prevData, ...data };
+      storage.set(getUserKey('feeData'), newData);
+      return newData;
+    });
+  }, [getUserKey]);
 
   const handleNextOfKinDataChange = useCallback((data: any) => {
-    setNextOfKinData(prevData => ({ ...prevData, ...data }));
-    storage.set('nextOfKinData', { ...nextOfKinData, ...data });
-  }, []);
+    setNextOfKinData(prevData => {
+      const newData = { ...prevData, ...data };
+      storage.set(getUserKey('nextOfKinData'), newData);
+      return newData;
+    });
+  }, [getUserKey]);
 
   const handleDocumentsDataChange = useCallback((data: any[]) => {
-    setDocumentsData(prevData => ([...prevData, ...data]));
-    storage.set('documentsData', [...documentsData, ...data]);
-  }, []);
+    setDocumentsData(prevData => {
+      const newData = [...prevData, ...data];
+      storage.set(getUserKey('documentsData'), newData);
+      return newData;
+    });
+  }, [getUserKey]);
 
   const handleAcademicHistoryDataChange = useCallback((data: any) => {
-    setAcademicHistoryData(prevData => ({ ...prevData, ...data }));
-    storage.set('academicHistoryData', { ...academicHistoryData, ...data });
-  }, []);
+    setAcademicHistoryData(prevData => {
+      const newData = { ...prevData, ...data };
+      storage.set(getUserKey('academicHistoryData'), newData);
+      return newData;
+    });
+  }, [getUserKey]);
 
   const handleFinancingDataChange = useCallback((data: any) => {
-    setFinancingData(prevData => ({ ...prevData, ...data }));
-    storage.set('financingData', { ...financingData, ...data });
-  }, []);
+    setFinancingData(prevData => {
+      const newData = { ...prevData, ...data };
+      storage.set(getUserKey('financingData'), newData);
+      return newData;
+    });
+  }, [getUserKey]);
 
   const handleDeclarationDataChange = useCallback((data: any) => {
-    setDeclarationData(prevData => ({ ...prevData, ...data }));
-    storage.set('declarationData', { ...declarationData, ...data });
-  }, []);
+    setDeclarationData(prevData => {
+      const newData = { ...prevData, ...data };
+      storage.set(getUserKey('declarationData'), newData);
+      return newData;
+    });
+  }, [getUserKey]);
 
-const handleFinalSubmit = () => { // Made synchronous as no API call
-  const data = {
-    student: studentData,
-    family: familyData, // familyData now includes nextOfKin
-    nextOfKin: nextOfKinData,
-    medical: medicalData,
-    fee: feeData,
-    academicHistory: academicHistoryData,
-    subjects: subjectsData,
-    financing: financingData,
-    declaration: declarationData,
-    documents: documentsData,
+  const handleFinalSubmit = async () => {
+    if (!applicationId) {
+      addToast('No application ID found. Please try again.', 'error');
+      return;
+    }
+
+    console.log('MainContent: Starting final application submission...');
+    setIsSubmitting(true);
+    try {
+      const { apiService } = await import('../services/api');
+      await apiService.submitApplication(applicationId);
+      console.log('MainContent: Application submitted successfully to backend');
+
+      const data = {
+        student: studentData,
+        family: familyData, // familyData now includes nextOfKin
+        nextOfKin: nextOfKinData,
+        medical: medicalData,
+        fee: feeData,
+        academicHistory: academicHistoryData,
+        subjects: subjectsData,
+        financing: financingData,
+        declaration: declarationData,
+        documents: documentsData,
+      };
+      setFullApplicationData(data);
+
+      addToast('Application submitted successfully!', 'success');
+      
+      // ONLY mark step 6 as complete after successful backend submission
+      console.log('MainContent: Marking step 6 as complete');
+      onStepComplete && onStepComplete(6);
+    } catch (error) {
+      console.error('MainContent: Error submitting application:', error);
+      addToast('Failed to submit application. Please try again.', 'error');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
-  setFullApplicationData(data);
-  // As per user feedback, this function should not handle actual API submissions.
-  // It only prepares the data and marks the step as complete locally.
-  addToast('Application data prepared for review and PDF generation.', 'success');
-  onStepComplete && onStepComplete(6); // Mark step 6 as complete
-};
 
-const handleCombinedSubmit = useCallback(async (submitOnly = false) => {
-  console.log('handleCombinedSubmit triggered');
-  setIsSubmitting(true);
+  const handleCombinedSubmit = useCallback(async (submitOnly = false) => {
+    console.log('handleCombinedSubmit triggered');
+    setIsSubmitting(true);
 
     try {
-      // Validate form - using validationErrors state, ensure no errors
-      if (Object.keys(validationErrorsMemo).length > 0) {
-        addToast('Please complete all required fields before submitting.', 'error');
+      // Validate required fields before submitting
+      if (!isStudentInfoCompleted) {
+        addToast('Please complete all required Student Information fields.', 'error');
+        setIsSubmitting(false);
+        return;
+      }
+      
+      if (!isFamilyInfoCompleted) {
+        addToast('Please complete at least one parent\'s information in Family Information section.', 'error');
+        setIsSubmitting(false);
+        return;
+      }
+      
+      if (!isFeeResponsibilityCompleted) {
+        addToast('Please complete all required Fee Responsibility fields.', 'error');
         setIsSubmitting(false);
         return;
       }
@@ -399,7 +460,7 @@ const handleCombinedSubmit = useCallback(async (submitOnly = false) => {
         return;
       }
 
-      let currentApplicationId = applicationId || localStorage.getItem('application_id');
+      let currentApplicationId = applicationId || localStorage.getItem(getUserKey('application_id'));
 
       if (!currentApplicationId || currentApplicationId === "unknown") { // Check for "unknown"
         const { apiService } = await import('../services/api');
@@ -408,7 +469,7 @@ const handleCombinedSubmit = useCallback(async (submitOnly = false) => {
           body: JSON.stringify({})
         });
         currentApplicationId = (createResponse as any).application_id;
-        localStorage.setItem('application_id', currentApplicationId); // Use application_id
+        localStorage.setItem(getUserKey('application_id'), currentApplicationId); // Use user-specific key
         console.log('Created new application ID:', currentApplicationId);
       } else {
         console.log('Using existing application ID:', currentApplicationId);
@@ -447,7 +508,7 @@ const handleCombinedSubmit = useCallback(async (submitOnly = false) => {
       }
       onStepComplete && onStepComplete(1);
       onStepChange && onStepChange(2);
-      storage.set('activeStep', 2);
+      storage.set(getUserKey('activeStep'), 2);
       setIsSubmitting(false);
     } catch (error: any) {
       console.error('Error in handleCombinedSubmit:', error);
@@ -455,7 +516,7 @@ const handleCombinedSubmit = useCallback(async (submitOnly = false) => {
       addToast(errorMsg, 'error');
       setIsSubmitting(false);
     }
-  }, [applicationId, applicationInitialized, studentData, medicalData, familyData, feeData, onStepChange, onStepComplete, addToast, validationErrors]);
+  }, [applicationId, applicationInitialized, studentData, medicalData, familyData, feeData, onStepChange, onStepComplete, addToast, isStudentInfoCompleted, isFamilyInfoCompleted, isFeeResponsibilityCompleted]);
 
   const handleCombinedSubmitClick = useCallback(() => {
     handleCombinedSubmit();
@@ -653,6 +714,7 @@ const handleCombinedSubmit = useCallback(async (submitOnly = false) => {
         <Suspense fallback={<div>Loading Step 6...</div>}>
           <Step6ReviewSubmitStep
             activeStep={activeStep}
+            applicationId={applicationId}
             studentData={studentData}
             familyData={familyData}
             medicalData={medicalData}

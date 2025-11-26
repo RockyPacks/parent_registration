@@ -6,6 +6,7 @@ import { SummaryData } from '../../types'; // Import SummaryData type
 import { useReactToPrint } from 'react-to-print'; // Re-import useReactToPrint for this component
 interface Step6ReviewSubmitStepProps {
   activeStep: number;
+  applicationId?: string | null; // Add applicationId prop
   studentData: any;
   familyData: any;
   medicalData: any;
@@ -106,6 +107,7 @@ const ApplicationSubmittedCard: React.FC<ApplicationSubmittedCardProps> = ({ sum
 
 const Step6ReviewSubmitStep: React.FC<Step6ReviewSubmitStepProps> = ({
   activeStep,
+  applicationId,
   studentData,
   familyData,
   medicalData,
@@ -151,15 +153,26 @@ const Step6ReviewSubmitStep: React.FC<Step6ReviewSubmitStepProps> = ({
       motherEmail: familyData?.motherEmail || '',
       motherPhone: familyData?.motherMobile || '',
       motherIdNumber: familyData?.motherIdNumber || '',
-      nextOfKinName: `${nextOfKinData?.firstName || ''} ${nextOfKinData?.surname || ''}`,
-      nextOfKinRelationship: nextOfKinData?.relationship || '',
-      nextOfKinEmail: nextOfKinData?.email || '',
-      nextOfKinPhone: nextOfKinData?.mobile || '',
-      nextOfKinIdNumber: nextOfKinData?.idNumber || '',
+      nextOfKinName: `${nextOfKinData?.nextOfKinFirstName || ''} ${nextOfKinData?.nextOfKinSurname || ''}`.trim(),
+      nextOfKinRelationship: nextOfKinData?.nextOfKinRelationship || '',
+      nextOfKinEmail: nextOfKinData?.nextOfKinEmail || '',
+      nextOfKinPhone: nextOfKinData?.nextOfKinMobile || '',
+      nextOfKinIdNumber: nextOfKinData?.nextOfKinIdNumber || '',
     },
     medical: medicalData,
     fee: feeData,
-    academicHistory: (academicHistoryData && Object.keys(academicHistoryData).length > 0) ? [academicHistoryData] : [], // Ensure it's an array and not an empty object
+    academicHistory: (academicHistoryData && Object.keys(academicHistoryData).length > 0) ? [{
+      schoolName: academicHistoryData.schoolName || '',
+      schoolType: academicHistoryData.schoolType || '',
+      lastGradeCompleted: academicHistoryData.lastGradeCompleted || '',
+      academicYearCompleted: academicHistoryData.academicYearCompleted || '',
+      reasonForLeaving: academicHistoryData.reasonForLeaving || '',
+      principalName: academicHistoryData.principalName || '',
+      schoolPhoneNumber: academicHistoryData.schoolPhoneNumber || '',
+      schoolEmail: academicHistoryData.schoolEmail || '',
+      schoolAddress: academicHistoryData.schoolAddress || '',
+      additionalNotes: academicHistoryData.additionalNotes || '',
+    }] : [],
     subjects: subjectsData,
     financing: financingData,
     declaration: declarationData,
@@ -205,11 +218,11 @@ const Step6ReviewSubmitStep: React.FC<Step6ReviewSubmitStepProps> = ({
         motherEmail: familyData?.motherEmail || '',
         motherPhone: familyData?.motherMobile || '',
         motherIdNumber: familyData?.motherIdNumber || '',
-        nextOfKinName: `${nextOfKinData?.firstName || ''} ${nextOfKinData?.surname || ''}`,
-        nextOfKinRelationship: nextOfKinData?.relationship || '',
-        nextOfKinEmail: nextOfKinData?.email || '',
-        nextOfKinPhone: nextOfKinData?.mobile || '',
-        nextOfKinIdNumber: nextOfKinData?.idNumber || '',
+        nextOfKinName: `${nextOfKinData?.nextOfKinFirstName || ''} ${nextOfKinData?.nextOfKinSurname || ''}`.trim(),
+        nextOfKinRelationship: nextOfKinData?.nextOfKinRelationship || '',
+        nextOfKinEmail: nextOfKinData?.nextOfKinEmail || '',
+        nextOfKinPhone: nextOfKinData?.nextOfKinMobile || '',
+        nextOfKinIdNumber: nextOfKinData?.nextOfKinIdNumber || '',
       },
       medical: medicalData,
       fee: feeData,
@@ -222,7 +235,8 @@ const Step6ReviewSubmitStep: React.FC<Step6ReviewSubmitStepProps> = ({
         principalName: academicHistoryData.principalName || '',
         schoolPhoneNumber: academicHistoryData.schoolPhoneNumber || '',
         schoolEmail: academicHistoryData.schoolEmail || '',
-        // Add any other academic history fields here if they exist and are needed
+        schoolAddress: academicHistoryData.schoolAddress || '',
+        additionalNotes: academicHistoryData.additionalNotes || '',
       }] : [],
       subjects: subjectsData,
       financing: financingData,
@@ -238,12 +252,14 @@ const Step6ReviewSubmitStep: React.FC<Step6ReviewSubmitStepProps> = ({
   };
 
   const handleSubmitAndShowConfirmation = () => {
-    // onSubmit(); // Removed the original onSubmit handler call to prevent resubmission
-    const newApplicationId = generateApplicationId();
-    setGeneratedApplicationId(newApplicationId);
+    console.log('Step6ReviewSubmitStep: handleSubmitAndShowConfirmation called');
+    // Use real applicationId if available, otherwise generate one (fallback)
+    const finalAppId = applicationId || generateApplicationId();
+    setGeneratedApplicationId(finalAppId);
     setShowConfirmationCard(true);
 
     // Call onSubmit to trigger backend submission and mark step 6 as complete in MainContent
+    console.log('Step6ReviewSubmitStep: Calling onSubmit to submit application to backend');
     onSubmit();
   };
 

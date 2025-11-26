@@ -38,33 +38,61 @@ interface DeclarationStepProps {
 }
 
 const DeclarationStep: React.FC<DeclarationStepProps> = ({ applicationId, onDataChange, onStepChange, onStepComplete }) => {
-  const [confirmations, setConfirmations] = useState<ConfirmationChecks>(() => {
-    const savedData = localStorage.getItem('declarationData');
-    const parsed = savedData ? JSON.parse(savedData) : {};
-    return {
-      agree_truth: parsed.agree_truth || false,
-      agree_policies: parsed.agree_policies || false,
-      agree_financial: parsed.agree_financial || false,
-      agree_verification: parsed.agree_verification || false,
-      agree_data_processing: parsed.agree_data_processing || false,
-      agree_audit_storage: parsed.agree_audit_storage || false,
-      agree_affordability_processing: parsed.agree_affordability_processing || false,
-    };
+  const [confirmations, setConfirmations] = useState<ConfirmationChecks>({
+    agree_truth: false,
+    agree_policies: false,
+    agree_financial: false,
+    agree_verification: false,
+    agree_data_processing: false,
+    agree_audit_storage: false,
+    agree_affordability_processing: false,
   });
-  const [fullName, setFullName] = useState(() => {
-    const savedData = localStorage.getItem('declarationData');
-    return savedData ? JSON.parse(savedData).fullName || '' : '';
-  });
-  const [city, setCity] = useState(() => {
-    const savedData = localStorage.getItem('declarationData');
-    return savedData ? JSON.parse(savedData).city || '' : '';
-  });
+  const [fullName, setFullName] = useState('');
+  const [city, setCity] = useState('');
+  const [dataLoadedFromBackend, setDataLoadedFromBackend] = useState(false);
   const [isContinueDisabled, setIsContinueDisabled] = useState(true);
   const [touched, setTouched] = useState<{ [key: string]: boolean }>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [validationErrors, setValidationErrors] = useState<{[key: string]: string}>({});
   const [isNextEnabled, setIsNextEnabled] = useState(false);
+
+  // Load existing declaration from backend when user returns to this step
+  useEffect(() => {
+    const loadExistingData = async () => {
+      if (!applicationId || dataLoadedFromBackend) return;
+      
+      try {
+        console.log('Loading declaration data for application:', applicationId);
+        const backendData = await apiService.getDeclaration(applicationId);
+        
+        if (backendData && backendData.id) {
+          console.log('Loaded declaration data:', backendData);
+          
+          setConfirmations({
+            agree_truth: backendData.agree_truth || false,
+            agree_policies: backendData.agree_policies || false,
+            agree_financial: backendData.agree_financial || false,
+            agree_verification: backendData.agree_verification || false,
+            agree_data_processing: backendData.agree_data_processing || false,
+            agree_audit_storage: backendData.agree_audit_storage || false,
+            agree_affordability_processing: backendData.agree_affordability_processing || false,
+          });
+          
+          setFullName(backendData.full_name || '');
+          setCity(backendData.city || '');
+          setDataLoadedFromBackend(true);
+        }
+      } catch (error) {
+        console.log('No existing declaration data found, starting fresh');
+        // No data found - user can fill fresh form
+      }
+    };
+
+    if (applicationId) {
+      loadExistingData();
+    }
+  }, [applicationId, dataLoadedFromBackend]);
 
 
 
@@ -118,7 +146,7 @@ const DeclarationStep: React.FC<DeclarationStepProps> = ({ applicationId, onData
     };
     localStorage.setItem('declarationData', JSON.stringify(declarationData));
     onDataChange && onDataChange(declarationData); // Call onDataChange
-  }, [confirmations, fullName, city, onDataChange]);
+  }, [confirmations, fullName, city, applicationId]);
 
   const validateDeclaration = () => {
     const errors: {[key: string]: string} = {};

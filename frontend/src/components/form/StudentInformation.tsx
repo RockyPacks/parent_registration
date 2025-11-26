@@ -65,7 +65,7 @@ const StudentInformation: React.FC<StudentInformationProps> = ({ initialData, on
       onDataChange(dataToSave);
       localStorage.setItem('studentInformation', JSON.stringify(dataToSave));
     }
-  }, [formData, onDataChange]);
+  }, [formData]);
 
   const validateField = (field: string, value: string | Date | null) => {
     let error = '';

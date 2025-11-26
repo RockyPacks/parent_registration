@@ -3,6 +3,7 @@ import DeclarationStep from './DeclarationStep';
 import Footer from '../Footer';
 
 interface Step5DeclarationStepProps {
+  applicationId?: string | null;
   onStepChange?: (step: number) => void;
   onStepComplete?: (stepNumber: number) => void;
   onDeclarationComplete?: () => void;
@@ -10,6 +11,7 @@ interface Step5DeclarationStepProps {
 }
 
 const Step5DeclarationStep: React.FC<Step5DeclarationStepProps> = ({
+  applicationId,
   onStepChange,
   onStepComplete,
   onDeclarationComplete,
@@ -44,6 +46,7 @@ const Step5DeclarationStep: React.FC<Step5DeclarationStepProps> = ({
 
       <div className="max-w-6xl mx-auto px-3 sm:px-4 md:px-6 lg:px-8 pt-16 md:pt-24 pb-16 md:pb-24">
         <DeclarationStep
+          applicationId={applicationId}
           onBack={() => onStepChange && onStepChange(4)}
           onStepChange={onStepChange}
           onStepComplete={onStepComplete}

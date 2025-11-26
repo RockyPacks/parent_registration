@@ -10,6 +10,8 @@ interface HeaderProps {
   onLogout?: () => void;
   onNavigate?: (view: 'enrollment') => void;
   currentView?: 'enrollment' | 'payment-confirmation';
+  userName?: string;
+  userEmail?: string;
 }
 
 const Header: React.FC<HeaderProps> = ({
@@ -19,7 +21,9 @@ const Header: React.FC<HeaderProps> = ({
   showAutoSave = true,
   onLogout,
   onNavigate,
-  currentView = 'enrollment'
+  currentView = 'enrollment',
+  userName,
+  userEmail
 }) => {
   return (
     <header className="fixed top-0 left-0 md:left-[25%] right-0 z-50 bg-white border-b border-gray-200 p-2 md:p-3 lg:p-4 flex justify-between items-center shadow-sm md:rounded-t-lg">
@@ -42,6 +46,13 @@ const Header: React.FC<HeaderProps> = ({
           >
             Enrollment
           </button>
+        )}
+
+        {userName && (
+          <div className="hidden md:flex flex-col items-end mr-2">
+            <span className="text-sm font-medium text-gray-800">{userName}</span>
+            <span className="text-xs text-gray-500">{userEmail}</span>
+          </div>
         )}
 
         {onLogout && (

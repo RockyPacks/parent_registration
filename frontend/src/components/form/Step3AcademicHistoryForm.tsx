@@ -20,10 +20,18 @@ const Step3AcademicHistoryForm: React.FC<Step3AcademicHistoryFormProps> = ({
 }) => {
   // Handle form submission
   const handleSubmit = useCallback(() => {
-    if (onStepComplete) onStepComplete(3);
-    if (onAcademicHistoryComplete) onAcademicHistoryComplete();
-    if (onStepChange) onStepChange(4);
-  }, [onStepComplete, onAcademicHistoryComplete, onStepChange]);
+    console.log('Step3: handleSubmit called - completing step 3 and navigating to step 4');
+    if (onStepComplete) {
+      console.log('Step3: Calling onStepComplete(3)');
+      onStepComplete(3);
+    }
+    if (onAcademicHistoryComplete) {
+      console.log('Step3: Calling onAcademicHistoryComplete');
+      onAcademicHistoryComplete();
+    }
+    // Note: onAcademicHistoryComplete already calls onStepChange(4), so we don't call it again
+    console.log('Step3: Submission handlers complete');
+  }, [onStepComplete, onAcademicHistoryComplete]);
 
   return (
     <>

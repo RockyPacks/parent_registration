@@ -76,6 +76,14 @@ async def submit_full_application(
     """Submit full application"""
     return enrollment_service.submit_application(data, current_user.get("id"))
 
+@router.get("/declaration/{application_id}")
+async def get_declaration(
+    application_id: str,
+    current_user: dict = Depends(get_current_user)
+) -> Dict[str, Any]:
+    """Get declaration data for an application"""
+    return enrollment_service.get_declaration(application_id, current_user.get("id"))
+
 @router.post("/declaration")
 async def submit_declaration(
     data: Dict[str, Any],

@@ -97,6 +97,14 @@ export const DocumentUploadCenter: React.FC<DocumentUploadCenterProps> = ({
   const [isComplete, setIsComplete] = useState(false);
   const { uploadState, uploadFile, resetUploadState } = useUpload();
 
+  // Log application ID for debugging - should always use prop, not localStorage
+  useEffect(() => {
+    console.log('DocumentUploadCenter: applicationId from props:', applicationId);
+    if (!applicationId) {
+      console.warn('DocumentUploadCenter: No applicationId provided!');
+    }
+  }, [applicationId]);
+
   // Check authentication on component mount
   useEffect(() => {
     const token = localStorage.getItem('access_token');

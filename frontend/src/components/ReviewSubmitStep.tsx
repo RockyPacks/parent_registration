@@ -187,10 +187,13 @@ export const ReviewSubmitStep: React.FC<ReviewSubmitStepProps> = ({ currentData,
       setError('Please confirm the application before submitting.');
       return;
     }
+    
+    console.log('ReviewSubmitStep: User clicked Submit Application button');
     setIsSubmitting(true);
     setError(null);
 
     if (onSubmit) {
+      console.log('ReviewSubmitStep: Calling onSubmit handler');
       onSubmit();
     }
     setIsSubmitting(false);

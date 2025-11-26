@@ -320,61 +320,6 @@ class ApiService {
       return Object.keys(obj).some(key => obj[key] !== null && obj[key] !== undefined);
     };
 
-    // Helper function to sanitize data before sending
-    // This function is no longer used with the simplified hasData check, but kept for potential future use.
-    const sanitizeData = (obj: any): any => {
-      if (!obj || typeof obj !== 'object') return obj;
-
-      const sanitized: any = {};
-      for (const [key, value] of Object.entries(obj)) {
-        if (value !== null && value !== undefined && value !== '') {
-          // Special handling for specific fields
-          if (key === 'id_number' || key.includes('id_number')) {
-            // Only include if it's a valid 13-digit number
-            if (typeof value === 'string' && /^\d{13}$/.test(value)) {
-              sanitized[key] = value;
-            }
-          } else if (key === 'date_of_birth' || key === 'dob') {
-            // Only include if it's a valid date string
-            if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
-              sanitized[key] = value;
-            }
-          } else if (key === 'gender') {
-            // Only include if it's a valid gender
-            if (typeof value === 'string' && ['male', 'female', 'other'].includes(value.toLowerCase())) {
-              sanitized[key] = value.toLowerCase();
-            }
-          } else if (key.includes('mobile') || key.includes('email')) {
-            // Basic validation for contact fields
-            if (typeof value === 'string' && value.trim().length > 0) {
-              sanitized[key] = value.trim();
-            }
-          } else if (typeof value === 'string') {
-            // For other strings, trim and check length
-            const trimmed = value.trim();
-            if (trimmed.length > 0) {
-              sanitized[key] = trimmed;
-            }
-          } else if (typeof value === 'boolean' || typeof value === 'number') {
-            // Include booleans and numbers as-is
-            sanitized[key] = value;
-          } else if (Array.isArray(value)) {
-            // Include non-empty arrays
-            if (value.length > 0) {
-              sanitized[key] = value;
-            }
-          } else if (typeof value === 'object') {
-            // Recursively sanitize nested objects
-            const nested = sanitizeData(value);
-            if (hasData(nested)) {
-              sanitized[key] = nested;
-            }
-          }
-        }
-      }
-      return sanitized;
-    };
-
     if (hasData(data.student)) {
       filteredData.student = data.student;
     }
@@ -437,77 +382,6 @@ class ApiService {
     });
   }
 
-  async submitFullApplication(applicationId: string, data: any): Promise<{ message: string; data: any }> {
-    // Transform frontend data to match backend schema
-    const transformedData = {
-      application_id: applicationId,
-      student: data.student ? {
-        surname: data.student.surname || '',
-        first_name: data.student.firstName || '',
-        middle_name: data.student.middleName || null,
-        preferred_name: data.student.preferredName || null,
-        date_of_birth: data.student.date_of_birth || null,
-        gender: data.student.gender || '',
-        home_language: data.student.homeLanguage || '',
-        id_number: data.student.idNumber || '',
-        previous_grade: data.student.previousGrade || '',
-        grade_applied_for: data.student.gradeAppliedFor || '',
-        previous_school: data.student.previousSchool || ''
-      } : null,
-      medical: data.medical ? {
-        medical_aid_name: data.medical.medicalAidName || null,
-        member_number: data.medical.memberNumber || null,
-        conditions: data.medical.conditions || [],
-        allergies: data.medical.allergies || null
-      } : null,
-      family: data.family ? {
-        father_surname: data.family.fatherSurname || null,
-        father_first_name: data.family.fatherFirstName || null,
-        father_id_number: data.family.fatherIdNumber || null,
-        father_mobile: data.family.fatherMobile || null,
-        father_email: data.family.fatherEmail || null,
-        mother_surname: data.family.motherSurname || null,
-        mother_first_name: data.family.motherFirstName || null,
-        mother_id_number: data.family.motherIdNumber || null,
-        mother_mobile: data.family.motherMobile || null,
-        mother_email: data.family.motherEmail || null,
-        // Add next_of_kin fields directly into the family object
-        next_of_kin_surname: data.family.nextOfKinSurname || null,
-        next_of_kin_first_name: data.family.nextOfKinFirstName || null,
-        next_of_kin_relationship: data.family.nextOfKinRelationship || null,
-        next_of_kin_mobile: data.family.nextOfKinMobile || null,
-        next_of_kin_email: data.family.nextOfKinEmail || null
-      } : null,
-      fee: data.fee ? {
-        fee_person: data.fee.feePerson || '',
-        relationship: data.fee.relationship || '',
-        fee_terms_accepted: data.fee.feeTermsAccepted || false,
-        selected_plan: data.fee.selectedPlan || null
-      } : null,
-      academic_history: data.academicHistory ? {
-        school_name: data.academicHistory.schoolName || '',
-        school_type: data.academicHistory.schoolType || '',
-        last_grade_completed: data.academicHistory.lastGradeCompleted || '',
-        academic_year_completed: data.academicHistory.academicYearCompleted || '',
-        reason_for_leaving: data.academicHistory.reasonForLeaving || null,
-        principal_name: data.academicHistory.principalName || null,
-        school_phone_number: data.academicHistory.schoolPhoneNumber || null,
-        school_email: data.academicHistory.schoolEmail || null,
-        school_address: data.academicHistory.schoolAddress || null,
-        additional_notes: data.academicHistory.additionalNotes || null,
-        report_card_url: data.academicHistory.reportCardUrl || null
-      } : null,
-      subjects: data.subjects || null,
-      financing: data.financing || null,
-      declaration: data.declaration || null
-    };
-
-    return this.request(`/enrollment/submit-application`, {
-      method: 'POST',
-      body: JSON.stringify(transformedData),
-    });
-  }
-
   async login(email: string, password: string): Promise<{ access_token: string; token_type: string; user: any }> {
     // Use Supabase auth service
     const { authService } = await import('./auth');
@@ -527,15 +401,12 @@ class ApiService {
     });
   }
 
-  async runRiskCheck(request: any): Promise<any> {
-    return this.request('/risk-check', {
-      method: 'POST',
-      body: JSON.stringify(request),
-    });
-  }
-
   async getAcademicHistory(applicationId: string): Promise<any> {
     return this.request(`/academic/academic-history/${applicationId}`);
+  }
+
+  async getDeclaration(applicationId: string): Promise<any> {
+    return this.request(`/enrollment/declaration/${applicationId}`);
   }
 
   async submitDeclaration(data: any): Promise<{ message: string; application_id: string }> {
@@ -564,7 +435,7 @@ class ApiService {
     
     try {
       console.log('Starting API request to /academic/academic-history');
-      const result = await this.request('/academic/academic-history', {
+      const result = await this.request<{ message: string; application_id: string }>('/academic/academic-history', {
         method: 'POST',
         body: JSON.stringify(payload),
       });
@@ -574,6 +445,13 @@ class ApiService {
       console.error('API submitAcademicHistory - Error:', error);
       throw error;
     }
+  }
+
+  async submitApplication(applicationId: string): Promise<{ message: string; application_id: string }> {
+    return this.request<{ message: string; application_id: string }>('/enrollment/submit-application', {
+      method: 'POST',
+      body: JSON.stringify({ application_id: applicationId }),
+    });
   }
 }
 

@@ -19,56 +19,62 @@ interface AcademicHistoryFormProps {
 
 const AcademicHistoryForm: React.FC<AcademicHistoryFormProps> = ({ applicationId, onSubmit, onBack, onDataChange }) => {
   const { addToast } = useToast();
-  const [formData, setFormData] = useState<AcademicHistoryData>(() => { // Removed initialData from here
-    // Load saved progress from localStorage
-    const savedData = localStorage.getItem('academicHistoryFormData');
-    return savedData ? JSON.parse(savedData) : { // It will now always start with localStorage or a clean slate
-      schoolName: '',
-      schoolType: '',
-      lastGradeCompleted: '',
-      academicYearCompleted: '',
-      reasonForLeaving: '',
-      principalName: '',
-      schoolPhoneNumber: '',
-      schoolEmail: '',
-      schoolAddress: '',
-      reportCard: null,
-      additionalNotes: ''
-    };
+  const [formData, setFormData] = useState<AcademicHistoryData>({
+    schoolName: '',
+    schoolType: '',
+    lastGradeCompleted: '',
+    academicYearCompleted: '',
+    reasonForLeaving: '',
+    principalName: '',
+    schoolPhoneNumber: '',
+    schoolEmail: '',
+    schoolAddress: '',
+    reportCard: null,
+    additionalNotes: ''
   });
+  const [dataLoadedFromBackend, setDataLoadedFromBackend] = useState(false);
 
-  // Load existing data from backend if application exists
+  // Load existing data from backend if application exists (when user returns to this step)
   React.useEffect(() => {
     const loadExistingData = async () => {
+      if (!applicationId || dataLoadedFromBackend) return;
+      
       try {
-        const applicationId = localStorage.getItem('applicationId');
-        if (applicationId) {
-          const backendData = await apiService.getAcademicHistory(applicationId);
-          // Populate form with backend data
-          if (backendData) {
-            setFormData(prev => ({
-              ...prev,
-              schoolName: backendData.school_name || prev.schoolName,
-              schoolType: backendData.school_type || prev.schoolType,
-              lastGradeCompleted: backendData.last_grade_completed || prev.lastGradeCompleted,
-              academicYearCompleted: backendData.academic_year_completed || prev.academicYearCompleted,
-              reasonForLeaving: backendData.reason_for_leaving || prev.reasonForLeaving,
-              principalName: backendData.principal_name || prev.principalName,
-              schoolPhoneNumber: backendData.school_phone_number || prev.schoolPhoneNumber,
-              schoolEmail: backendData.school_email || prev.schoolEmail,
-              schoolAddress: backendData.school_address || prev.schoolAddress,
-              reportCardUrl: backendData.report_card_url || prev.reportCardUrl, // *** THE KEY FIX ***
-              additionalNotes: backendData.additional_notes || prev.additionalNotes,
-            }));
-          }
+        console.log('Loading academic history data for application:', applicationId);
+        const backendData = await apiService.getAcademicHistory(applicationId);
+        
+        if (backendData && backendData.length > 0) {
+          const data = backendData[0]; // Get first record
+          console.log('Loaded academic history data:', data);
+          
+          setFormData({
+            schoolName: data.school_name || '',
+            schoolType: data.school_type || '',
+            lastGradeCompleted: data.last_grade_completed || '',
+            academicYearCompleted: data.academic_year_completed || '',
+            reasonForLeaving: data.reason_for_leaving || '',
+            principalName: data.principal_name || '',
+            schoolPhoneNumber: data.school_phone_number || '',
+            schoolEmail: data.school_email || '',
+            schoolAddress: data.school_address || '',
+            reportCard: null, // File object can't be restored, but URL is kept
+            reportCardUrl: data.report_card_url || '',
+            additionalNotes: data.additional_notes || ''
+          });
+          
+          setDataLoadedFromBackend(true);
+          console.log('Previous academic history data loaded successfully');
         }
       } catch (error) {
-        // Silently handle error - form will use default values
+        console.log('No existing academic history found, starting fresh');
+        // No data found - user can fill fresh form
       }
     };
 
-    loadExistingData();
-  }, []);
+    if (applicationId) {
+      loadExistingData();
+    }
+  }, [applicationId, dataLoadedFromBackend]);
 
   const [expandedSections, setExpandedSections] = useState({
     schoolDetails: true,
@@ -112,7 +118,7 @@ const AcademicHistoryForm: React.FC<AcademicHistoryFormProps> = ({ applicationId
   const validateForm = (): boolean => {
     const errors: {[key: string]: string} = {};
     
-    // Only require core fields - report card is now optional
+    // Required fields including report card
     const requiredFields = [
       { key: 'schoolName', label: 'School Name' },
       { key: 'schoolType', label: 'School Type' },
@@ -126,6 +132,11 @@ const AcademicHistoryForm: React.FC<AcademicHistoryFormProps> = ({ applicationId
       }
     });
 
+    // Report card is required (either new file or already uploaded URL)
+    if (!formData.reportCard && !formData.reportCardUrl) {
+      errors.reportCard = 'Report card upload is required';
+    }
+
     // Validate school name minimum length
     if (formData.schoolName && formData.schoolName.length < 2) {
       errors.schoolName = 'School name must be at least 2 characters';
@@ -135,8 +146,9 @@ const AcademicHistoryForm: React.FC<AcademicHistoryFormProps> = ({ applicationId
     if (formData.academicYearCompleted) {
       const year = parseInt(formData.academicYearCompleted);
       const currentYear = new Date().getFullYear();
-      if (year < 1900 || year > currentYear) {
-        errors.academicYearCompleted = `Year must be between 1900 and ${currentYear}`;
+      const nextYear = currentYear + 1; // Allow next year (e.g., 2026 for enrollments)
+      if (year < 1900 || year > nextYear) {
+        errors.academicYearCompleted = `Year must be between 1900 and ${nextYear}`;
       }
     }
 
@@ -145,11 +157,11 @@ const AcademicHistoryForm: React.FC<AcademicHistoryFormProps> = ({ applicationId
       errors.schoolEmail = 'Please enter a valid email address';
     }
 
-    // Validate phone number: exactly 10 digits only (optional field)
+    // Relaxed phone validation: at least 7 digits (optional field)
     if (formData.schoolPhoneNumber) {
       const cleanPhone = formData.schoolPhoneNumber.replace(/\D/g, '');
-      if (cleanPhone.length !== 10) {
-        errors.schoolPhoneNumber = 'Phone number must be exactly 10 digits';
+      if (cleanPhone.length < 7) {
+        errors.schoolPhoneNumber = 'Phone number must contain at least 7 digits';
       }
     }
 
@@ -162,15 +174,11 @@ const AcademicHistoryForm: React.FC<AcademicHistoryFormProps> = ({ applicationId
   };
 
   const handleSaveProgress = () => {
-    // Save form data to localStorage
-    localStorage.setItem('academicHistoryFormData', JSON.stringify(formData));
-    addToast('Academic history progress saved successfully!', 'success');
+    // Validate before allowing save
+    if (!validateForm()) {
+      addToast('Please fix validation errors before continuing', 'warning');
+    }
   };
-
-  // Auto-save to localStorage whenever form data changes
-  React.useEffect(() => {
-    localStorage.setItem('academicHistoryFormData', JSON.stringify(formData));
-  }, [formData]);
 
   // Call onDataChange whenever formData changes to pass data to parent
   React.useEffect(() => {
@@ -194,6 +202,9 @@ const AcademicHistoryForm: React.FC<AcademicHistoryFormProps> = ({ applicationId
     
     if (!isValid) {
       console.log('Form validation failed, showing errors:', validationErrors);
+      addToast('Please fill in all required fields before continuing', 'error');
+      // Scroll to top to show errors
+      window.scrollTo({ top: 0, behavior: 'smooth' });
       return;
     }
 
@@ -210,11 +221,13 @@ const AcademicHistoryForm: React.FC<AcademicHistoryFormProps> = ({ applicationId
         return;
       }
 
-      // Upload report card only if a new file is selected
-      let reportCardUrl = null;
+      // Upload report card if new file provided, or use existing URL
+      let reportCardUrl = formData.reportCardUrl || null;
+      
       if (formData.reportCard && typeof formData.reportCard === 'object' && formData.reportCard instanceof File) {
         try {
-          console.log('Uploading report card...');
+          console.log('Uploading new report card...');
+          addToast('Uploading report card...', 'info');
           const uploadResult = await apiService.uploadFile(
             formData.reportCard,
             applicationId,
@@ -222,10 +235,17 @@ const AcademicHistoryForm: React.FC<AcademicHistoryFormProps> = ({ applicationId
           );
           reportCardUrl = uploadResult.file.download_url;
           console.log('Report card uploaded:', reportCardUrl);
-        } catch (uploadError) {
-          console.warn('Report card upload failed (optional):', uploadError);
-          // Continue without report card - it's optional
+        } catch (uploadError: any) {
+          console.error('Report card upload failed:', uploadError);
+          const errorMsg = uploadError.message || 'Failed to upload report card';
+          addToast(`Upload error: ${errorMsg}`, 'error');
+          setIsSubmitting(false);
+          return;
         }
+      } else if (!reportCardUrl) {
+        addToast('Report card is required', 'error');
+        setIsSubmitting(false);
+        return;
       }
 
       // Build payload - simple and clean
@@ -311,8 +331,9 @@ const AcademicHistoryForm: React.FC<AcademicHistoryFormProps> = ({ applicationId
                     options={(() => {
                       const currentYear = new Date().getFullYear();
                       const years = [];
-                      for (let i = 0; i < 5; i++) {
-                        const year = currentYear - i;
+                      // Include next year (2026) and go back 5 years from current
+                      for (let i = 1; i >= -5; i--) {
+                        const year = currentYear + i;
                         years.push({ value: year.toString(), label: year.toString() });
                       }
                       return years;
@@ -375,9 +396,19 @@ const AcademicHistoryForm: React.FC<AcademicHistoryFormProps> = ({ applicationId
             {expandedSections.academicPerformance && (
               <div className="px-6 pb-6 space-y-6 border-t border-gray-200">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Upload Last Report Card (Optional)</label>
-                  <p className="text-xs text-gray-500 mb-2">Upload your most recent report card to help us assess your academic progress.</p>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Upload Last Report Card <span className="text-red-500">*</span>
+                  </label>
+                  <p className="text-xs text-gray-500 mb-2">Upload your most recent report card (required).</p>
+                  {formData.reportCardUrl && (
+                    <div className="mb-2 p-2 bg-green-50 border border-green-200 rounded text-sm text-green-700">
+                      ✓ Report card already uploaded. Upload a new file to replace it.
+                    </div>
+                  )}
                   <FileUpload onFileChange={handleFileChange} />
+                  {validationErrors.reportCard && (
+                    <p className="mt-1 text-sm text-red-600">{validationErrors.reportCard}</p>
+                  )}
                 </div>
 
                 <Textarea label="Additional Notes / Comments" name="additionalNotes" value={formData.additionalNotes} onChange={handleChange} placeholder="Any additional information about your academic history" rows={3} />

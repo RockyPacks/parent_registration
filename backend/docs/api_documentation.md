@@ -174,43 +174,6 @@ Upload document for application.
 ### GET /api/v1/documents/{application_id}
 Get documents for application.
 
-## Payment Endpoints
-
-### POST /api/v1/payments/create-payment
-Create payment request.
-
-**Request Body:**
-```json
-{
-  "amount": "decimal",
-  "reference": "string",
-  "description": "string"
-}
-```
-
-### GET /api/v1/payments/payment-status/{reference}
-Get payment status.
-
-## Risk Assessment Endpoints
-
-### POST /api/v1/risk-check
-Perform risk assessment.
-
-**Request Body:**
-```json
-{
-  "reference": "string",
-  "guardian": {
-    "branch_code": "string",
-    "account_number": "string",
-    "name": "string",
-    "email": "string",
-    "id_number": "string"
-  },
-  "application_id": "string"
-}
-```
-
 ## Error Handling
 
 All endpoints return appropriate HTTP status codes:

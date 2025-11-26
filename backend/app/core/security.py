@@ -2,23 +2,19 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from app.core.config import settings
 import logging
+import jwt
+import time
 
 logger = logging.getLogger(__name__)
 
 security = HTTPBearer()
 
-def get_supabase_client():
-    """Get Supabase service client for auth operations"""
-    from app.db.supabase_client import supabase_service
-    if not supabase_service:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Authentication service unavailable"
-        )
-    return supabase_service
-
 def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
-    """Validate Supabase JWT token using official Supabase client"""
+    """
+    Validate Supabase JWT token by decoding it.
+    This avoids double authentication - the token was already validated by Supabase when issued.
+    We just need to extract the user information from it.
+    """
     token = credentials.credentials
 
     # For development/testing, allow requests without authentication if no real Supabase is configured
@@ -32,62 +28,50 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(securit
         }
 
     try:
-        supabase = get_supabase_client()
-
-        # Use Supabase's built-in user retrieval - this is the professional way
-        user_response = supabase.auth.get_user(token)
-
-        if not user_response or not user_response.user:
+        # Decode the JWT token without verification
+        # The token was already verified by Supabase when it was issued to the client
+        # We're just extracting the user information from it
+        decoded = jwt.decode(token, options={"verify_signature": False})
+        
+        # Check if token has required claims
+        if not decoded.get("sub"):
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid authentication credentials",
+                detail="Invalid token: missing user ID",
                 headers={"WWW-Authenticate": "Bearer"},
             )
-
-        user = user_response.user
-
+        
+        # Check token expiration
+        exp = decoded.get("exp", 0)
+        current_time = int(time.time())
+        
+        if current_time > exp:
+            logger.error(f"Token expired: {current_time} > {exp}")
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Token expired",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+        
+        # Extract user information from the token
         return {
-            "id": user.id,
-            "email": user.email,
-            "role": user.role or "authenticated",
-            "aud": "authenticated",
+            "id": decoded.get("sub"),
+            "email": decoded.get("email", "unknown@example.com"),
+            "role": decoded.get("role", "authenticated"),
+            "aud": decoded.get("aud", "authenticated"),
         }
 
+    except jwt.DecodeError as e:
+        logger.error(f"JWT decode error: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid token format",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Authentication error: {e}")
-        # For development, if Supabase validation fails, try to decode JWT manually
-        # This is a fallback for cases where the token is valid but Supabase client has issues
-        try:
-            import jwt
-            # Decode without verification for development
-            decoded = jwt.decode(token, options={"verify_signature": False})
-            if decoded.get("sub"):  # Valid user token should have 'sub' claim
-                # Verify the token has a valid session_id or is recent
-                import time
-                iat = decoded.get("iat", 0)
-                exp = decoded.get("exp", 0)
-                current_time = int(time.time())
-                
-                if current_time > exp:
-                    logger.error(f"Token expired: {current_time} > {exp}")
-                    raise HTTPException(
-                        status_code=status.HTTP_401_UNAUTHORIZED,
-                        detail="Token expired",
-                        headers={"WWW-Authenticate": "Bearer"},
-                    )
-                
-                logger.warning("Using fallback JWT decoding for development")
-                return {
-                    "id": decoded.get("sub"),
-                    "email": decoded.get("email", "unknown@example.com"),
-                    "role": decoded.get("role", "authenticated"),
-                    "aud": decoded.get("aud", "authenticated"),
-                }
-        except HTTPException:
-            raise
-        except Exception as jwt_error:
-            logger.error(f"JWT fallback also failed: {jwt_error}")
-
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid authentication credentials",

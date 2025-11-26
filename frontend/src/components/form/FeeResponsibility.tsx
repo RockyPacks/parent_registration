@@ -38,7 +38,7 @@ const FeeResponsibility: React.FC<FeeResponsibilityProps> = ({ initialData, onDa
     }
     // Save to localStorage whenever form data changes
     localStorage.setItem('feeResponsibility', JSON.stringify(formData));
-  }, [formData, onDataChange]);
+  }, [formData]);
 
   const validateField = (field: string, value: string | boolean) => {
     let error = '';

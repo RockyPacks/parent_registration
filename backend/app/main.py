@@ -86,8 +86,7 @@ app.add_middleware(
 app.include_router(enrollment_router, prefix="/api/v1/enrollment", tags=["enrollment"])
 app.include_router(documents_router, prefix="/api/v1/documents", tags=["documents"])
 app.include_router(academic_router, prefix="/api/v1/academic", tags=["academic"])
-# app.include_router(risk_router, prefix="/api/v1", tags=["risk"])
-# app.include_router(payment_router, prefix="/api/v1", tags=["payment"])
+app.include_router(financing_router, prefix='/api/v1', tags=['financing'])
 
 # Add legacy routes for backward compatibility
 # Legacy routes removed - now handled by proper API routers
@@ -112,5 +111,3 @@ async def startup():
     logger.info("Application starting up...")
     logger.info(f"Frontend URL: {os.getenv('FRONTEND_URL', 'Not set')}")
     logger.info(f"Supabase URL: {os.getenv('SUPABASE_URL', 'Not set')}")
-
-app.include_router(financing_router, prefix='/api/v1', tags=['financing'])

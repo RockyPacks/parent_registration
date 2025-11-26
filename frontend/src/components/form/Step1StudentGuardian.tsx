@@ -30,6 +30,14 @@ interface Step1StudentGuardianProps {
   nextOfKinData: any; // Add nextOfKinData to the interface
 }
 
+const getIncompleteRequirements = (isStudentCompleted: boolean, isFamilyCompleted: boolean, isFeeCompleted: boolean): string[] => {
+  const incomplete: string[] = [];
+  if (!isStudentCompleted) incomplete.push('Student Information');
+  if (!isFamilyCompleted) incomplete.push('Family Information (at least one parent)');
+  if (!isFeeCompleted) incomplete.push('Fee Responsibility');
+  return incomplete;
+};
+
 const Step1StudentGuardian: React.FC<Step1StudentGuardianProps> = ({
   studentData,
   medicalData,
@@ -52,6 +60,13 @@ const Step1StudentGuardian: React.FC<Step1StudentGuardianProps> = ({
   isFeeResponsibilityCompleted,
   nextOfKinData, // Destructure nextOfKinData here
 }) => {
+  const incompleteRequirements = getIncompleteRequirements(
+    isStudentInfoCompleted,
+    isFamilyInfoCompleted,
+    isFeeResponsibilityCompleted
+  );
+  
+  const canProceed = incompleteRequirements.length === 0;
 
   return (
     <div className="flex-1 bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 min-h-screen">
@@ -175,16 +190,51 @@ const Step1StudentGuardian: React.FC<Step1StudentGuardianProps> = ({
           {/* Other form sections such as FamilyInformation, FeeResponsibility can be added here similarly with props */}
         </div>
 
-        <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl p-6 border border-green-200 shadow-sm mt-6">
+        <div className={`rounded-xl p-6 border shadow-sm mt-6 ${
+          canProceed 
+            ? 'bg-gradient-to-r from-green-50 to-emerald-50 border-green-200' 
+            : 'bg-gradient-to-r from-amber-50 to-orange-50 border-amber-200'
+        }`}>
           <div className="text-center">
-            <h3 className="text-lg font-semibold text-gray-800 mb-2">Ready to Continue?</h3>
-            <p className="text-gray-600 mb-6">Complete step 1 to proceed to document upload.</p>
+            <h3 className="text-lg font-semibold text-gray-800 mb-2">
+              {canProceed ? 'Ready to Continue?' : 'Complete Required Fields'}
+            </h3>
+            
+            {!canProceed && (
+              <div className="mb-4 p-4 bg-white rounded-lg border border-amber-300">
+                <div className="flex items-start">
+                  <svg className="w-5 h-5 text-amber-600 mt-0.5 mr-2 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                  </svg>
+                  <div className="text-left">
+                    <p className="text-sm font-medium text-amber-800 mb-2">Please complete the following required sections:</p>
+                    <ul className="text-sm text-amber-700 space-y-1">
+                      {incompleteRequirements.map((req, idx) => (
+                        <li key={idx} className="flex items-center">
+                          <span className="mr-2">•</span>
+                          <span>{req}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            )}
+            
+            {canProceed && (
+              <p className="text-gray-600 mb-6">All required fields are complete. Continue to document upload.</p>
+            )}
+            
             <button
               onClick={onSubmitClick}
-              disabled={false}
-              className="w-full bg-gradient-to-r from-green-500 to-emerald-600 text-white py-4 px-8 rounded-lg hover:from-green-600 hover:to-emerald-700 transition-all duration-200 font-semibold text-lg shadow-lg"
+              disabled={!canProceed || isSubmitting || !applicationInitialized}
+              className={`w-full py-4 px-8 rounded-lg transition-all duration-200 font-semibold text-lg shadow-lg ${
+                canProceed && !isSubmitting && applicationInitialized
+                  ? 'bg-gradient-to-r from-green-500 to-emerald-600 text-white hover:from-green-600 hover:to-emerald-700 cursor-pointer'
+                  : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+              }`}
             >
-              {isSubmitting ? 'Saving...' : !applicationInitialized ? 'Loading...' : 'Save & Continue to Documents'}
+              {isSubmitting ? 'Saving...' : !applicationInitialized ? 'Loading...' : canProceed ? 'Save & Continue to Documents' : 'Complete Required Fields First'}
             </button>
           </div>
         </div>

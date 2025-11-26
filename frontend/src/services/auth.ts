@@ -48,20 +48,36 @@ class AuthService {
   }
 
   async signup(fullName: string, email: string, password: string): Promise<AuthResponse> {
-    // First, perform custom password validation.
-    const passwordErrors = this.validatePassword(password);
-    if (passwordErrors.length > 0) {
-      // If custom validation fails, throw the specific error message from the validator.
-      throw new Error(passwordErrors[0]);
+    // Password validation: at least 8 characters with 1 uppercase, 1 lowercase, 1 special character
+    if (password.length < 8) {
+      throw new Error('Password must be at least 8 characters long.');
+    }
+
+    if (!/[A-Z]/.test(password)) {
+      throw new Error('Password must contain at least one uppercase letter.');
+    }
+
+    if (!/[a-z]/.test(password)) {
+      throw new Error('Password must contain at least one lowercase letter.');
+    }
+
+    if (!/[^A-Za-z0-9]/.test(password)) {
+      throw new Error('Password must contain at least one special character.');
     }
 
     try {
+      // Determine the redirect URL - use environment variable or current origin
+      const redirectUrl = import.meta.env.VITE_APP_URL || window.location.origin;
+      const emailRedirectUrl = `${redirectUrl}/login`;
+      
+      console.log('Signup: Email redirect URL:', emailRedirectUrl);
+      
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
           data: { full_name: fullName },
-          emailRedirectTo: `${window.location.origin}/login`,
+          emailRedirectTo: emailRedirectUrl,
         },
       });
 
@@ -102,27 +118,12 @@ class AuthService {
     }
   }
 
-  validatePassword = (password: string): string[] => {
-    // This single regex checks for all conditions:
-    // - (?=.*[a-z]): at least one lowercase letter
-    // - (?=.*[A-Z]): at least one uppercase letter
-    // - (?=.*\d): at least one number
-    // - (?=.*[^A-Za-z0-9]): at least one special character (anything not a letter or number)
-    // - .{8,}: at least 8 characters long
-    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/;
-    if (passwordRegex.test(password)) {
-      return []; // Password is valid, no errors.
-    } else {
-      return ["Password must be at least 8 characters and include one uppercase, one lowercase, one number, and one special character."];
-    }
-  };
-
   async isAuthenticated(): Promise<boolean> {
     const { data: { session } } = await supabase.auth.getSession();
     return !!session;
   }
 
-  // Initialize auth state listener
+  // Initialize auth state listener with user-specific session management
   initAuthListener(callback: (user: AuthUser | null) => void) {
     // Handle initial session from URL hash (email confirmation)
     const handleInitialSession = async () => {
@@ -134,7 +135,7 @@ class AuthService {
         }
 
         if (session?.user) {
-          console.log("AuthService: Initial session found, user:", session.user.email);
+          console.log("AuthService: Initial session found for user:", session.user.email);
           const user: AuthUser = {
             id: session.user.id,
             email: session.user.email || '',
@@ -155,23 +156,24 @@ class AuthService {
     handleInitialSession();
 
     // Then set up the auth state change listener
+    // Note: With sessionStorage, this only affects the current tab
     supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log("AuthService: Auth state change event:", event, !!session?.user);
+      console.log("AuthService: Auth state change event:", event, !!session?.user, "(tab-specific)");
 
-      if (session?.user) {
+      // Only respond to explicit sign in/out events, not token refresh events
+      if (event === 'SIGNED_IN' && session?.user) {
         const user: AuthUser = {
           id: session.user.id,
           email: session.user.email || '',
           full_name: session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || '',
         };
-        if (event === 'SIGNED_IN') {
-          console.log("AuthService: User signed in:", user.email);
-          callback(user);
-        }
+        console.log("AuthService: User signed in (current tab only):", user.email);
+        callback(user);
       } else if (event === 'SIGNED_OUT') {
-        console.log("AuthService: User signed out");
+        console.log("AuthService: User signed out (current tab only)");
         callback(null);
       }
+      // Ignore TOKEN_REFRESHED and other events to prevent unnecessary reloads
     });
   }
 }

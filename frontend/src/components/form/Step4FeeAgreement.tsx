@@ -19,7 +19,7 @@ const Step4FeeAgreement: React.FC<Step4FeeAgreementProps> = ({
   onDataChange // Destructure onDataChange prop
 }) => {
   const [selectedPlan, setSelectedPlan] = useState<string>(() => {
-    const saved = localStorage.getItem('financingPlan'); // Remove duplicate declaration
+    const saved = localStorage.getItem('financingPlan');
     return saved ? JSON.parse(saved).plan || 'Pay Once Per Year' : 'Pay Once Per Year';
   });
 
@@ -27,7 +27,7 @@ const Step4FeeAgreement: React.FC<Step4FeeAgreementProps> = ({
   React.useEffect(() => {
     // Also include feeData, as it's often related to financing in the summary
     onDataChange && onDataChange({ plan: selectedPlan });
-  }, [selectedPlan, onDataChange]);
+  }, [selectedPlan]);
 
   const getPlanType = (planTitle: string): string => {
     const planMapping: { [key: string]: string } = {
