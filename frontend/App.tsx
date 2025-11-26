@@ -51,42 +51,49 @@ const App: React.FC = () => {
       // Initialize auth state listener - now tab-specific with sessionStorage
       console.log("App.tsx: Setting up tab-specific auth state listener");
       let currentUserEmailRef = { current: null as string | null };
+      let isInitialLoad = true;
+
       authService.initAuthListener(async (user) => {
         console.log("App.tsx: Auth state changed in THIS TAB, user:", !!user);
         const wasAuthenticated = isAuthenticated;
+        
+        // On initial load, we'll handle authentication separately
+        // This prevents double-loading when both listener and manual check fire
+        if (isInitialLoad) {
+          console.log("App.tsx: Initial load handled by listener");
+          setIsAuthenticated(!!user);
+          setUserEmail(user?.email || null);
+          setUserName(user?.full_name || null);
+          
+          if (user) {
+            currentUserEmailRef.current = user.email;
+            await loadUserApplication(user.email);
+          }
+          isInitialLoad = false;
+          setAuthInitialized(true);
+          return;
+        }
+
+        // For subsequent auth state changes (after initial load)
         setIsAuthenticated(!!user);
         setUserEmail(user?.email || null);
         setUserName(user?.full_name || null);
 
         if (!!user && !wasAuthenticated) {
-          // User just became authenticated in this tab, load their application
-          console.log("App.tsx: User became authenticated in this tab, loading application");
+          // User just logged in - load their application
+          console.log("App.tsx: User logged in, loading application");
           currentUserEmailRef.current = user.email;
           await loadUserApplication(user.email);
         } else if (!user && wasAuthenticated) {
-          // User became unauthenticated in this tab, clear application state
-          console.log("App.tsx: User logged out from this tab, clearing application state");
+          // User logged out - clear application state
+          console.log("App.tsx: User logged out, clearing application state");
           clearApplicationState(currentUserEmailRef.current);
           currentUserEmailRef.current = null;
         }
-        // With sessionStorage, each tab is independent - no cross-tab user changes
       });
 
-      // Check initial auth state
-      if (await authService.isAuthenticated()) {
-        const { data: { session } } = await import('./src/services/supabase').then(m => m.supabase.auth.getSession());
-        if (session?.user?.email) {
-          console.log("App.tsx: User is initially authenticated");
-          setUserEmail(session.user.email);
-          setUserName(session.user.user_metadata?.full_name || null);
-          setIsAuthenticated(true);
-          await loadUserApplication(session.user.email);
-        }
-      } else {
-        console.log("App.tsx: User is not authenticated");
-      }
-
-      setAuthInitialized(true);
+      // Note: We no longer need this separate check because initAuthListener handles initial state
+      // The listener will fire immediately with the current session
     };
 
     const loadUserApplication = async (userEmail: string) => {

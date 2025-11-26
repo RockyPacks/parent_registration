@@ -125,6 +125,8 @@ class AuthService {
 
   // Initialize auth state listener with user-specific session management
   initAuthListener(callback: (user: AuthUser | null) => void) {
+    let isInitialized = false;
+
     // Handle initial session from URL hash (email confirmation)
     const handleInitialSession = async () => {
       try {
@@ -146,9 +148,11 @@ class AuthService {
           console.log("AuthService: No initial session found");
           callback(null);
         }
+        isInitialized = true;
       } catch (error) {
         console.error("AuthService: Error handling initial session:", error);
         callback(null);
+        isInitialized = true;
       }
     };
 
@@ -159,6 +163,11 @@ class AuthService {
     // Note: With sessionStorage, this only affects the current tab
     supabase.auth.onAuthStateChange(async (event, session) => {
       console.log("AuthService: Auth state change event:", event, !!session?.user, "(tab-specific)");
+
+      // Skip the initial SIGNED_IN event if we already handled it in handleInitialSession
+      if (event === 'SIGNED_IN' && !isInitialized) {
+        return;
+      }
 
       // Only respond to explicit sign in/out events, not token refresh events
       if (event === 'SIGNED_IN' && session?.user) {
