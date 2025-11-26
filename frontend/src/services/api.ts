@@ -160,10 +160,8 @@ class ApiService {
 
         // Handle 401 Unauthorized specifically
         if (response.status === 401) {
-          // Clear cache and session
+          // Clear cache but don't force sign out - let the app handle it gracefully
           this.sessionCache = null;
-          const { supabase } = await import('./supabase');
-          await supabase.auth.signOut();
           throw new Error('Authentication required. Please log in again.');
         }
 

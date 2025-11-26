@@ -262,7 +262,9 @@ const MainContent: React.FC<MainContentProps> = (props) => {
     } catch (error: any) {
       if (error.message?.includes('Authentication required') || error.message?.includes('401')) {
         addToast('Your session has expired. Please log in again.', 'error');
-        window.location.reload();
+        // Don't reload - let user see the error and handle it gracefully
+        setSavingStatus('idle');
+        return false;
       } else {
         addToast('Failed to save progress. Please try again.', 'error');
       }

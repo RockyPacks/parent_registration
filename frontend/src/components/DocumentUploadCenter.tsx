@@ -105,16 +105,6 @@ export const DocumentUploadCenter: React.FC<DocumentUploadCenterProps> = ({
     }
   }, [applicationId]);
 
-  // Check authentication on component mount
-  useEffect(() => {
-    const token = localStorage.getItem('access_token');
-    if (!token) {
-      // Redirect to login if no token
-      window.location.href = '/login';
-      return;
-    }
-  }, []);
-
   // Add user tracking
   const [currentUserId, setCurrentUserId] = useState<string>(userId);
 
