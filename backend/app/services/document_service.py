@@ -5,7 +5,7 @@ import logging
 from fastapi import HTTPException, UploadFile
 from app.repositories.document_repository import document_repository
 from app.repositories.enrollment_repository import enrollment_repository
-from app.api.v1.schemas.documents import (
+from app.api.v1.schemas.enrollment import (
     DocumentStatusResponse, FileUploadResponse, UploadedFilesResponse,
     DeleteFileResponse, CompleteUploadResponse, UploadSummaryResponse
 )
@@ -94,33 +94,66 @@ class DocumentService:
             # Generate unique filename with security
             unique_filename = f"{user_id}/{application_id}/{document_type}_{uuid.uuid4()}.{file_extension}"
 
-            # Upload to Supabase Storage
+            # Upload to Supabase Storage with retry logic
             bucket_name = bucket_mapping[document_type]
             try:
-                storage_response = supabase_service.storage.from_(bucket_name).upload(
-                    unique_filename,
-                    file_content,
-                    file_options={
-                        "content-type": file.content_type or "application/pdf",
-                        "upsert": False
-                    }
-                )
+                # Retry logic for SSL issues
+                max_retries = 2
+                last_error = None
+                
+                for attempt in range(max_retries):
+                    try:
+                        storage_response = supabase_service.storage.from_(bucket_name).upload(
+                            unique_filename,
+                            file_content,
+                            file_options={
+                                "content-type": file.content_type or "application/pdf",
+                                "upsert": False
+                            }
+                        )
+                        break  # Success, exit retry loop
+                    except Exception as retry_error:
+                        last_error = retry_error
+                        if attempt < max_retries - 1:
+                            logger.warning(f"Upload attempt {attempt + 1} failed, retrying: {str(retry_error)}")
+                            import time
+                            time.sleep(1)  # Wait before retry
+                        else:
+                            raise
+                            
             except Exception as storage_error:
-                raise HTTPException(
-                    status_code=500,
-                    detail=f"Failed to upload file to storage: {str(storage_error)}"
-                )
+                error_msg = str(storage_error)
+                logger.error(f"Storage upload failed: {error_msg}")
+                
+                # Check if it's an SSL error
+                if "SSL" in error_msg or "ssl" in error_msg.lower():
+                    raise HTTPException(
+                        status_code=503,
+                        detail="Service temporarily unavailable (SSL/network issue). Please try again."
+                    )
+                else:
+                    raise HTTPException(
+                        status_code=500,
+                        detail=f"Failed to upload file to storage: {error_msg[:100]}"
+                    )
 
             # Get public URL
             file_url = supabase_service.storage.from_(bucket_name).get_public_url(unique_filename)
 
-            # Save document metadata
-            doc_id = self.repository.save_document_metadata(user_id, application_id, document_type, file_url)
+            # Save document metadata (optional - may fail if table doesn't exist)
+            try:
+                doc_id = self.repository.save_document_metadata(user_id, application_id, document_type, file_url)
+                filename_prefix = f"{document_type}_{doc_id[:8]}"
+            except Exception as meta_error:
+                # If metadata save fails, use a simpler filename
+                logger.warning(f"Could not save document metadata: {str(meta_error)}")
+                doc_id = str(uuid.uuid4())
+                filename_prefix = f"{document_type}_{doc_id[:8]}"
 
             # Save file record
             file_id = self.repository.save_file_record(
                 application_id=application_id,
-                filename=f"{document_type}_{doc_id[:8]}.{file_extension}",
+                filename=f"{filename_prefix}.{file_extension}",
                 original_filename=file.filename,
                 file_size=len(file_content),
                 content_type=file.content_type or "application/pdf",

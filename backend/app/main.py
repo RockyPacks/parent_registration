@@ -10,11 +10,36 @@ import time
 
 from app.core.config import settings
 from app.core.security import get_current_user
-from app.api.v1.routers import enrollment_router, documents_router, academic_router, financing_router
+from app.core.rate_limit import RateLimitMiddleware
+from app.core.request_limit import RequestSizeLimitMiddleware
+from app.api.v1.routers import enrollment_router, documents_router, academic_router, financing_router, next_of_kin_router
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
+
+class SecurityHeadersMiddleware:
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+
+        async def send_wrapper(message):
+            if message["type"] == "http.response.start":
+                headers = list(message.get("headers", []))
+                # Add security headers
+                headers.append([b"X-Content-Type-Options", b"nosniff"])
+                headers.append([b"X-Frame-Options", b"SAMEORIGIN"])
+                headers.append([b"X-XSS-Protection", b"1; mode=block"])
+                headers.append([b"Strict-Transport-Security", b"max-age=31536000; includeSubDomains"])
+                headers.append([b"Content-Security-Policy", b"default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'"])
+                message["headers"] = headers
+            await send(message)
+
+        await self.app(scope, receive, send_wrapper)
 
 class PerformanceMiddleware:
     def __init__(self, app):
@@ -44,8 +69,61 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# Performance monitoring middleware
-app.add_middleware(PerformanceMiddleware)
+# CORS middleware - MUST be added first (processes last in stack)
+# In production, ONLY use environment variable URLs
+is_production = os.getenv("ENVIRONMENT", "development") == "production"
+
+if is_production:
+    # Production: Use ONLY environment variables
+    allowed_origins = []
+    if os.getenv("FRONTEND_URL"):
+        allowed_origins.append(os.getenv("FRONTEND_URL"))
+    if os.getenv("RENDER_DEPLOYMENT_URL"):
+        allowed_origins.append(os.getenv("RENDER_DEPLOYMENT_URL"))
+    if not allowed_origins:
+        # Fallback for Render deployment
+        allowed_origins = ["https://parent-registration-frontend.onrender.com"]
+else:
+    # Development: Allow localhost and common development ports
+    allowed_origins = [
+        "http://localhost:3000",
+        "http://localhost:5173",
+        "http://localhost:3001",
+        "http://localhost:3002",
+        "http://127.0.0.1:3000",
+        "http://127.0.0.1:5173",
+    ]
+
+logger.info(f"CORS allowed origins (environment: {os.getenv('ENVIRONMENT', 'development')}): {allowed_origins}")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=allowed_origins,
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+    allow_headers=[
+        "Content-Type",
+        "Authorization",
+        "Accept",
+        "Origin",
+        "Access-Control-Request-Method",
+        "Access-Control-Request-Headers",
+    ],
+    expose_headers=["Content-Type", "Authorization"],
+    max_age=3600,
+)
+
+# Request size limiting middleware (should be early in middleware stack)
+app.add_middleware(RequestSizeLimitMiddleware, max_body_size=10 * 1024 * 1024)  # 10MB default
+
+# Rate limiting middleware (should be early in middleware stack)
+app.add_middleware(RateLimitMiddleware, requests_per_minute=60)
+
+# Add security headers middleware first (executes last)
+app.add_middleware(SecurityHeadersMiddleware)
+
+# Compression middleware
+app.add_middleware(GZipMiddleware, minimum_size=1000)
 
 # Security middleware - Trusted hosts
 app.add_middleware(
@@ -53,40 +131,15 @@ app.add_middleware(
     allowed_hosts=["*"]
 )
 
-# Compression middleware
-app.add_middleware(GZipMiddleware, minimum_size=1000)
-
-# CORS middleware - Production ready
-allowed_origins = []
-
-# Add production frontend URL if set (required for production)
-if os.getenv("FRONTEND_URL"):
-    allowed_origins.append(os.getenv("FRONTEND_URL"))
-else:
-    # Only allow localhost in development
-    allowed_origins = [
-        "http://localhost:3000",
-        "http://localhost:5173",
-        "http://localhost:3001",
-        "http://localhost:3002"
-    ]
-
-# Add production frontend URL for Render deployment
-allowed_origins.append("https://parent-registration-frontend.onrender.com")
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=allowed_origins,
-    allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allow_headers=["*"],
-)
+# Performance monitoring middleware
+app.add_middleware(PerformanceMiddleware)
 
 # Include routers
 app.include_router(enrollment_router, prefix="/api/v1/enrollment", tags=["enrollment"])
 app.include_router(documents_router, prefix="/api/v1/documents", tags=["documents"])
 app.include_router(academic_router, prefix="/api/v1/academic", tags=["academic"])
 app.include_router(financing_router, prefix='/api/v1', tags=['financing'])
+app.include_router(next_of_kin_router, prefix="/api/v1/next-of-kin", tags=["next-of-kin"])
 
 # Add legacy routes for backward compatibility
 # Legacy routes removed - now handled by proper API routers

@@ -54,8 +54,6 @@ const Footer: React.FC<FooterProps> = ({
       {showNext && (
         <button
           onClick={() => {
-            console.log('Footer: Next button clicked');
-            console.log('Footer: onNext callback is:', typeof onNext, onNext?.toString?.());
             onNext?.();
           }}
           disabled={isLoading}

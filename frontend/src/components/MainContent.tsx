@@ -249,7 +249,8 @@ const MainContent: React.FC<MainContentProps> = (props) => {
         student: combinedData.student,
         medical: combinedData.medical,
         family: combinedData.family,
-        fee: combinedData.fee
+        fee: combinedData.fee,
+        next_of_kin: nextOfKinData
       });
 
       setSavingStatus('saved');
@@ -271,7 +272,7 @@ const MainContent: React.FC<MainContentProps> = (props) => {
       setSavingStatus('idle');
       return false;
     }
-  }, [studentData, medicalData, familyData, feeData, applicationId, applicationInitialized, addToast]);
+  }, [studentData, medicalData, familyData, feeData, nextOfKinData, applicationId, applicationInitialized, addToast]);
 
   const debouncedAutoSave = useRef(
     debounce(() => {
@@ -408,7 +409,6 @@ const MainContent: React.FC<MainContentProps> = (props) => {
       console.log('MainContent: Marking step 6 as complete');
       onStepComplete && onStepComplete(6);
     } catch (error) {
-      console.error('MainContent: Error submitting application:', error);
       addToast('Failed to submit application. Please try again.', 'error');
     } finally {
       setIsSubmitting(false);
@@ -484,14 +484,15 @@ const MainContent: React.FC<MainContentProps> = (props) => {
         student: combinedData.student,
         medical: combinedData.medical,
         family: combinedData.family,
-        fee: combinedData.fee
+        fee: combinedData.fee,
+        next_of_kin: nextOfKinData
       });
       console.log('submitEnrollment result:', result);
 
       // Update applicationId if changed
       if (result.application_id && result.application_id !== currentApplicationId) {
         console.log('Updating application ID:', result.application_id);
-        localStorage.setItem('application_id', result.application_id); // Use application_id
+        localStorage.setItem(getUserKey('application_id'), result.application_id); // Use user-specific key
         currentApplicationId = result.application_id;
       }
 
@@ -513,7 +514,6 @@ const MainContent: React.FC<MainContentProps> = (props) => {
       storage.set(getUserKey('activeStep'), 2);
       setIsSubmitting(false);
     } catch (error: any) {
-      console.error('Error in handleCombinedSubmit:', error);
       const errorMsg = error.message || 'Failed to submit enrollment data.';
       addToast(errorMsg, 'error');
       setIsSubmitting(false);
@@ -630,6 +630,7 @@ const MainContent: React.FC<MainContentProps> = (props) => {
               onStepComplete && onStepComplete(3); // Mark step 3 as complete
               onStepChange && onStepChange(4); // Then move to the next step
             }}
+            onDataChange={handleAcademicHistoryDataChange}
             isEditing={isEditing}
             returnStep={returnStep}
             setIsEditing={setIsEditing}

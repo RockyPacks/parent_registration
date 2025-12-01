@@ -163,12 +163,16 @@ const App: React.FC = () => {
                 backendCompletedSteps.push(5);
               }
               
-              // IMPORTANT: Step 6 is ONLY complete when the application has been submitted
-              // This happens when user clicks "Submit Application" button in Step 6
-              // The backend status changes to 'submitted' or 'completed' only after successful submission
-              if (appData.status === 'submitted' || appData.status === 'completed') {
+              // IMPORTANT: Step 6 is ONLY complete when the application has been successfully submitted
+              // This is indicated by:
+              // 1. Application status being 'submitted' OR
+              // 2. A 'submitted_at' timestamp existing (backend sets this after successful submission)
+              // Never auto-mark step 6 as complete - it must be user-initiated from the Review & Submit screen
+              if ((appData.status === 'submitted' || appData.status === 'completed') && appData.submitted_at) {
+                console.log("App.tsx: Application status is:", appData.status, "with submitted_at:", appData.submitted_at, "- marking step 6 as complete");
                 backendCompletedSteps.push(6);
-                console.log("App.tsx: Application has been submitted - Step 6 is complete");
+              } else {
+                console.log("App.tsx: Application status:", appData.status, ", submitted_at:", appData.submitted_at, "- NOT marking step 6 as complete (step 6 only completes after final user submission)");
               }
 
               console.log("App.tsx: Backend completed steps:", backendCompletedSteps);
@@ -226,7 +230,11 @@ const App: React.FC = () => {
                 enrollmentData.fee = {
                   feePerson: appData.fee.fee_person || '',
                   relationship: appData.fee.relationship || '',
-                  feeTermsAccepted: appData.fee.fee_terms_accepted || false
+                  feeTermsAccepted: appData.fee.fee_terms_accepted || false,
+                  bankName: appData.fee.bank_name || '',
+                  branchCode: appData.fee.branch_code || '',
+                  accountNumber: appData.fee.account_number || '',
+                  accountType: appData.fee.account_type || ''
                 };
               }
 

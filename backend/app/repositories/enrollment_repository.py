@@ -144,10 +144,23 @@ class EnrollmentRepository(BaseRepository):
         try:
             data = student_data.model_dump()
             data["application_id"] = application_id
-            self.supabase.table("students").upsert(data).execute()
+            logger.debug(f"Saving student data for application {application_id}: {data}")
+            
+            # First, check if a student record already exists for this application
+            existing = self.supabase.table("students").select("*").eq("application_id", application_id).execute()
+            
+            if existing.data and len(existing.data) > 0:
+                # Update existing record
+                existing_id = existing.data[0]['id']
+                result = self.supabase.table("students").update(data).eq("id", existing_id).execute()
+                logger.info(f"Updated existing student record {existing_id} for application {application_id}")
+            else:
+                # Insert new record
+                result = self.supabase.table("students").insert(data).execute()
+                logger.info(f"Inserted new student record for application {application_id}")
         except Exception as e:
-            logger.error(f"Failed to save student data for application {application_id}: {str(e)}")
-            raise ExternalServiceError("Database", "Failed to save student information")
+            logger.error(f"Failed to save student data for application {application_id}: {str(e)}", exc_info=True)
+            raise ExternalServiceError("Database", f"Failed to save student information: {str(e)}")
 
     def save_medical_data(self, application_id: str, medical_data: MedicalInfo) -> None:
         """
@@ -170,7 +183,7 @@ class EnrollmentRepository(BaseRepository):
 
     def save_family_data(self, application_id: str, family_data: FamilyInfo) -> None:
         """
-        Save family information.
+        Save family information to parents table.
 
         Args:
             application_id: Application ID
@@ -180,62 +193,51 @@ class EnrollmentRepository(BaseRepository):
             ExternalServiceError: If database operation fails
         """
         try:
-            data = family_data.model_dump()
-            data["application_id"] = application_id
+            # Save father
+            if family_data.father_surname or family_data.father_first_name:
+                father_data = {
+                    "application_id": application_id,
+                    "relationship": "father",
+                    "surname": family_data.father_surname,
+                    "first_name": family_data.father_first_name,
+                    "id_number": family_data.father_id_number,
+                    "email": family_data.father_email,
+                    "mobile": family_data.father_mobile,
+                    "is_primary": True
+                }
+                self.supabase.table("parents").upsert(father_data).execute()
+                logger.info(f"Saved father record for application {application_id}")
 
-            # Sanitize and validate inputs with correct casing
-            if "next_of_kin_surname" in data:
-                value = data["next_of_kin_surname"]
-                # Convert string 'None' to actual None, strip and title case
-                if value and str(value).lower() != 'none':
-                    data["next_of_kin_surname"] = str(value).strip().title()
-                else:
-                    data["next_of_kin_surname"] = None
-            
-            if "next_of_kin_first_name" in data:
-                value = data["next_of_kin_first_name"]
-                # Convert string 'None' to actual None, strip and title case
-                if value and str(value).lower() != 'none':
-                    data["next_of_kin_first_name"] = str(value).strip().title()
-                else:
-                    data["next_of_kin_first_name"] = None
-            
-            if "next_of_kin_relationship" in data:
-                value = data["next_of_kin_relationship"]
-                # Convert string 'None' or 'none' to actual None
-                if value and str(value).lower() != 'none':
-                    data["next_of_kin_relationship"] = str(value).strip().lower()
-                else:
-                    data["next_of_kin_relationship"] = None
-            
-            if "next_of_kin_mobile" in data:
-                value = data["next_of_kin_mobile"]
-                # Only include if it has actual content
-                if value and str(value).strip():
-                    # Sanitize mobile number - keep only digits, spaces, hyphens, parentheses, plus
-                    mobile = str(value).strip()
-                    import re
-                    mobile = re.sub(r'[^\d\s\-\(\)\+]', '', mobile)
-                    data["next_of_kin_mobile"] = mobile if mobile else None
-                else:
-                    data["next_of_kin_mobile"] = None
-            
-            if "next_of_kin_email" in data:
-                value = data["next_of_kin_email"]
-                # Convert string 'None' or 'none' to actual None, validate email format
-                if value and str(value).lower() not in ('none', ''):
-                    email = str(value).strip().lower()
-                    # Basic email validation - must contain @ and be non-empty
-                    if '@' in email and len(email) > 3:
-                        data["next_of_kin_email"] = email
-                    else:
-                        data["next_of_kin_email"] = None
-                else:
-                    data["next_of_kin_email"] = None
+            # Save mother
+            if family_data.mother_surname or family_data.mother_first_name:
+                mother_data = {
+                    "application_id": application_id,
+                    "relationship": "mother",
+                    "surname": family_data.mother_surname,
+                    "first_name": family_data.mother_first_name,
+                    "id_number": family_data.mother_id_number,
+                    "email": family_data.mother_email,
+                    "mobile": family_data.mother_mobile,
+                    "is_primary": True
+                }
+                self.supabase.table("parents").upsert(mother_data).execute()
+                logger.info(f"Saved mother record for application {application_id}")
 
-            logger.info(f"Saving family data: {data}") # Add this line for logging
-            # Fields are already in correct snake_case casing for database
-            self.supabase.table("family_info").upsert(data).execute()
+            # Save next of kin
+            if family_data.next_of_kin_surname or family_data.next_of_kin_first_name:
+                relationship = family_data.next_of_kin_relationship or "guardian"
+                nok_data = {
+                    "application_id": application_id,
+                    "relationship": relationship.lower(),
+                    "surname": family_data.next_of_kin_surname,
+                    "first_name": family_data.next_of_kin_first_name,
+                    "email": family_data.next_of_kin_email,
+                    "mobile": family_data.next_of_kin_mobile,
+                    "is_primary": False
+                }
+                self.supabase.table("parents").upsert(nok_data).execute()
+                logger.info(f"Saved next of kin record for application {application_id}")
+
         except Exception as e:
             logger.error(f"Failed to save family data for application {application_id}: {str(e)}")
             raise ExternalServiceError("Database", "Failed to save family information")
@@ -278,7 +280,11 @@ class EnrollmentRepository(BaseRepository):
             data = student_data.model_dump(exclude_unset=True)
             if data:  # Only update if there's data to update
                 data["application_id"] = application_id
-                self.supabase.table("students").upsert(data).execute()
+                # Try update first, if no rows affected, insert new
+                result = self.supabase.table("students").update(data).eq("application_id", application_id).execute()
+                if not result.data:
+                    # No existing record, insert instead
+                    self.supabase.table("students").insert(data).execute()
         except Exception as e:
             logger.error(f"Failed to save partial student data for application {application_id}: {str(e)}")
             raise ExternalServiceError("Database", "Failed to save student information")
@@ -305,7 +311,7 @@ class EnrollmentRepository(BaseRepository):
 
     def save_family_data_partial(self, application_id: str, family_data: FamilyInfoPartial) -> None:
         """
-        Save partial family information.
+        Save partial family information to parents table.
 
         Args:
             application_id: Application ID
@@ -315,62 +321,51 @@ class EnrollmentRepository(BaseRepository):
             ExternalServiceError: If database operation fails
         """
         try:
-            data = family_data.model_dump(exclude_unset=True)
-            if data:  # Only update if there's data to update
-                data["application_id"] = application_id
+            # Save father if provided
+            if family_data.father_surname or family_data.father_first_name:
+                father_data = {
+                    "application_id": application_id,
+                    "relationship": "father",
+                    "surname": family_data.father_surname,
+                    "first_name": family_data.father_first_name,
+                    "id_number": family_data.father_id_number,
+                    "email": family_data.father_email,
+                    "mobile": family_data.father_mobile,
+                    "is_primary": True
+                }
+                self.supabase.table("parents").upsert(father_data).execute()
+                logger.info(f"Saved partial father record for application {application_id}")
 
-                # Sanitize and validate inputs with correct casing
-                if "next_of_kin_surname" in data:
-                    value = data["next_of_kin_surname"]
-                    # Convert string 'None' to actual None, strip and title case
-                    if value and str(value).lower() != 'none':
-                        data["next_of_kin_surname"] = str(value).strip().title()
-                    else:
-                        data["next_of_kin_surname"] = None
-                
-                if "next_of_kin_first_name" in data:
-                    value = data["next_of_kin_first_name"]
-                    # Convert string 'None' to actual None, strip and title case
-                    if value and str(value).lower() != 'none':
-                        data["next_of_kin_first_name"] = str(value).strip().title()
-                    else:
-                        data["next_of_kin_first_name"] = None
-                
-                if "next_of_kin_relationship" in data:
-                    value = data["next_of_kin_relationship"]
-                    # Convert string 'None' or 'none' to actual None
-                    if value and str(value).lower() != 'none':
-                        data["next_of_kin_relationship"] = str(value).strip().lower()
-                    else:
-                        data["next_of_kin_relationship"] = None
-                
-                if "next_of_kin_mobile" in data:
-                    value = data["next_of_kin_mobile"]
-                    # Only include if it has actual content
-                    if value and str(value).strip():
-                        # Sanitize mobile number - keep only digits, spaces, hyphens, parentheses, plus
-                        mobile = str(value).strip()
-                        import re
-                        mobile = re.sub(r'[^\d\s\-\(\)\+]', '', mobile)
-                        data["next_of_kin_mobile"] = mobile if mobile else None
-                    else:
-                        data["next_of_kin_mobile"] = None
-                
-                if "next_of_kin_email" in data:
-                    value = data["next_of_kin_email"]
-                    # Convert string 'None' or 'none' to actual None, validate email format
-                    if value and str(value).lower() not in ('none', ''):
-                        email = str(value).strip().lower()
-                        # Basic email validation - must contain @ and be non-empty
-                        if '@' in email and len(email) > 3:
-                            data["next_of_kin_email"] = email
-                        else:
-                            data["next_of_kin_email"] = None
-                    else:
-                        data["next_of_kin_email"] = None
+            # Save mother if provided
+            if family_data.mother_surname or family_data.mother_first_name:
+                mother_data = {
+                    "application_id": application_id,
+                    "relationship": "mother",
+                    "surname": family_data.mother_surname,
+                    "first_name": family_data.mother_first_name,
+                    "id_number": family_data.mother_id_number,
+                    "email": family_data.mother_email,
+                    "mobile": family_data.mother_mobile,
+                    "is_primary": True
+                }
+                self.supabase.table("parents").upsert(mother_data).execute()
+                logger.info(f"Saved partial mother record for application {application_id}")
 
-                # Fields are already in correct snake_case casing for database
-                self.supabase.table("family_info").upsert(data).execute()
+            # Save next of kin if provided
+            if family_data.next_of_kin_surname or family_data.next_of_kin_first_name:
+                relationship = family_data.next_of_kin_relationship or "guardian"
+                nok_data = {
+                    "application_id": application_id,
+                    "relationship": relationship.lower(),
+                    "surname": family_data.next_of_kin_surname,
+                    "first_name": family_data.next_of_kin_first_name,
+                    "email": family_data.next_of_kin_email,
+                    "mobile": family_data.next_of_kin_mobile,
+                    "is_primary": False
+                }
+                self.supabase.table("parents").upsert(nok_data).execute()
+                logger.info(f"Saved partial next of kin record for application {application_id}")
+
         except Exception as e:
             logger.error(f"Failed to save partial family data for application {application_id}: {str(e)}")
             raise ExternalServiceError("Database", "Failed to save family information")
@@ -427,15 +422,24 @@ class EnrollmentRepository(BaseRepository):
             medical_result = self.supabase.table("medical_info").select("*").eq("application_id", application_id).execute()
             family_result = self.supabase.table("family_info").select("*").eq("application_id", application_id).execute()
             fee_result = self.supabase.table("fee_responsibility").select("*").eq("application_id", application_id).execute()
+            academic_history_result = self.supabase.table("academic_history").select("*").eq("application_id", application_id).execute()
+            documents_result = self.supabase.table("uploaded_files").select("*").eq("application_id", application_id).execute()
+            financing_result = self.supabase.table("financing_selections").select("*").eq("application_id", application_id).execute()
+            declaration_result = self.supabase.table("declarations").select("*").eq("application_id", application_id).execute()
 
             return {
                 "id": application_id,
                 "status": application.get("status", "in_progress"),
                 "created_at": application.get("created_at"),
+                "submitted_at": application.get("submitted_at"),
                 "student": student_result.data[0] if student_result.data else {},
                 "medical": medical_result.data[0] if medical_result.data else {},
                 "family": family_result.data[0] if family_result.data else {},
-                "fee": fee_result.data[0] if fee_result.data else {}
+                "fee": fee_result.data[0] if fee_result.data else {},
+                "academic_history": academic_history_result.data if academic_history_result.data else [],
+                "documents": documents_result.data if documents_result.data else [],
+                "financing_selections": financing_result.data if financing_result.data else [],
+                "declaration": declaration_result.data[0] if declaration_result.data else {}
             }
         except ExternalServiceError:
             raise
@@ -457,25 +461,27 @@ class EnrollmentRepository(BaseRepository):
             ExternalServiceError: If database operation fails
         """
         try:
-            # First try the view
-            summary_result = self.supabase.table("application_upload_summary").select("*").eq("application_id", application_id).execute()
-            if summary_result.data:
-                return {
-                    "completed_categories": summary_result.data[0].get("completed_categories", 0),
-                    "uploaded_types": summary_result.data[0].get("uploaded_types", [])
-                }
-
-            # If no data from view (view only includes applications with documents), manually calculate
-            docs_result = self.supabase.table("application_documents").select("document_type, upload_status").eq("application_id", application_id).execute()
-
-            completed_types = []
-            for doc in docs_result.data:
-                if doc["upload_status"] == "completed":
-                    completed_types.append(doc["document_type"])
-
+            # Get all uploaded files for this application from the uploaded_files table
+            files_result = self.supabase.table("uploaded_files").select("*").eq("application_id", application_id).execute()
+            
+            # Extract unique document types from uploaded files
+            doc_types = set()
+            for file_data in files_result.data:
+                doc_type = file_data.get("document_type")
+                if doc_type:
+                    doc_types.add(doc_type)
+            
+            # Define required document categories (must match frontend categories)
+            # Note: document types are singular (id_document, payslip, bank_statement) not plural
+            required_types = {"proof_of_address", "id_document", "payslip", "bank_statement"}
+            
+            # Count how many categories have at least one file
+            completed_count = len(doc_types.intersection(required_types))
+            
             return {
-                "completed_categories": len(set(completed_types)),
-                "uploaded_types": sorted(list(set(completed_types)))
+                "completed_categories": completed_count,
+                "uploaded_types": sorted(list(doc_types)),
+                "total_files": len(files_result.data)
             }
         except Exception as e:
             logger.error(f"Failed to get upload summary for {application_id}: {str(e)}")

@@ -36,22 +36,36 @@ class DeclarationRepository(BaseRepository):
         try:
             data = declaration_data.copy()
             data["application_id"] = application_id
+            
             # Set date_signed to today if not provided
             if "date_signed" not in data or not data["date_signed"]:
                 data["date_signed"] = datetime.now().date().isoformat()
 
-            # Remove fields that don't exist in the current table schema
-            # The table only has the basic 5 agreement fields, not the additional audit/affordability ones
+            # Convert camelCase field names to snake_case for database
+            if "fullName" in data:
+                data["full_name"] = data.pop("fullName")
+            
+            # Allowed fields in declarations table
             allowed_fields = {
                 'application_id', 'agree_truth', 'agree_policies', 'agree_financial',
-                'agree_verification', 'agree_data_processing', 'full_name', 'city',
-                'date_signed', 'status', 'created_at', 'updated_at'
+                'agree_verification', 'agree_data_processing', 'agree_audit_storage',
+                'agree_affordability_processing', 'full_name', 'city',
+                'date_signed', 'status', 'signed', 'created_at', 'updated_at'
             }
 
             # Filter data to only include fields that exist in the table
             filtered_data = {k: v for k, v in data.items() if k in allowed_fields}
 
-            self.supabase.table(self.table_name).upsert(filtered_data).execute()
+            # First, check if a declaration already exists for this application
+            existing = self.supabase.table(self.table_name).select("id").eq("application_id", application_id).execute()
+            
+            if existing.data:
+                # Update existing declaration
+                self.supabase.table(self.table_name).update(filtered_data).eq("application_id", application_id).execute()
+            else:
+                # Create new declaration
+                self.supabase.table(self.table_name).insert(filtered_data).execute()
+                
         except Exception as e:
             logger.error(f"Failed to save declaration for application {application_id}: {str(e)}")
             raise ExternalServiceError("Database", "Failed to save declaration information")

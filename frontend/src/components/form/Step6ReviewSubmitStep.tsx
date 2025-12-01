@@ -4,6 +4,9 @@ import CheckIcon from '../icons/CheckIcon'; // Corrected: CheckIcon is a default
 import ApplicationForm from '../ApplicationForm'; // Import ApplicationForm
 import { SummaryData } from '../../types'; // Import SummaryData type
 import { useReactToPrint } from 'react-to-print'; // Re-import useReactToPrint for this component
+import html2canvas from 'html2canvas';
+import jsPDF from 'jspdf';
+
 interface Step6ReviewSubmitStepProps {
   activeStep: number;
   applicationId?: string | null; // Add applicationId prop
@@ -64,6 +67,223 @@ const ApplicationSubmittedCard: React.FC<ApplicationSubmittedCardProps> = ({ sum
     `
   });
 
+  const handleDirectDownload = async () => {
+    try {
+      console.log('ApplicationSubmittedCard: Starting PDF download');
+      const element = componentRef.current;
+      if (!element) {
+        console.error('ApplicationSubmittedCard: Element ref not found');
+        alert('Unable to locate application data. Please refresh the page and try again.');
+        return;
+      }
+
+      // Create a clean, printable clone of the element
+      const printWindow = window.open('', '', 'height=600,width=800');
+      if (!printWindow) {
+        alert('Please disable your popup blocker and try again.');
+        return;
+      }
+
+      // Get the HTML content and clean it for printing
+      const element_html = element.innerHTML;
+      
+      // Create print-friendly HTML
+      const printHTML = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Application_${applicationId}.pdf</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: #1f2937;
+            background: #ffffff;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: #ffffff;
+        }
+        
+        .header {
+            border-bottom: 3px solid #2563eb;
+            padding-bottom: 20px;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            color: #1e40af;
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: 10px;
+        }
+        
+        .app-id {
+            font-size: 14px;
+            color: #666;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+        }
+        
+        .section {
+            margin-bottom: 30px;
+            page-break-inside: avoid;
+        }
+        
+        .section-title {
+            background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%);
+            color: white;
+            padding: 12px 16px;
+            font-size: 16px;
+            font-weight: 700;
+            margin-bottom: 16px;
+            border-radius: 4px;
+        }
+        
+        .section-content {
+            padding: 0 16px;
+        }
+        
+        .info-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+            margin-bottom: 16px;
+            page-break-inside: avoid;
+        }
+        
+        .info-item {
+            padding: 12px;
+            background: #f9fafb;
+            border-radius: 4px;
+            border-left: 3px solid #2563eb;
+        }
+        
+        .info-label {
+            font-size: 12px;
+            font-weight: 600;
+            color: #6b7280;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 4px;
+        }
+        
+        .info-value {
+            font-size: 14px;
+            font-weight: 600;
+            color: #1f2937;
+            word-break: break-word;
+        }
+        
+        .info-value.empty {
+            color: #9ca3af;
+            font-style: italic;
+        }
+        
+        .divider {
+            border-top: 1px solid #e5e7eb;
+            margin: 24px 0;
+            page-break-after: avoid;
+        }
+        
+        .footer {
+            text-align: center;
+            padding-top: 20px;
+            border-top: 1px solid #e5e7eb;
+            color: #6b7280;
+            font-size: 12px;
+            margin-top: 40px;
+        }
+        
+        .badge {
+            display: inline-block;
+            padding: 4px 12px;
+            background: #dbeafe;
+            color: #1e40af;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        
+        @media print {
+            body {
+                padding: 0;
+            }
+            .container {
+                max-width: 100%;
+            }
+            .no-print {
+                display: none;
+            }
+            * {
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+        }
+        
+        @page {
+            margin: 10mm;
+            size: A4;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Enrollment Application</h1>
+            <div class="app-id">Application ID: <strong>${applicationId}</strong></div>
+            <div style="margin-top: 8px; color: #999; font-size: 12px;">
+                Generated on ${new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+            </div>
+        </div>
+        
+        ${element_html}
+        
+        <div class="divider"></div>
+        <div class="footer">
+            <p>This is an official enrollment application. Please keep a copy for your records.</p>
+            <p style="margin-top: 10px; color: #d1d5db;">© 2025 Enrollment System. All rights reserved.</p>
+        </div>
+    </div>
+    
+    <script>
+        window.onload = function() {
+            // Give a moment for styles to load, then print
+            setTimeout(() => {
+                window.print();
+                // Close after print dialog is shown
+                setTimeout(() => {
+                    window.close();
+                }, 1000);
+            }, 500);
+        };
+    </script>
+</body>
+</html>
+      `;
+
+      printWindow.document.write(printHTML);
+      printWindow.document.close();
+      
+      console.log('ApplicationSubmittedCard: Print window opened successfully');
+    } catch (error) {
+      console.error('ApplicationSubmittedCard: Download failed:', error);
+      alert('An error occurred while preparing your PDF. Please try using your browser\'s Print function (Ctrl+P / Cmd+P) instead.');
+    }
+  };
+
   return (
     <div className="flex flex-col items-center justify-center p-4 sm:p-8 bg-white rounded-lg shadow-lg text-center">
       <div className="bg-green-100 rounded-full p-4 mb-4">
@@ -78,7 +298,7 @@ const ApplicationSubmittedCard: React.FC<ApplicationSubmittedCardProps> = ({ sum
       </p>
 
       {/* Application Summary */}
-      <div className="mt-8 w-full border rounded-lg p-4" ref={componentRef}>
+      <div className="mt-8 w-full border rounded-lg p-4" ref={componentRef} style={{ backgroundColor: 'white', pageBreakInside: 'avoid' }}>
         <div className="text-right font-bold text-lg mb-4">
           Application ID: {applicationId}
         </div>
@@ -89,7 +309,7 @@ const ApplicationSubmittedCard: React.FC<ApplicationSubmittedCardProps> = ({ sum
       {/* Buttons */}
       <div className="mt-8 flex space-x-4">
         <button
-          onClick={handlePrint}
+          onClick={handleDirectDownload}
           className="px-4 py-2 sm:px-6 sm:py-3 bg-blue-600 text-white rounded-md shadow-md hover:bg-blue-700 transition-colors"
         >
           Download Application
@@ -153,11 +373,11 @@ const Step6ReviewSubmitStep: React.FC<Step6ReviewSubmitStepProps> = ({
       motherEmail: familyData?.motherEmail || '',
       motherPhone: familyData?.motherMobile || '',
       motherIdNumber: familyData?.motherIdNumber || '',
-      nextOfKinName: `${nextOfKinData?.nextOfKinFirstName || ''} ${nextOfKinData?.nextOfKinSurname || ''}`.trim(),
-      nextOfKinRelationship: nextOfKinData?.nextOfKinRelationship || '',
-      nextOfKinEmail: nextOfKinData?.nextOfKinEmail || '',
-      nextOfKinPhone: nextOfKinData?.nextOfKinMobile || '',
-      nextOfKinIdNumber: nextOfKinData?.nextOfKinIdNumber || '',
+      nextOfKinName: `${nextOfKinData?.firstName || ''} ${nextOfKinData?.surname || ''}`.trim(),
+      nextOfKinRelationship: nextOfKinData?.relationship || '',
+      nextOfKinEmail: nextOfKinData?.email || '',
+      nextOfKinPhone: nextOfKinData?.mobile || '',
+      nextOfKinIdNumber: nextOfKinData?.idNumber || '',
     },
     medical: medicalData,
     fee: feeData,
@@ -191,7 +411,18 @@ const Step6ReviewSubmitStep: React.FC<Step6ReviewSubmitStepProps> = ({
   };
 
   useEffect(() => {
-    setCurrentData({
+    console.log('Step6ReviewSubmitStep: useEffect triggered - updating currentData');
+    console.log('Step6ReviewSubmitStep: studentData:', studentData);
+    console.log('Step6ReviewSubmitStep: familyData:', familyData);
+    console.log('Step6ReviewSubmitStep: medicalData:', medicalData);
+    console.log('Step6ReviewSubmitStep: feeData:', feeData);
+    console.log('Step6ReviewSubmitStep: nextOfKinData:', nextOfKinData);
+    console.log('Step6ReviewSubmitStep: academicHistoryData:', academicHistoryData);
+    console.log('Step6ReviewSubmitStep: financingData:', financingData);
+    console.log('Step6ReviewSubmitStep: declarationData:', declarationData);
+    console.log('Step6ReviewSubmitStep: documentsData:', documentsData);
+
+    const newData = {
       personalInfo: { // Required by SummaryData
         firstName: studentData?.firstName || '',
         lastName: studentData?.surname || '',
@@ -218,11 +449,11 @@ const Step6ReviewSubmitStep: React.FC<Step6ReviewSubmitStepProps> = ({
         motherEmail: familyData?.motherEmail || '',
         motherPhone: familyData?.motherMobile || '',
         motherIdNumber: familyData?.motherIdNumber || '',
-        nextOfKinName: `${nextOfKinData?.nextOfKinFirstName || ''} ${nextOfKinData?.nextOfKinSurname || ''}`.trim(),
-        nextOfKinRelationship: nextOfKinData?.nextOfKinRelationship || '',
-        nextOfKinEmail: nextOfKinData?.nextOfKinEmail || '',
-        nextOfKinPhone: nextOfKinData?.nextOfKinMobile || '',
-        nextOfKinIdNumber: nextOfKinData?.nextOfKinIdNumber || '',
+        nextOfKinName: `${nextOfKinData?.firstName || ''} ${nextOfKinData?.surname || ''}`.trim(),
+        nextOfKinRelationship: nextOfKinData?.relationship || '',
+        nextOfKinEmail: nextOfKinData?.email || '',
+        nextOfKinPhone: nextOfKinData?.mobile || '',
+        nextOfKinIdNumber: nextOfKinData?.idNumber || '',
       },
       medical: medicalData,
       fee: feeData,
@@ -242,7 +473,10 @@ const Step6ReviewSubmitStep: React.FC<Step6ReviewSubmitStepProps> = ({
       financing: financingData,
       declaration: declarationData,
       documents: documentsData || [],
-    });
+    };
+    
+    console.log('Step6ReviewSubmitStep: newData to be set:', newData);
+    setCurrentData(newData);
   }, [studentData, familyData, medicalData, feeData, academicHistoryData, subjectsData, financingData, declarationData, documentsData, nextOfKinData]);
 
   const handleEditStep = (stepNumber: number) => {
@@ -253,9 +487,11 @@ const Step6ReviewSubmitStep: React.FC<Step6ReviewSubmitStepProps> = ({
 
   const handleSubmitAndShowConfirmation = () => {
     console.log('Step6ReviewSubmitStep: handleSubmitAndShowConfirmation called');
-    // Use real applicationId if available, otherwise generate one (fallback)
-    const finalAppId = applicationId || generateApplicationId();
-    setGeneratedApplicationId(finalAppId);
+    // Always use the real applicationId from props
+    if (!applicationId) {
+      return;
+    }
+    setGeneratedApplicationId(applicationId);
     setShowConfirmationCard(true);
 
     // Call onSubmit to trigger backend submission and mark step 6 as complete in MainContent

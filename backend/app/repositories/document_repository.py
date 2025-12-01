@@ -7,7 +7,7 @@ import uuid
 from datetime import datetime
 import logging
 from app.repositories.base import BaseRepository
-from app.api.v1.schemas.documents import DocumentType
+from app.api.v1.schemas.enrollment import DocumentType
 from app.core.exceptions import ExternalServiceError
 
 logger = logging.getLogger(__name__)
@@ -58,7 +58,7 @@ class DocumentRepository(BaseRepository):
                         bucket_name: str, file_path: str, download_url: str,
                         uploaded_by: str) -> str:
         """
-        Save file record to documents table.
+        Save file record to uploaded_files table and update consolidated application_documents record.
 
         Args:
             application_id: Application ID
@@ -79,8 +79,9 @@ class DocumentRepository(BaseRepository):
             ExternalServiceError: If database operation fails
         """
         try:
-            data = {
-                "id": str(uuid.uuid4()),
+            file_id = str(uuid.uuid4())
+            uploaded_files_data = {
+                "id": file_id,
                 "application_id": application_id,
                 "filename": filename,
                 "original_filename": original_filename,
@@ -93,7 +94,65 @@ class DocumentRepository(BaseRepository):
                 "uploaded_by": uploaded_by,
                 "created_at": datetime.now().isoformat()
             }
-            result = self.supabase.table("documents").insert(data).execute()
+            result = self.supabase.table("uploaded_files").insert(uploaded_files_data).execute()
+            
+            # Update or create consolidated application_documents record (single row per application)
+            try:
+                existing_doc = self.supabase.table("application_documents").select("*").eq(
+                    "application_id", application_id
+                ).eq("is_consolidated", True).execute()
+                
+                if existing_doc.data:
+                    # Update existing consolidated record - append file to arrays
+                    existing_record = existing_doc.data[0]
+                    current_urls = existing_record.get("file_urls", []) or []
+                    current_types = existing_record.get("document_types", []) or []
+                    current_names = existing_record.get("file_names", []) or []
+                    current_timestamps = existing_record.get("upload_timestamps", []) or []
+                    
+                    self.supabase.table("application_documents").update({
+                        "file_urls": current_urls + [download_url],
+                        "document_types": current_types + [document_type],
+                        "file_names": current_names + [original_filename],
+                        "upload_timestamps": current_timestamps + [datetime.now().isoformat()],
+                        "updated_at": datetime.now().isoformat()
+                    }).eq("id", existing_record["id"]).execute()
+                else:
+                    # Create new consolidated record
+                    documents_data = {
+                        "id": str(uuid.uuid4()),
+                        "application_id": application_id,
+                        "document_type": "consolidated",
+                        "file_url": "multiple_files",
+                        "upload_status": "completed",
+                        "user_id": uploaded_by,
+                        "file_urls": [download_url],
+                        "document_types": [document_type],
+                        "file_names": [original_filename],
+                        "upload_timestamps": [datetime.now().isoformat()],
+                        "is_consolidated": True,
+                        "created_at": datetime.now().isoformat()
+                    }
+                    self.supabase.table("application_documents").insert(documents_data).execute()
+            except Exception as doc_error:
+                # Log but don't fail - application_documents table might not have all columns yet
+                logger.warning(f"Could not update application_documents (may not have consolidated columns yet): {str(doc_error)}")
+            
+            # Also save to documents table for tracking (for backward compatibility)
+            try:
+                documents_tracking_data = {
+                    "id": str(uuid.uuid4()),
+                    "application_id": application_id,
+                    "document_type": document_type,
+                    "file_url": download_url,
+                    "upload_status": "completed",
+                    "user_id": uploaded_by,
+                    "created_at": datetime.now().isoformat()
+                }
+                self.supabase.table("documents").insert(documents_tracking_data).execute()
+            except Exception as track_error:
+                logger.warning(f"Could not insert into documents table: {str(track_error)}")
+            
             return str(result.data[0]["id"])
         except Exception as e:
             logger.error(f"Failed to save file record for application {application_id}: {str(e)}")
@@ -150,7 +209,7 @@ class DocumentRepository(BaseRepository):
 
     def get_uploaded_files(self, application_id: str) -> List[Dict[str, Any]]:
         """
-        Get uploaded files for application.
+        Get uploaded files for application from consolidated record.
 
         Args:
             application_id: Application ID
@@ -162,7 +221,8 @@ class DocumentRepository(BaseRepository):
             ExternalServiceError: If database operation fails
         """
         try:
-            files_result = self.supabase.table("documents").select("*").eq("application_id", application_id).execute()
+            # Query uploaded_files table for complete file details
+            files_result = self.supabase.table("uploaded_files").select("*").eq("application_id", application_id).execute()
 
             files = []
             for file_data in files_result.data:
@@ -198,15 +258,14 @@ class DocumentRepository(BaseRepository):
         """
         try:
             # Get file info before deletion
-            file_result = self.supabase.table("documents").select("*").eq("id", file_id).eq("application_id", application_id).execute()
+            file_result = self.supabase.table("uploaded_files").select("*").eq("id", file_id).eq("application_id", application_id).execute()
             if not file_result.data:
                 return None
 
             file_data = file_result.data[0]
 
-            # Delete from both tables
-            self.supabase.table("documents").delete().eq("id", file_id).execute()
-            self.supabase.table("application_documents").delete().eq("file_url", file_data["download_url"]).execute()
+            # Delete from uploaded_files table
+            self.supabase.table("uploaded_files").delete().eq("id", file_id).execute()
 
             return file_data
         except Exception as e:
@@ -224,9 +283,9 @@ class DocumentRepository(BaseRepository):
             ExternalServiceError: If database operation fails
         """
         try:
-            self.supabase.table("applications").update({
-                "documents_completed": True
-            }).eq("id", application_id).execute()
+            self.supabase.table("documents").update({
+                "upload_status": "completed"
+            }).eq("application_id", application_id).execute()
         except Exception as e:
             logger.error(f"Failed to mark upload complete for application {application_id}: {str(e)}")
             raise ExternalServiceError("Database", "Failed to mark upload complete")
@@ -245,13 +304,26 @@ class DocumentRepository(BaseRepository):
             ExternalServiceError: If database operation fails
         """
         try:
-            summary_result = self.supabase.table("application_upload_summary").select("*").eq("application_id", application_id).execute()
-            if summary_result.data:
-                return {
-                    "completed_categories": summary_result.data[0].get("completed_categories", 0),
-                    "uploaded_types": summary_result.data[0].get("uploaded_types", [])
-                }
-            return {"completed_categories": 0, "uploaded_types": []}
+            # Get all uploaded files for this application
+            files_result = self.supabase.table("uploaded_files").select("*").eq("application_id", application_id).execute()
+            
+            if not files_result.data:
+                return {"completed_categories": 0, "uploaded_types": []}
+            
+            # Count completed document types
+            doc_types = set()
+            for file_data in files_result.data:
+                doc_types.add(file_data.get("document_type"))
+            
+            # Determine completion (all 4 categories must have files)
+            # Note: document types are singular (id_document, payslip, bank_statement) not plural
+            required_types = {"proof_of_address", "id_document", "payslip", "bank_statement"}
+            completed_count = len(doc_types.intersection(required_types))
+            
+            return {
+                "completed_categories": completed_count,
+                "uploaded_types": list(doc_types)
+            }
         except Exception as e:
             logger.error(f"Failed to get upload summary for {application_id}: {str(e)}")
             raise ExternalServiceError("Database", "Failed to retrieve upload summary")

@@ -99,9 +99,7 @@ export const DocumentUploadCenter: React.FC<DocumentUploadCenterProps> = ({
 
   // Log application ID for debugging - should always use prop, not localStorage
   useEffect(() => {
-    console.log('DocumentUploadCenter: applicationId from props:', applicationId);
     if (!applicationId) {
-      console.warn('DocumentUploadCenter: No applicationId provided!');
     }
   }, [applicationId]);
 
@@ -181,7 +179,7 @@ export const DocumentUploadCenter: React.FC<DocumentUploadCenterProps> = ({
   };
 
   const loadDocumentStatus = async () => {
-    const currentApplicationId = applicationId || localStorage.getItem('applicationId');
+    const currentApplicationId = applicationId;
     if (!currentApplicationId) {
       return;
     }
@@ -195,7 +193,7 @@ export const DocumentUploadCenter: React.FC<DocumentUploadCenterProps> = ({
 
   // Modify loadUploadedFiles to include user verification
   const loadUploadedFiles = async () => {
-    const currentApplicationId = applicationId || localStorage.getItem('applicationId');
+    const currentApplicationId = applicationId;
     if (!currentApplicationId) {
       setUploadedFiles([]);
       localStorage.setItem('uploadedFiles', JSON.stringify([]));
@@ -285,7 +283,6 @@ export const DocumentUploadCenter: React.FC<DocumentUploadCenterProps> = ({
           body: JSON.stringify({ application_id: null })
         });
         currentApplicationId = (response as any).application_id;
-        localStorage.setItem('applicationId', currentApplicationId);
       } catch (error) {
         const errorMsg = 'Failed to create application. Please complete step 1 first.';
         setErrorMessage(errorMsg);
@@ -341,7 +338,7 @@ export const DocumentUploadCenter: React.FC<DocumentUploadCenterProps> = ({
 
   const isAllRequiredComplete = async (): Promise<boolean> => {
     try {
-      const currentApplicationId = applicationId || localStorage.getItem('applicationId');
+      const currentApplicationId = applicationId;
       if (!currentApplicationId) {
         return false;
       }
@@ -355,7 +352,7 @@ export const DocumentUploadCenter: React.FC<DocumentUploadCenterProps> = ({
   };
 
   const handleFileDelete = useCallback(async (fileId: string) => {
-    const currentApplicationId = applicationId || localStorage.getItem('applicationId');
+    const currentApplicationId = applicationId;
 
     if (!currentApplicationId) {
       const errorMsg = 'No application ID available for deletion';
@@ -683,7 +680,7 @@ export const DocumentUploadCenter: React.FC<DocumentUploadCenterProps> = ({
                     }
 
                   try {
-                    const currentApplicationId = applicationId || localStorage.getItem('applicationId');
+                    const currentApplicationId = applicationId;
                     if (!currentApplicationId) {
                       setErrorMessage('No application ID available. Please complete step 1 first.');
                       setTimeout(() => setErrorMessage(null), 5000);
@@ -723,7 +720,7 @@ export const DocumentUploadCenter: React.FC<DocumentUploadCenterProps> = ({
               <ActionButtons
                 disabled={!isComplete}
                 onContinue={async () => {
-                  const currentApplicationId = applicationId || localStorage.getItem('applicationId');
+                  const currentApplicationId = applicationId;
                   if (!currentApplicationId) {
                     setErrorMessage('No application ID available. Please complete step 1 first.');
                     setTimeout(() => setErrorMessage(null), 5000);

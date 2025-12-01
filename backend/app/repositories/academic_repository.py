@@ -6,7 +6,7 @@ from typing import Dict, Any, Optional
 from datetime import datetime
 import logging
 from app.repositories.base import BaseRepository
-from app.api.v1.schemas.academic import (
+from app.api.v1.schemas.enrollment import (
     AcademicHistoryCreate, AcademicHistoryUpdate
 )
 from app.core.exceptions import ExternalServiceError
@@ -40,10 +40,25 @@ class AcademicRepository(BaseRepository):
         """
         try:
             insert_data = data.model_dump()
-            logger.info(f"Upserting academic history data: {insert_data}")
-            result = self.upsert(insert_data, on_conflict_fields=["application_id"])
-            logger.info(f"Upsert result: {result}")
-            return str(result.get("application_id", ""))
+            # Convert academic_year_completed to integer for database
+            if insert_data.get("academic_year_completed"):
+                insert_data["academic_year_completed"] = int(insert_data["academic_year_completed"])
+            
+            # Check if record already exists for this application_id
+            existing = self.get_academic_history_by_application(insert_data["application_id"])
+            
+            if existing:
+                # Update existing record
+                logger.info(f"Updating existing academic history for application {insert_data['application_id']}")
+                self.supabase.table(self.table_name).update(insert_data).eq("application_id", insert_data["application_id"]).execute()
+                logger.info(f"Updated academic history for application {insert_data['application_id']}")
+            else:
+                # Insert new record
+                logger.info(f"Creating new academic history for application {insert_data['application_id']}")
+                result = self.supabase.table(self.table_name).insert(insert_data).execute()
+                logger.info(f"Created academic history for application {insert_data['application_id']}: {result}")
+            
+            return str(insert_data.get("application_id", ""))
         except Exception as e:
             logger.error(f"Failed to create academic history: {str(e)}")
             raise ExternalServiceError("Database", "Failed to create academic history")
@@ -102,6 +117,9 @@ class AcademicRepository(BaseRepository):
         """
         try:
             update_data = data.model_dump(exclude_unset=True)
+            # Convert academic_year_completed to integer for database if present
+            if update_data.get("academic_year_completed"):
+                update_data["academic_year_completed"] = int(update_data["academic_year_completed"])
             if update_data:
                 result = self.supabase.table(self.table_name).update(update_data).eq("application_id", application_id).execute()
                 if not result.data:

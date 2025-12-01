@@ -30,11 +30,10 @@ const MedicalInformation: React.FC<MedicalInformationProps> = ({ initialData, on
 
   useEffect(() => {
     if (onDataChange) {
+      // Send to parent component which will handle localStorage via MainContent
       onDataChange(formData);
     }
-    // Save to localStorage whenever form data changes
-    localStorage.setItem('medicalInformation', JSON.stringify(formData));
-  }, [formData]);
+  }, [formData, onDataChange]);
 
   const validateField = (field: string, value: string) => {
     let error = '';

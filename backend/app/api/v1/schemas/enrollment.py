@@ -138,27 +138,47 @@ class FeeResponsibilityInfo(BaseModel):
     """
     Fee responsibility information schema.
 
-    Contains details about who is responsible for school fees.
+    Contains details about who is responsible for school fees,
+    including complete parent/guardian information and banking details.
     """
     fee_person: str = Field(..., min_length=1, max_length=200, description="Person responsible for fees")
     relationship: str = Field(..., min_length=1, max_length=50, description="Relationship to student")
     fee_terms_accepted: bool = Field(default=False, description="Whether fee terms have been accepted")
     selected_plan: Optional[str] = Field(None, max_length=100, description="Selected financing plan")
+    # Parent/Guardian information
+    parent_id_number: Optional[str] = Field(None, pattern=r'^\d{13}$', description="Parent/Guardian ID number")
+    parent_first_name: Optional[str] = Field(None, max_length=100, description="Parent/Guardian first name")
+    parent_surname: Optional[str] = Field(None, max_length=100, description="Parent/Guardian surname")
+    parent_email: Optional[str] = Field(None, description="Parent/Guardian email address")
+    parent_mobile: Optional[str] = Field(None, pattern=r'^\+?[\d\s\-\(\)]+$', description="Parent/Guardian mobile number")
+    # Banking details
+    bank_name: Optional[str] = Field(None, max_length=100, description="Bank name for fee payments")
+    branch_code: Optional[str] = Field(None, max_length=6, description="Bank branch code (6 digits)")
+    account_number: Optional[str] = Field(None, max_length=12, description="Bank account number for fee deductions")
+    account_type: Optional[str] = Field(None, max_length=50, description="Bank account type (e.g., Cheque, Savings, Current)")
 
 
 class FeeResponsibilityInfoPartial(BaseModel):
     """
     Partial fee responsibility information schema for auto-save.
 
-    Allows partial updates to fee data.
+    Allows partial updates to fee data, including parent information and banking details.
     """
     fee_person: Optional[str] = Field(None, min_length=1, max_length=200, description="Person responsible for fees")
     relationship: Optional[str] = Field(None, min_length=1, max_length=50, description="Relationship to student")
     fee_terms_accepted: Optional[bool] = Field(None, description="Whether fee terms have been accepted")
     selected_plan: Optional[str] = Field(None, max_length=100, description="Selected financing plan")
-
-
-class DeclarationInfo(BaseModel):
+    # Parent/Guardian information
+    parent_id_number: Optional[str] = Field(None, pattern=r'^\d{13}$', description="Parent/Guardian ID number")
+    parent_first_name: Optional[str] = Field(None, max_length=100, description="Parent/Guardian first name")
+    parent_surname: Optional[str] = Field(None, max_length=100, description="Parent/Guardian surname")
+    parent_email: Optional[str] = Field(None, description="Parent/Guardian email address")
+    parent_mobile: Optional[str] = Field(None, pattern=r'^\+?[\d\s\-\(\)]+$', description="Parent/Guardian mobile number")
+    # Banking details
+    bank_name: Optional[str] = Field(None, max_length=100, description="Bank name for fee payments")
+    branch_code: Optional[str] = Field(None, max_length=6, description="Bank branch code (6 digits)")
+    account_number: Optional[str] = Field(None, max_length=12, description="Bank account number for fee deductions")
+    account_type: Optional[str] = Field(None, max_length=50, description="Bank account type (e.g., Cheque, Savings, Current)")
     """
     Declaration information schema.
 
@@ -187,6 +207,7 @@ class EnrollmentData(BaseModel):
     medical: MedicalInfo
     family: FamilyInfo
     fee: FeeResponsibilityInfo
+    next_of_kin: Optional[Any] = None  # Will accept NextOfKinCreate
 
 
 class AutoSaveRequest(BaseModel):
@@ -200,6 +221,7 @@ class AutoSaveRequest(BaseModel):
     medical: Optional[MedicalInfoPartial] = None
     family: Optional[FamilyInfoPartial] = None
     fee: Optional[FeeResponsibilityInfoPartial] = None
+    next_of_kin: Optional[Any] = None  # Will accept NextOfKinPartial
 
 
 class AutoSaveResponse(BaseModel):
@@ -223,10 +245,15 @@ class ApplicationResponse(BaseModel):
     id: str
     status: ApplicationStatus
     created_at: Optional[str]
+    submitted_at: Optional[str]
     student: Dict[str, Any]
     medical: Dict[str, Any]
     family: Dict[str, Any]
     fee: Dict[str, Any]
+    academic_history: Optional[List[Dict[str, Any]]] = []
+    documents: Optional[List[Dict[str, Any]]] = []
+    financing_selections: Optional[List[Dict[str, Any]]] = []
+    declaration: Optional[Dict[str, Any]] = {}
 
 
 class UploadSummaryResponse(BaseModel):
@@ -277,3 +304,230 @@ class AcademicHistorySchema(BaseModel):
     school_address: Optional[str] = None
     additional_notes: Optional[str] = Field(None, alias='additionalNotes')
     report_card_url: Optional[str] = Field(None, alias='reportCardUrl')
+
+
+# ============================================================================
+# ACADEMIC HISTORY SCHEMAS
+# ============================================================================
+
+class AcademicHistoryCreate(BaseModel):
+    """Schema for creating academic history records."""
+    application_id: str = Field(..., description="Application ID")
+    school_name: str = Field(..., min_length=1, max_length=200, description="Name of the school")
+    school_type: str = Field(..., min_length=1, max_length=50, description="Type of school")
+    last_grade_completed: str = Field(..., min_length=1, max_length=20, description="Last grade completed")
+    academic_year_completed: str = Field(..., min_length=4, max_length=4, description="Year completed")
+    reason_for_leaving: Optional[str] = Field(None, description="Reason for leaving the school")
+    principal_name: Optional[str] = Field(None, max_length=100, description="Principal's name")
+    school_phone_number: Optional[str] = Field(None, max_length=20, description="School phone number")
+    school_email: Optional[str] = Field(None, description="School email address")
+    school_address: Optional[str] = Field(None, description="School address")
+    additional_notes: Optional[str] = Field(None, description="Additional notes")
+    report_card_url: Optional[str] = Field(None, description="URL of uploaded report card")
+
+
+class AcademicHistoryResponse(BaseModel):
+    """Schema for academic history response."""
+    id: Optional[str] = None
+    application_id: str
+    school_name: str
+    school_type: str
+    last_grade_completed: str
+    academic_year_completed: Optional[int] = None
+    reason_for_leaving: Optional[str]
+    principal_name: Optional[str]
+    school_phone_number: Optional[str]
+    school_email: Optional[str]
+    school_address: Optional[str]
+    additional_notes: Optional[str]
+    report_card_url: Optional[str]
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+
+
+class AcademicHistoryUpdate(BaseModel):
+    """Schema for updating academic history records."""
+    school_name: Optional[str] = Field(None, min_length=1, max_length=200)
+    school_type: Optional[str] = Field(None, min_length=1, max_length=50)
+    last_grade_completed: Optional[str] = Field(None, min_length=1, max_length=20)
+    academic_year_completed: Optional[str] = Field(None, min_length=4, max_length=4)
+    reason_for_leaving: Optional[str] = None
+    principal_name: Optional[str] = Field(None, max_length=100)
+    school_phone_number: Optional[str] = Field(None, max_length=20)
+    school_email: Optional[str] = None
+    school_address: Optional[str] = None
+    additional_notes: Optional[str] = None
+    report_card_url: str
+
+
+# ============================================================================
+# NEXT OF KIN SCHEMAS
+# ============================================================================
+
+class NextOfKinCreate(BaseModel):
+    """Schema for creating next of kin records."""
+    application_id: str = Field(..., description="Application ID")
+    surname: str = Field(..., min_length=1, max_length=100, description="Surname of next of kin")
+    first_name: str = Field(..., min_length=1, max_length=100, description="First name of next of kin")
+    id_number: Optional[str] = Field(None, max_length=50, description="ID number of next of kin")
+    relationship: str = Field(..., min_length=1, max_length=50, description="Relationship to student")
+    mobile_number: str = Field(..., min_length=1, max_length=20, description="Primary mobile number")
+    email_address: str = Field(..., description="Email address")
+    phone_number: Optional[str] = Field(None, max_length=20, description="Alternative phone number")
+    alternate_mobile: Optional[str] = Field(None, max_length=20, description="Alternate mobile number")
+    physical_address: Optional[str] = Field(None, max_length=500, description="Physical address")
+
+
+class NextOfKinUpdate(BaseModel):
+    """Schema for updating next of kin records."""
+    surname: Optional[str] = Field(None, min_length=1, max_length=100)
+    first_name: Optional[str] = Field(None, min_length=1, max_length=100)
+    id_number: Optional[str] = Field(None, max_length=50)
+    relationship: Optional[str] = Field(None, min_length=1, max_length=50)
+    mobile_number: Optional[str] = Field(None, min_length=1, max_length=20)
+    email_address: Optional[str] = Field(None)
+    phone_number: Optional[str] = Field(None, max_length=20)
+    alternate_mobile: Optional[str] = Field(None, max_length=20)
+    physical_address: Optional[str] = Field(None, max_length=500)
+
+
+class NextOfKinResponse(BaseModel):
+    """Schema for next of kin response."""
+    id: Optional[str] = None
+    application_id: str
+    surname: str
+    first_name: str
+    id_number: Optional[str]
+    relationship: str
+    mobile_number: str
+    email_address: str
+    phone_number: Optional[str]
+    alternate_mobile: Optional[str]
+    physical_address: Optional[str]
+    created_at: Optional[datetime]
+    updated_at: Optional[datetime]
+
+
+class NextOfKinPartial(BaseModel):
+    """Schema for partial next of kin auto-save operations."""
+    surname: Optional[str] = Field(None, max_length=100)
+    first_name: Optional[str] = Field(None, max_length=100)
+    id_number: Optional[str] = Field(None, max_length=50)
+    relationship: Optional[str] = Field(None, max_length=50)
+    mobile_number: Optional[str] = Field(None, max_length=20)
+    email_address: Optional[str] = Field(None)
+    phone_number: Optional[str] = Field(None, max_length=20)
+    alternate_mobile: Optional[str] = Field(None, max_length=20)
+    physical_address: Optional[str] = Field(None, max_length=500)
+
+
+# ============================================================================
+# FINANCING SCHEMAS
+# ============================================================================
+
+class FinancingPlanType(str, Enum):
+    """Enumeration of financing plan types."""
+    MONTHLY_FLAT = "monthly_flat"
+    TERMLY_DISCOUNT = "termly_discount"
+    ANNUAL_DISCOUNT = "annual_discount"
+    SIBLING_DISCOUNT = "sibling_discount"
+    BNPL = "bnpl"
+    FORWARD_FUNDING = "forward_funding"
+    ARREARS_BNPL = "arrears-bnpl"
+
+
+class FinancingSelectionRequest(BaseModel):
+    """Financing selection request schema."""
+    application_id: str = Field(..., min_length=1, description="Application ID")
+    plan_type: FinancingPlanType = Field(..., description="Type of financing plan selected")
+    discount_rate: Optional[float] = Field(None, ge=0, le=100, description="Discount rate percentage (0-100)")
+    cost_of_credit: Optional[float] = Field(None, ge=0, description="Cost of credit")
+    repayment_term: Optional[str] = Field(None, max_length=50, description="Repayment term description")
+
+
+class FinancingSelectionResponse(BaseModel):
+    """Financing selection response schema."""
+    id: str
+    application_id: str
+    plan_type: FinancingPlanType
+    discount_rate: Optional[float]
+    cost_of_credit: Optional[float]
+    repayment_term: Optional[str]
+    created_at: str
+
+
+# ============================================================================
+# DOCUMENT SCHEMAS
+# ============================================================================
+
+class DocumentType(str, Enum):
+    """Enumeration of supported document types for uploads."""
+    PROOF_OF_ADDRESS = "proof_of_address"
+    ID_DOCUMENT = "id_document"
+    PAYSLIP = "payslip"
+    BANK_STATEMENT = "bank_statement"
+
+
+class DocumentStatus(BaseModel):
+    """Document upload status for a specific document type."""
+    document_type: str = Field(..., description="Type of document")
+    uploaded_count: int = Field(..., ge=0, description="Number of files uploaded")
+    required_count: int = Field(..., ge=1, description="Number of files required")
+    completed: bool = Field(..., description="Whether this document type is complete")
+    files: List[Dict[str, Any]] = Field(default_factory=list, description="List of uploaded files")
+
+
+class DocumentStatusResponse(BaseModel):
+    """Response schema for document status queries."""
+    application_id: str = Field(..., description="Application ID")
+    summary: List[DocumentStatus] = Field(..., description="Status summary for each document type")
+
+
+class FileUploadResponse(BaseModel):
+    """Response schema for file upload operations."""
+    success: bool = Field(..., description="Whether upload was successful")
+    message: str = Field(..., description="Status message")
+    file: Dict[str, Any] = Field(..., description="Uploaded file details")
+
+
+class UploadedFile(BaseModel):
+    """Schema for uploaded file information."""
+    id: str = Field(..., description="Unique file identifier")
+    filename: str = Field(..., description="Processed filename")
+    original_filename: str = Field(..., description="Original uploaded filename")
+    file_size: int = Field(..., gt=0, description="File size in bytes")
+    content_type: str = Field(..., description="MIME content type")
+    document_type: str = Field(..., description="Type of document")
+    download_url: str = Field(..., description="Public download URL")
+    created_at: str = Field(..., description="Upload timestamp")
+
+
+class UploadedFilesResponse(BaseModel):
+    """Response schema for listing uploaded files."""
+    files: List[UploadedFile] = Field(..., description="List of uploaded files")
+
+
+class DeleteFileResponse(BaseModel):
+    """Response schema for file deletion operations."""
+    message: str = Field(..., description="Deletion confirmation message")
+
+
+class CompleteUploadRequest(BaseModel):
+    """Request schema for marking uploads as complete."""
+    application_id: str = Field(..., description="Application ID")
+
+
+class CompleteUploadResponse(BaseModel):
+    """Response schema for upload completion operations."""
+    message: str = Field(..., description="Completion confirmation message")
+
+
+class MarkCompleteRequest(BaseModel):
+    """Request schema for marking document types as complete."""
+    pass
+
+
+class MarkCompleteResponse(BaseModel):
+    """Response schema for document type completion operations."""
+    message: str = Field(..., description="Completion confirmation message")
+

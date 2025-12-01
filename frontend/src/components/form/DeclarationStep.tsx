@@ -194,7 +194,6 @@ const DeclarationStep: React.FC<DeclarationStepProps> = ({ applicationId, onData
         }
         addToast('Your progress has been saved!', 'success');
       } catch (error) {
-        console.error('Error saving progress:', error);
         addToast('Failed to save progress. Please try again.', 'error');
       }
   };
@@ -244,7 +243,6 @@ const DeclarationStep: React.FC<DeclarationStepProps> = ({ applicationId, onData
         onStepChange && onStepChange(6);
         console.log('Navigation callbacks completed');
       } catch (error) {
-        console.error('Error submitting declaration:', error);
         addToast('Failed to submit declaration. Please try again.', 'error');
       } finally {
         setIsSubmitting(false);

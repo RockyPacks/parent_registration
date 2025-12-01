@@ -9,7 +9,7 @@ from fastapi import HTTPException
 
 from app.repositories.academic_repository import academic_repository
 from app.repositories.enrollment_repository import enrollment_repository
-from app.api.v1.schemas.academic import (
+from app.api.v1.schemas.enrollment import (
     AcademicHistoryCreate, AcademicHistoryResponse, AcademicHistoryUpdate
 )
 

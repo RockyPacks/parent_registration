@@ -5,7 +5,7 @@ Handles financing-related endpoints.
 """
 
 from fastapi import APIRouter, HTTPException
-from app.api.v1.schemas.financing import FinancingSelectionRequest, FinancingSelectionResponse
+from app.api.v1.schemas.enrollment import FinancingSelectionRequest, FinancingSelectionResponse
 from app.services.financing_service import financing_service
 from app.core.exceptions import ExternalServiceError
 

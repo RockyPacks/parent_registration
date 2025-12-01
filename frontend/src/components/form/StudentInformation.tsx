@@ -52,7 +52,7 @@ const StudentInformation: React.FC<StudentInformationProps> = ({ initialData, on
 
   useEffect(() => {
     if (onDataChange) {
-      // Format data before sending to parent and localStorage
+      // Format data before sending to parent
       const dataToSave = { ...formData };
       if (dataToSave.dob instanceof Date) {
         dataToSave.dob = dataToSave.dob.toISOString().split('T')[0]; // 'YYYY-MM-DD'
@@ -62,10 +62,10 @@ const StudentInformation: React.FC<StudentInformationProps> = ({ initialData, on
       if (typeof dataToSave.gender === 'string') {
         dataToSave.gender = dataToSave.gender.toLowerCase();
       }
+      // Send to parent component which will handle localStorage via MainContent
       onDataChange(dataToSave);
-      localStorage.setItem('studentInformation', JSON.stringify(dataToSave));
     }
-  }, [formData]);
+  }, [formData, onDataChange]);
 
   const validateField = (field: string, value: string | Date | null) => {
     let error = '';

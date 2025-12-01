@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, UploadFile, File, Form
 from typing import Dict, Any
 
-from app.api.v1.schemas.documents import (
+from app.api.v1.schemas.enrollment import (
     DocumentStatusResponse, FileUploadResponse, UploadedFilesResponse,
     DeleteFileResponse, CompleteUploadResponse, UploadSummaryResponse
 )

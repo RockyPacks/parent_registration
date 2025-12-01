@@ -53,7 +53,6 @@ export const ReviewSubmitStep: React.FC<ReviewSubmitStepProps> = ({ currentData,
       setIsLoading(false);
     } else {
       // This should ideally not happen if Step6ReviewSubmitStep is passing data correctly
-      console.error("ReviewSubmitStep received no currentData prop. Falling back to local storage.");
       // Fallback to local storage for isolated testing or unexpected states
       const studentData: LocalStorageData['studentInformation'] = storage.get('studentInformation', {});
       const familyData: LocalStorageData['familyInformation'] = storage.get('familyInformation', {});
@@ -334,6 +333,7 @@ export const ReviewSubmitStep: React.FC<ReviewSubmitStepProps> = ({ currentData,
                   <InfoItem label="Bank Name" value={summaryData.fee?.bankName || "Not specified"} isRequired={false} placeholder="Bank Name" />
                   <InfoItem label="Branch Code" value={summaryData.fee?.branchCode || "Not specified"} isRequired={false} placeholder="Branch Code" />
                   <InfoItem label="Account Number" value={summaryData.fee?.accountNumber || "Not specified"} isRequired={false} placeholder="Account Number" />
+                  <InfoItem label="Account Type" value={summaryData.fee?.accountType || "Not specified"} isRequired={false} placeholder="Account Type" />
                 </div>
               </AccordionItem>
               <AccordionItem title="Declaration" onEdit={() => handleEdit('Declaration')}>

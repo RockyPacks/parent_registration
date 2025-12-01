@@ -184,7 +184,7 @@ const Step1StudentGuardian: React.FC<Step1StudentGuardianProps> = ({
             status={isFeeResponsibilityCompleted ? 'completed' : 'not-started'}
             icon={<FeeIcon className="w-8 h-8 text-yellow-400" />}
           >
-            <FeeResponsibility initialData={feeData} onDataChange={onFeeDataChange} />
+            <FeeResponsibility initialData={feeData} familyData={familyData} onDataChange={onFeeDataChange} />
           </UploadCard>
 
           {/* Other form sections such as FamilyInformation, FeeResponsibility can be added here similarly with props */}

@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException, Depends
 from typing import Optional
 import logging
 
-from app.api.v1.schemas.academic import (
+from app.api.v1.schemas.enrollment import (
     AcademicHistoryCreate, AcademicHistoryResponse, AcademicHistoryUpdate
 )
 from app.services.academic_service import academic_service

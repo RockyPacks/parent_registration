@@ -5,12 +5,14 @@ from fastapi import HTTPException
 
 from app.repositories.enrollment_repository import enrollment_repository
 from app.repositories.declaration_repository import declaration_repository
+from app.repositories.academic_repository import academic_repository
+from app.repositories.next_of_kin_repository import next_of_kin_repository
 from app.api.v1.schemas.enrollment import (
     AutoSaveRequest, AutoSaveResponse, EnrollmentData,
     SubmitEnrollmentResponse, ApplicationResponse,
     UploadSummaryResponse, SubmitApplicationRequest,
     SubmitApplicationResponse, ApplicationStatus, AcademicHistorySchema,
-    ApplicationSummary, # Add this import
+    ApplicationSummary, AcademicHistoryCreate, NextOfKinCreate,
     StudentInfoPartial, MedicalInfoPartial, FamilyInfoPartial, FeeResponsibilityInfoPartial
 )
 
@@ -22,6 +24,41 @@ class EnrollmentService:
 
     def __init__(self):
         self.repository = enrollment_repository
+
+    def create_academic_history_from_student_data(self, application_id: str, student_data: Any) -> None:
+        """
+        Create academic history record from student information.
+        
+        Maps student fields to academic_history table:
+        - previousSchool -> school_name
+        - previousGrade -> last_grade_completed
+        - gradeAppliedFor -> (used for context, not directly mapped)
+        
+        Args:
+            application_id: Application ID
+            student_data: Student information containing school details
+        """
+        try:
+            # Only proceed if we have the required fields
+            if not hasattr(student_data, 'previous_school') or not student_data.previous_school:
+                logger.info(f"Skipping academic history creation - no previous_school for app {application_id}")
+                return
+            
+            # Create academic history record from student information
+            academic_data = AcademicHistoryCreate(
+                application_id=application_id,
+                school_name=student_data.previous_school,
+                school_type='public',  # Default value, can be enhanced later
+                last_grade_completed=student_data.previous_grade if hasattr(student_data, 'previous_grade') else 'Unknown',
+                academic_year_completed=datetime.now().year - 1  # Last academic year
+            )
+            
+            # Save to academic_repository
+            academic_repository.create(academic_data)
+            logger.info(f"Created academic history for application {application_id} with school: {student_data.previous_school}")
+        except Exception as e:
+            logger.warning(f"Failed to create academic history for application {application_id}: {str(e)}")
+            # Don't raise - this is not critical to the main enrollment flow
 
     def get_or_create_application_for_user(self, user_id: str) -> Dict[str, Any]:
         """
@@ -67,6 +104,8 @@ class EnrollmentService:
                 try:
                     self.repository.save_student_data_partial(application_id, data.student)
                     saved_sections.append("student")
+                    # Create academic history from student data
+                    self.create_academic_history_from_student_data(application_id, data.student)
                 except Exception as e:
                     logger.warning(f"Failed to save student data: {str(e)}")
                     failed_sections.append("student")
@@ -95,6 +134,14 @@ class EnrollmentService:
                     logger.warning(f"Failed to save fee data: {str(e)}")
                     failed_sections.append("fee")
 
+            if data.next_of_kin:
+                try:
+                    self.save_next_of_kin_data_partial(application_id, data.next_of_kin)
+                    saved_sections.append("next_of_kin")
+                except Exception as e:
+                    logger.warning(f"Failed to save next of kin data: {str(e)}")
+                    failed_sections.append("next_of_kin")
+
             message = "Progress saved successfully"
             if failed_sections:
                 message = f"Progress saved partially. Sections saved: {', '.join(saved_sections)}. Failed: {', '.join(failed_sections)}"
@@ -117,7 +164,6 @@ class EnrollmentService:
         """Submit complete enrollment"""
         try:
             logger.info(f"Submit enrollment called for user {user_id}")
-            logger.debug(f"Enrollment data: {data}")
             
             # Validate user_id is not None or empty
             if not user_id or user_id == "unknown":
@@ -141,32 +187,37 @@ class EnrollmentService:
 
             # Save all enrollment data with error handling for each step
             try:
-                logger.debug("Saving student data...")
                 self.repository.save_student_data(application_id, data.student)
+                # Create academic history from student data
+                self.create_academic_history_from_student_data(application_id, data.student)
             except Exception as e:
                 logger.error(f"Failed to save student data: {str(e)}")
                 raise
                 
             try:
-                logger.debug("Saving medical data...")
                 self.repository.save_medical_data(application_id, data.medical)
             except Exception as e:
                 logger.error(f"Failed to save medical data: {str(e)}")
                 raise
                 
             try:
-                logger.debug("Saving family data...")
                 self.repository.save_family_data(application_id, data.family)
             except Exception as e:
                 logger.error(f"Failed to save family data: {str(e)}")
                 raise
                 
             try:
-                logger.debug("Saving fee data...")
                 self.repository.save_fee_data(application_id, data.fee)
             except Exception as e:
                 logger.error(f"Failed to save fee data: {str(e)}")
                 raise
+
+            if data.next_of_kin:
+                try:
+                    self.save_next_of_kin_data(application_id, data.next_of_kin)
+                except Exception as e:
+                    logger.error(f"Failed to save next of kin data: {str(e)}")
+                    raise
 
             logger.info(f"Successfully submitted enrollment for application {application_id}")
             return SubmitEnrollmentResponse(
@@ -251,7 +302,6 @@ class EnrollmentService:
             # Save academic history if provided
             if data.academic_history:
                 from app.repositories.academic_repository import academic_repository
-                from app.api.v1.schemas.academic import AcademicHistoryCreate
                 academic_data = AcademicHistoryCreate(
                     application_id=application_id,
                     school_name=data.academic_history.get("schoolName") or "N/A",
@@ -304,7 +354,21 @@ class EnrollmentService:
             declaration_data = declaration_repository.get_declaration(application_id)
             
             if not declaration_data:
-                raise HTTPException(status_code=404, detail="Declaration not found")
+                # Return empty declaration object with default values instead of 404
+                # This allows the frontend to start with a fresh form
+                return {
+                    "application_id": application_id,
+                    "agree_truth": False,
+                    "agree_policies": False,
+                    "agree_financial": False,
+                    "agree_verification": False,
+                    "agree_data_processing": False,
+                    "agree_audit_storage": False,
+                    "agree_affordability_processing": False,
+                    "full_name": "",
+                    "city": "",
+                    "signed": False
+                }
             
             return declaration_data
 
@@ -340,7 +404,8 @@ class EnrollmentService:
                 'agree_affordability_processing': data.get('agree_affordability_processing', False),
                 'full_name': data.get('fullName', ''),
                 'city': data.get('city', ''),
-                'status': data.get('status', 'completed')
+                'status': data.get('status', 'completed'),
+                'signed': data.get('signed', False)
             }
 
             declaration_repository.save_declaration(application_id, declaration_data)
@@ -353,7 +418,8 @@ class EnrollmentService:
             raise
         except Exception as e:
             logger.error(f"Failed to submit declaration: {str(e)}")
-            raise HTTPException(status_code=500, detail=f"Failed to submit declaration: {str(e)}")
+            # Return generic error message to frontend, log details server-side only
+            raise HTTPException(status_code=500, detail="Failed to submit declaration. Please try again.")
 
     def submit_academic_history(self, data: AcademicHistorySchema, user_id: str) -> Dict[str, Any]:
         """Create or update academic history for an application."""
@@ -376,6 +442,102 @@ class EnrollmentService:
         except Exception as e:
             logger.error(f"Failed to submit academic history for application {data.application_id}: {str(e)}")
             raise HTTPException(status_code=500, detail=f"Failed to submit academic history: {str(e)}")
+
+    def save_next_of_kin_data_partial(self, application_id: str, data: Any) -> None:
+        """Save next of kin data (partial auto-save)"""
+        try:
+            if not data:
+                return
+            
+            # Build the update data from the incoming data
+            update_data = {}
+            if hasattr(data, 'model_dump'):
+                update_data = data.model_dump(exclude_unset=True)
+            elif isinstance(data, dict):
+                update_data = data
+            
+            if not update_data:
+                return
+            
+            # Map frontend field names to backend field names
+            mapped_data = {}
+            mapping = {
+                'nextOfKinSurname': 'surname',
+                'nextOfKinFirstName': 'first_name',
+                'nextOfKinIdNumber': 'id_number',
+                'nextOfKinRelationship': 'relationship',
+                'nextOfKinMobile': 'mobile_number',
+                'nextOfKinEmail': 'email_address',
+                'nextOfKinPhone': 'phone_number',
+                'nextOfKinAlternateMobile': 'alternate_mobile',
+                'nextOfKinPhysicalAddress': 'physical_address',
+            }
+            
+            for frontend_key, db_key in mapping.items():
+                if frontend_key in update_data:
+                    mapped_data[db_key] = update_data[frontend_key]
+            
+            if not mapped_data:
+                return
+            
+            # Add application_id
+            mapped_data['application_id'] = application_id
+            
+            # Create or update using the repository
+            next_of_kin_create = NextOfKinCreate(**mapped_data)
+            next_of_kin_repository.create_next_of_kin(next_of_kin_create)
+            logger.info(f"Saved next of kin data for application {application_id}")
+        except Exception as e:
+            logger.warning(f"Failed to save next of kin data: {str(e)}")
+            # Don't raise - let the main auto-save continue
+
+    def save_next_of_kin_data(self, application_id: str, data: Any) -> None:
+        """Save next of kin data (complete submission)"""
+        try:
+            if not data:
+                return
+            
+            # Build the data
+            next_of_kin_data = {}
+            if hasattr(data, 'model_dump'):
+                next_of_kin_data = data.model_dump()
+            elif isinstance(data, dict):
+                next_of_kin_data = data
+            
+            if not next_of_kin_data:
+                return
+            
+            # Map frontend field names to backend field names
+            mapped_data = {}
+            mapping = {
+                'nextOfKinSurname': 'surname',
+                'nextOfKinFirstName': 'first_name',
+                'nextOfKinIdNumber': 'id_number',
+                'nextOfKinRelationship': 'relationship',
+                'nextOfKinMobile': 'mobile_number',
+                'nextOfKinEmail': 'email_address',
+                'nextOfKinPhone': 'phone_number',
+                'nextOfKinAlternateMobile': 'alternate_mobile',
+                'nextOfKinPhysicalAddress': 'physical_address',
+            }
+            
+            for frontend_key, db_key in mapping.items():
+                if frontend_key in next_of_kin_data:
+                    mapped_data[db_key] = next_of_kin_data[frontend_key]
+            
+            if not mapped_data:
+                return
+            
+            # Add application_id
+            mapped_data['application_id'] = application_id
+            
+            # Create using the repository
+            next_of_kin_create = NextOfKinCreate(**mapped_data)
+            next_of_kin_repository.create_next_of_kin(next_of_kin_create)
+            logger.info(f"Saved next of kin data for application {application_id}")
+        except Exception as e:
+            logger.error(f"Failed to save next of kin data: {str(e)}")
+            raise
 
 # Global instance
 enrollment_service = EnrollmentService()

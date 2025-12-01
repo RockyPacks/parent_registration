@@ -61,7 +61,7 @@ const Step4FeeAgreement: React.FC<Step4FeeAgreementProps> = ({
       const financingData = { plan: sanitizedPlan };
       localStorage.setItem('financingPlan', JSON.stringify(financingData));
 
-      let currentApplicationId = applicationId || localStorage.getItem('applicationId');
+      let currentApplicationId = applicationId;
       if (!currentApplicationId) {
         addToast('No application ID found. Please complete the enrollment form first.', 'error');
         return;
@@ -82,7 +82,6 @@ const Step4FeeAgreement: React.FC<Step4FeeAgreementProps> = ({
       onStepChange && onStepChange(5);
 
     } catch (error) {
-      console.error('Error saving financing plan:', error);
       addToast('Error saving financing plan. Please try again.', 'error');
     }
   };

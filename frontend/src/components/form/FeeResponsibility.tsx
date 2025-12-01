@@ -7,10 +7,11 @@ import { useToast } from '../../hooks/useToast';
 
 interface FeeResponsibilityProps {
   initialData?: any;
+  familyData?: any;
   onDataChange?: (data: any) => void;
 }
 
-const FeeResponsibility: React.FC<FeeResponsibilityProps> = ({ initialData, onDataChange }) => {
+const FeeResponsibility: React.FC<FeeResponsibilityProps> = ({ initialData, familyData, onDataChange }) => {
   const { addToast } = useToast();
   const [formData, setFormData] = useState({
     feePerson: '',
@@ -19,7 +20,14 @@ const FeeResponsibility: React.FC<FeeResponsibilityProps> = ({ initialData, onDa
     bankName: '',
     branchCode: '',
     accountNumber: '',
+    accountType: '',
     selectedPlan: initialData?.selectedPlan || '',
+    // Parent information fields
+    parentIdNumber: '',
+    parentFirstName: '',
+    parentSurname: '',
+    parentEmail: '',
+    parentMobile: '',
     ...initialData
   });
 
@@ -29,16 +37,54 @@ const FeeResponsibility: React.FC<FeeResponsibilityProps> = ({ initialData, onDa
     feeTermsAccepted: '',
     bankName: '',
     branchCode: '',
-    accountNumber: ''
+    accountNumber: '',
+    accountType: ''
   });
+
+  // Auto-populate parent information when feePerson changes
+  useEffect(() => {
+    if (formData.feePerson && familyData) {
+      let parentData = {};
+      
+      if (formData.feePerson === 'Father') {
+        parentData = {
+          parentIdNumber: familyData.fatherIdNumber || '',
+          parentFirstName: familyData.fatherFirstName || '',
+          parentSurname: familyData.fatherSurname || '',
+          parentEmail: familyData.fatherEmail || '',
+          parentMobile: familyData.fatherMobile || '',
+        };
+      } else if (formData.feePerson === 'Mother') {
+        parentData = {
+          parentIdNumber: familyData.motherIdNumber || '',
+          parentFirstName: familyData.motherFirstName || '',
+          parentSurname: familyData.motherSurname || '',
+          parentEmail: familyData.motherEmail || '',
+          parentMobile: familyData.motherMobile || '',
+        };
+      } else if (formData.feePerson === 'Guardian') {
+        parentData = {
+          parentIdNumber: familyData.nextOfKinIdNumber || '',
+          parentFirstName: familyData.nextOfKinFirstName || '',
+          parentSurname: familyData.nextOfKinSurname || '',
+          parentEmail: familyData.nextOfKinEmail || '',
+          parentMobile: familyData.nextOfKinMobile || '',
+        };
+      }
+
+      setFormData(prev => ({
+        ...prev,
+        ...parentData
+      }));
+    }
+  }, [formData.feePerson, familyData]);
 
   useEffect(() => {
     if (onDataChange) {
+      // Send to parent component which will handle localStorage via MainContent
       onDataChange(formData);
     }
-    // Save to localStorage whenever form data changes
-    localStorage.setItem('feeResponsibility', JSON.stringify(formData));
-  }, [formData]);
+  }, [formData, onDataChange]);
 
   const validateField = (field: string, value: string | boolean) => {
     let error = '';
@@ -76,6 +122,11 @@ const FeeResponsibility: React.FC<FeeResponsibilityProps> = ({ initialData, onDa
           error = 'Account number is required';
         } else if (!/^\d{10,12}$/.test(value as string)) {
           error = 'Account number must be 10-12 digits';
+        }
+        break;
+      case 'accountType':
+        if (!value) {
+          error = 'Account type is required';
         }
         break;
     }
@@ -133,18 +184,83 @@ const FeeResponsibility: React.FC<FeeResponsibilityProps> = ({ initialData, onDa
         </SelectField>
       </div>
 
+      {/* Parent Information Section */}
+      {formData.feePerson && (
+        <div className="mt-8 bg-blue-50 rounded-lg p-6 border border-blue-200">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Selected Parent/Guardian Information</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <InputField
+              id="parentFirstName"
+              label="First Name"
+              value={formData.parentFirstName}
+              onChange={(e) => handleInputChange('parentFirstName', e.target.value)}
+              disabled
+              placeholder="Auto-populated from family information"
+            />
+            <InputField
+              id="parentSurname"
+              label="Surname"
+              value={formData.parentSurname}
+              onChange={(e) => handleInputChange('parentSurname', e.target.value)}
+              disabled
+              placeholder="Auto-populated from family information"
+            />
+            <InputField
+              id="parentIdNumber"
+              label="ID Number"
+              value={formData.parentIdNumber}
+              onChange={(e) => handleInputChange('parentIdNumber', e.target.value)}
+              disabled
+              placeholder="Auto-populated from family information"
+            />
+            <InputField
+              id="parentEmail"
+              label="Email Address"
+              type="email"
+              value={formData.parentEmail}
+              onChange={(e) => handleInputChange('parentEmail', e.target.value)}
+              disabled
+              placeholder="Auto-populated from family information"
+            />
+            <InputField
+              id="parentMobile"
+              label="Mobile Number"
+              value={formData.parentMobile}
+              onChange={(e) => handleInputChange('parentMobile', e.target.value)}
+              disabled
+              placeholder="Auto-populated from family information"
+            />
+          </div>
+          <p className="mt-3 text-sm text-gray-600">
+            Parent/guardian information is automatically populated from your family information section.
+          </p>
+        </div>
+      )}
+
       <div className="mt-8">
         <h3 className="text-lg font-semibold text-gray-900 mb-4">Banking Details</h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <InputField
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          <SelectField
             id="bankName"
             label="Bank Name"
             required
             value={formData.bankName}
             onChange={(e) => handleInputChange('bankName', e.target.value)}
             error={errors.bankName}
-            placeholder="e.g., Standard Bank"
-          />
+          >
+            <option value="">Select a bank</option>
+            <option value="Absa Bank">Absa Bank</option>
+            <option value="African Bank">African Bank</option>
+            <option value="Bidvest Bank">Bidvest Bank</option>
+            <option value="Capitec Bank">Capitec Bank</option>
+            <option value="Discovery Bank">Discovery Bank</option>
+            <option value="FirstRand Bank">FirstRand Bank</option>
+            <option value="Investec Bank">Investec Bank</option>
+            <option value="Nedbank">Nedbank</option>
+            <option value="Standard Bank">Standard Bank</option>
+            <option value="TymeBank">TymeBank</option>
+            <option value="Other">Other</option>
+          </SelectField>
           <InputField
             id="branchCode"
             label="Branch Code"
@@ -165,6 +281,21 @@ const FeeResponsibility: React.FC<FeeResponsibilityProps> = ({ initialData, onDa
             placeholder="10-12 digit number"
             maxLength={12}
           />
+          <SelectField
+            id="accountType"
+            label="Account Type"
+            required
+            value={formData.accountType}
+            onChange={(e) => handleInputChange('accountType', e.target.value)}
+            error={errors.accountType}
+          >
+            <option value="">Select account type</option>
+            <option value="Cheque">Cheque</option>
+            <option value="Savings">Savings</option>
+            <option value="Current">Current</option>
+            <option value="Money Market">Money Market</option>
+            <option value="Fixed Deposit">Fixed Deposit</option>
+          </SelectField>
         </div>
         <p className="mt-2 text-sm text-gray-600">
           These banking details will be used for fee payments and risk assessment verification.

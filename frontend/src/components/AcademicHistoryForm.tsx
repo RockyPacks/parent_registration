@@ -236,7 +236,6 @@ const AcademicHistoryForm: React.FC<AcademicHistoryFormProps> = ({ applicationId
           reportCardUrl = uploadResult.file.download_url;
           console.log('Report card uploaded:', reportCardUrl);
         } catch (uploadError: any) {
-          console.error('Report card upload failed:', uploadError);
           const errorMsg = uploadError.message || 'Failed to upload report card';
           addToast(`Upload error: ${errorMsg}`, 'error');
           setIsSubmitting(false);
@@ -278,7 +277,6 @@ const AcademicHistoryForm: React.FC<AcademicHistoryFormProps> = ({ applicationId
       }, 500);
       
     } catch (error: any) {
-      console.error('Submit error:', error);
       const errorMessage = error.response?.data?.detail || error.message || 'Unknown error';
       addToast('Error: ' + errorMessage, 'error');
       setIsSubmitting(false);

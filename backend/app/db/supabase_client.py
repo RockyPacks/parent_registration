@@ -1,9 +1,25 @@
 from supabase import create_client, Client
 import os
+import ssl
+import urllib3
 from app.core.config import settings
 import logging
 
 logger = logging.getLogger(__name__)
+
+# Disable SSL warnings for self-signed or certificate issues
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+
+# Create a custom SSL context if needed
+try:
+    # Try to use the system's CA bundle
+    ssl_context = ssl.create_default_context()
+    # If there are certificate issues, this can be relaxed
+    ssl_context.check_hostname = True
+    ssl_context.verify_mode = ssl.CERT_REQUIRED
+except Exception as ssl_error:
+    logger.warning(f"SSL context creation issue: {ssl_error}")
+    ssl_context = None
 
 # Initialize Supabase client with anon key for auth operations
 # Try direct env vars first, then VITE_ prefixed ones
