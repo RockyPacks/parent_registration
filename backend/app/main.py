@@ -70,41 +70,43 @@ app = FastAPI(
 )
 
 # CORS middleware - MUST be added first (processes last in stack)
-# In production, use environment variables; fallback to hardcoded Render URLs
-is_production = os.getenv("ENVIRONMENT", "development") == "production"
+# Detect production: either ENVIRONMENT=production or SUPABASE_URL is set (deployed)
+is_production = os.getenv("ENVIRONMENT", "development") == "production" or bool(os.getenv("SUPABASE_URL"))
 
-if is_production:
-    # Production: Use environment variables or fallback to Render URLs
-    allowed_origins = []
-    
-    # Try environment variables first
-    if os.getenv("FRONTEND_URL"):
-        allowed_origins.append(os.getenv("FRONTEND_URL"))
-    if os.getenv("RENDER_DEPLOYMENT_URL"):
-        allowed_origins.append(os.getenv("RENDER_DEPLOYMENT_URL"))
-    
-    # Always add Render frontend URL as fallback
-    if "https://parent-registration-frontend.onrender.com" not in allowed_origins:
-        allowed_origins.append("https://parent-registration-frontend.onrender.com")
-    
-    # Always add localhost for debugging
-    allowed_origins.extend([
-        "http://localhost:3000",
-        "http://localhost:5173",
-        "http://localhost:3001",
-    ])
-else:
-    # Development: Allow localhost and common development ports
-    allowed_origins = [
-        "http://localhost:3000",
-        "http://localhost:5173",
-        "http://localhost:3001",
-        "http://localhost:3002",
-        "http://127.0.0.1:3000",
-        "http://127.0.0.1:5173",
-    ]
+# Always include these Render URLs
+render_frontend_url = "https://parent-registration-frontend.onrender.com"
+render_backend_url = "https://parent-registration.onrender.com"
 
-logger.info(f"CORS allowed origins (environment: {os.getenv('ENVIRONMENT', 'development')}): {allowed_origins}")
+# Build allowed origins list
+allowed_origins = []
+
+# Add environment variable URLs
+if os.getenv("FRONTEND_URL"):
+    allowed_origins.append(os.getenv("FRONTEND_URL"))
+if os.getenv("RENDER_DEPLOYMENT_URL"):
+    allowed_origins.append(os.getenv("RENDER_DEPLOYMENT_URL"))
+
+# Always add Render default URLs
+if render_frontend_url not in allowed_origins:
+    allowed_origins.append(render_frontend_url)
+if render_backend_url not in allowed_origins:
+    allowed_origins.append(render_backend_url)
+
+# Always add localhost for development/debugging
+localhost_urls = [
+    "http://localhost:3000",
+    "http://localhost:5173",
+    "http://localhost:3001",
+    "http://localhost:3002",
+    "http://127.0.0.1:3000",
+    "http://127.0.0.1:5173",
+]
+for url in localhost_urls:
+    if url not in allowed_origins:
+        allowed_origins.append(url)
+
+logger.info(f"CORS enabled: is_production={is_production}")
+logger.info(f"CORS allowed origins: {allowed_origins}")
 
 app.add_middleware(
     CORSMiddleware,
