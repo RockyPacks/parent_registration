@@ -70,19 +70,29 @@ app = FastAPI(
 )
 
 # CORS middleware - MUST be added first (processes last in stack)
-# In production, ONLY use environment variable URLs
+# In production, use environment variables; fallback to hardcoded Render URLs
 is_production = os.getenv("ENVIRONMENT", "development") == "production"
 
 if is_production:
-    # Production: Use ONLY environment variables
+    # Production: Use environment variables or fallback to Render URLs
     allowed_origins = []
+    
+    # Try environment variables first
     if os.getenv("FRONTEND_URL"):
         allowed_origins.append(os.getenv("FRONTEND_URL"))
     if os.getenv("RENDER_DEPLOYMENT_URL"):
         allowed_origins.append(os.getenv("RENDER_DEPLOYMENT_URL"))
-    if not allowed_origins:
-        # Fallback for Render deployment
-        allowed_origins = ["https://parent-registration-frontend.onrender.com"]
+    
+    # Always add Render frontend URL as fallback
+    if "https://parent-registration-frontend.onrender.com" not in allowed_origins:
+        allowed_origins.append("https://parent-registration-frontend.onrender.com")
+    
+    # Always add localhost for debugging
+    allowed_origins.extend([
+        "http://localhost:3000",
+        "http://localhost:5173",
+        "http://localhost:3001",
+    ])
 else:
     # Development: Allow localhost and common development ports
     allowed_origins = [
