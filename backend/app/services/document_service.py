@@ -140,17 +140,11 @@ class DocumentService:
             # Get public URL
             file_url = supabase_service.storage.from_(bucket_name).get_public_url(unique_filename)
 
-            # Save document metadata (optional - may fail if table doesn't exist)
-            try:
-                doc_id = self.repository.save_document_metadata(user_id, application_id, document_type, file_url)
-                filename_prefix = f"{document_type}_{doc_id[:8]}"
-            except Exception as meta_error:
-                # If metadata save fails, use a simpler filename
-                logger.warning(f"Could not save document metadata: {str(meta_error)}")
-                doc_id = str(uuid.uuid4())
-                filename_prefix = f"{document_type}_{doc_id[:8]}"
+            # Generate a filename prefix
+            doc_id = str(uuid.uuid4())
+            filename_prefix = f"{document_type}_{doc_id[:8]}"
 
-            # Save file record
+            # Save file record (single database insert)
             file_id = self.repository.save_file_record(
                 application_id=application_id,
                 filename=f"{filename_prefix}.{file_extension}",

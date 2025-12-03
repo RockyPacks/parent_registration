@@ -51,6 +51,11 @@ const MainContent: React.FC<MainContentProps> = (props) => {
   // Track completed steps locally to enforce progression
   const [localCompletedSteps, setLocalCompletedSteps] = useState<number[]>(completedSteps || []);
 
+  // Sync localCompletedSteps with completedSteps prop when it changes
+  useEffect(() => {
+    setLocalCompletedSteps(completedSteps || []);
+  }, [completedSteps]);
+
   const handleDocumentUploadComplete = useCallback(() => {
     console.log('MainContent: handleDocumentUploadComplete called - navigating from step 2 to step 3');
     // Mark step 2 as complete before moving forward
@@ -101,13 +106,38 @@ const MainContent: React.FC<MainContentProps> = (props) => {
     setMedicalData(storage.get(getUserKey('medicalData'), {}) || {});
     setFamilyData(storage.get(getUserKey('familyData'), {}) || {}); // Ensure default is an empty object
     setFeeData(storage.get(getUserKey('feeData'), {}) || {});
-    setDocumentsData(storage.get(getUserKey('documentsData'), []) || []);
+    // Try user-specific key first, then fall back to global uploadedFiles key
+    const userDocs = storage.get(getUserKey('documentsData'), null);
+    const globalDocs = localStorage.getItem('uploadedFiles');
+    setDocumentsData(userDocs || (globalDocs ? JSON.parse(globalDocs) : []));
     setAcademicHistoryData(storage.get(getUserKey('academicHistoryData'), {}) || {});
     setFinancingData(storage.get(getUserKey('financingData'), { plan: 'Pay Once Per Year' }) || { plan: 'Pay Once Per Year' }); // Ensure financingData has a default plan
     setDeclarationData(storage.get(getUserKey('declarationData'), { signed: false }) || { signed: false }); // Ensure declarationData has a default signed status
     setNextOfKinData(storage.get(getUserKey('nextOfKinData'), {}) || {});
     setDataLoaded(true);
-  }, [getUserKey]);
+  }, [getUserKey, applicationInitialized]);
+
+  // Fetch documents from backend when applicationId is available
+  useEffect(() => {
+    const fetchDocuments = async () => {
+      if (!applicationId || !dataLoaded) return;
+      
+      try {
+        const { apiService } = await import('../services/api');
+        const data = await apiService.getUploadedFiles(applicationId);
+        if (data.files && data.files.length > 0) {
+          console.log("MainContent: Loaded documents from backend:", data.files.length);
+          setDocumentsData(data.files);
+          storage.set(getUserKey('documentsData'), data.files);
+          localStorage.setItem('uploadedFiles', JSON.stringify(data.files));
+        }
+      } catch (error) {
+        console.warn("MainContent: Could not fetch documents from backend:", error);
+      }
+    };
+    
+    fetchDocuments();
+  }, [applicationId, dataLoaded, getUserKey]);
 
 
   const isStudentInfoCompleted = useMemo(() => {
@@ -244,14 +274,21 @@ const MainContent: React.FC<MainContentProps> = (props) => {
       }
 
       const { apiService } = await import('../services/api');
-      const result = await apiService.autoSaveEnrollment({
+      const autoSavePayload = {
         application_id: applicationId,
         student: combinedData.student,
         medical: combinedData.medical,
         family: combinedData.family,
         fee: combinedData.fee,
         next_of_kin: nextOfKinData
-      });
+      };
+      
+      console.log('MainContent: Auto-save payload being sent to backend:', autoSavePayload);
+      console.log('MainContent: next_of_kin data specifically:', JSON.stringify(nextOfKinData, null, 2));
+      console.log('MainContent: nextOfKinData keys:', Object.keys(nextOfKinData));
+      console.log('MainContent: nextOfKinData has data?', Object.keys(nextOfKinData).length > 0);
+      
+      const result = await apiService.autoSaveEnrollment(autoSavePayload);
 
       setSavingStatus('saved');
 
@@ -337,25 +374,33 @@ const MainContent: React.FC<MainContentProps> = (props) => {
   }, [getUserKey]);
 
   const handleNextOfKinDataChange = useCallback((data: any) => {
+    console.log("MainContent: Received next of kin data:", data);
     setNextOfKinData(prevData => {
       const newData = { ...prevData, ...data };
       storage.set(getUserKey('nextOfKinData'), newData);
+      console.log("MainContent: Saved next of kin data to localStorage:", newData);
+      console.log("MainContent: localStorage key used:", getUserKey('nextOfKinData'));
+      console.log("MainContent: Updated nextOfKinData state:", newData);
       return newData;
     });
   }, [getUserKey]);
 
   const handleDocumentsDataChange = useCallback((data: any[]) => {
-    setDocumentsData(prevData => {
-      const newData = [...prevData, ...data];
-      storage.set(getUserKey('documentsData'), newData);
-      return newData;
-    });
+    // Replace documents array entirely (not append) since backend returns full list
+    setDocumentsData(data);
+    storage.set(getUserKey('documentsData'), data);
   }, [getUserKey]);
 
   const handleAcademicHistoryDataChange = useCallback((data: any) => {
     setAcademicHistoryData(prevData => {
       const newData = { ...prevData, ...data };
-      storage.set(getUserKey('academicHistoryData'), newData);
+      // Filter out File objects before saving to localStorage (File objects can't be serialized)
+      // Keep reportCardUrl but remove reportCard (File object)
+      const dataToStore = { ...newData };
+      if (dataToStore.reportCard instanceof File || dataToStore.reportCard === null) {
+        delete dataToStore.reportCard;
+      }
+      storage.set(getUserKey('academicHistoryData'), dataToStore);
       return newData;
     });
   }, [getUserKey]);
@@ -631,6 +676,7 @@ const MainContent: React.FC<MainContentProps> = (props) => {
               onStepChange && onStepChange(4); // Then move to the next step
             }}
             onDataChange={handleAcademicHistoryDataChange}
+            initialData={academicHistoryData}
             isEditing={isEditing}
             returnStep={returnStep}
             setIsEditing={setIsEditing}
@@ -671,6 +717,7 @@ const MainContent: React.FC<MainContentProps> = (props) => {
               onStepComplete && onStepComplete(step);
             }}
             onDataChange={handleFinancingDataChange}
+            initialData={financingData}
           />
         </Suspense>
       </ErrorBoundary>

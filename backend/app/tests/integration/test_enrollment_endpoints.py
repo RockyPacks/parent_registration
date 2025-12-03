@@ -16,7 +16,8 @@ from unittest.mock import Mock, patch
 from app.main import app
 from app.api.v1.schemas.enrollment import (
     AutoSaveRequest, EnrollmentData, SubmitApplicationRequest,
-    StudentInfo, MedicalInfo, FamilyInfo, FeeResponsibilityInfo
+    StudentInfo, StudentInfoPartial, MedicalInfo, MedicalInfoPartial,
+    FamilyInfo, FamilyInfoPartial, FeeResponsibilityInfo, FeeResponsibilityInfoPartial
 )
 
 @pytest_asyncio.fixture
@@ -37,8 +38,8 @@ class TestEnrollmentEndpoints:
 
     async def test_auto_save_enrollment(self, client: AsyncClient, auth_headers: dict):
         """Test auto-save enrollment endpoint"""
-        # Arrange
-        student_data = StudentInfo(
+        # Arrange - use StudentInfoPartial for auto-save (partial data allowed)
+        student_data = StudentInfoPartial(
             surname="Doe", first_name="John", date_of_birth="2010-01-01",
             gender="male", home_language="English", id_number="1234567890123",
             previous_grade="Grade 6", grade_applied_for="Grade 7",
@@ -56,7 +57,7 @@ class TestEnrollmentEndpoints:
             # Act
             response = await client.post(
                 "/api/v1/enrollment/auto-save",
-                json=auto_save_data.dict(),
+                json=auto_save_data.model_dump(),
                 headers=auth_headers
             )
 
@@ -219,5 +220,5 @@ def auth_headers():
 @pytest.fixture
 async def client():
     """Create test client"""
-    async with AsyncClient(app=app, base_url="http://testserver") as client:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://testserver") as client:
         yield client

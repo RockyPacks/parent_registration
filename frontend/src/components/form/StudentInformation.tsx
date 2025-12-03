@@ -49,6 +49,37 @@ const StudentInformation: React.FC<StudentInformationProps> = ({ initialData, on
   });
 
   const [errors, setErrors] = useState<{[key: string]: string}>({});
+  const [isInitialized, setIsInitialized] = useState(false);
+
+  // Update form data when initialData changes (e.g., after data is loaded from localStorage/backend)
+  // Only run once when component first receives data to prevent infinite loops
+  useEffect(() => {
+    // Check if initialData has meaningful content (not just empty object)
+    const hasMeaningfulData = initialData && Object.keys(initialData).length > 0 && 
+      (initialData.surname || initialData.firstName || initialData.email);
+    
+    if (!isInitialized && hasMeaningfulData) {
+      console.log('StudentInformation: Initializing with data:', initialData);
+      setFormData(prev => {
+        const updatedData = {
+          ...prev,
+          ...initialData
+        };
+        // Ensure dob is a Date object if it's a valid date string
+        if (updatedData.dob && typeof updatedData.dob === 'string') {
+          updatedData.dob = new Date(updatedData.dob);
+        } else if (typeof updatedData.dob === 'number') {
+          updatedData.dob = new Date(updatedData.dob);
+        }
+        // Ensure gender is lowercase
+        if (updatedData.gender && typeof updatedData.gender === 'string') {
+          updatedData.gender = updatedData.gender.toLowerCase();
+        }
+        return updatedData;
+      });
+      setIsInitialized(true);
+    }
+  }, [initialData, isInitialized]);
 
   useEffect(() => {
     if (onDataChange) {
@@ -65,7 +96,8 @@ const StudentInformation: React.FC<StudentInformationProps> = ({ initialData, on
       // Send to parent component which will handle localStorage via MainContent
       onDataChange(dataToSave);
     }
-  }, [formData, onDataChange]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [formData]);
 
   const validateField = (field: string, value: string | Date | null) => {
     let error = '';
@@ -325,6 +357,7 @@ const StudentInformation: React.FC<StudentInformationProps> = ({ initialData, on
             error={errors.previousGrade}
           >
             <option value="">Select Grade</option>
+            <option value="Grade R">Grade R</option>
             <option value="Grade 1">Grade 1</option>
             <option value="Grade 2">Grade 2</option>
             <option value="Grade 3">Grade 3</option>
@@ -347,6 +380,7 @@ const StudentInformation: React.FC<StudentInformationProps> = ({ initialData, on
             error={errors.gradeAppliedFor}
           >
             <option value="">Select Grade</option>
+            <option value="Grade R">Grade R</option>
             <option value="Grade 1">Grade 1</option>
             <option value="Grade 2">Grade 2</option>
             <option value="Grade 3">Grade 3</option>

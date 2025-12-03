@@ -11,9 +11,8 @@ security = HTTPBearer()
 
 def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
     """
-    Validate Supabase JWT token by decoding it.
-    This avoids double authentication - the token was already validated by Supabase when issued.
-    We just need to extract the user information from it.
+    Validate Supabase JWT token by verifying its signature and extracting user information.
+    This ensures the token is authentic and hasn't been tampered with.
     """
     token = credentials.credentials
 
@@ -28,28 +27,42 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(securit
         }
 
     try:
-        # Decode the JWT token without verification
-        # The token was already verified by Supabase when it was issued to the client
-        # We're just extracting the user information from it
-        decoded = jwt.decode(token, options={"verify_signature": False})
+        # Verify the JWT token signature using the Supabase JWT secret
+        # This ensures the token is authentic and was issued by Supabase
+        try:
+            decoded = jwt.decode(
+                token, 
+                settings.supabase_jwt_secret, 
+                algorithms=["HS256"],
+                audience="authenticated"
+            )
+        except jwt.InvalidSignatureError:
+            logger.error("Invalid JWT signature")
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid token signature",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+        except jwt.ExpiredSignatureError:
+            logger.error("JWT token expired")
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Token expired",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+        except jwt.InvalidAudienceError:
+            logger.error("Invalid JWT audience")
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid token audience",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
         
         # Check if token has required claims
         if not decoded.get("sub"):
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Invalid token: missing user ID",
-                headers={"WWW-Authenticate": "Bearer"},
-            )
-        
-        # Check token expiration
-        exp = decoded.get("exp", 0)
-        current_time = int(time.time())
-        
-        if current_time > exp:
-            logger.error(f"Token expired: {current_time} > {exp}")
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Token expired",
                 headers={"WWW-Authenticate": "Bearer"},
             )
         

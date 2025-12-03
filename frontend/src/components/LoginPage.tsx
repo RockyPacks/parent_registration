@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import { authService } from '../services/auth';
 import knitIcon from '../../assets/knit-icon.png';
+import PasswordInput from './ui/PasswordInput';
 
 interface LoginPageProps {
   onLogin: () => void;
@@ -64,15 +65,13 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onSwitchToSignup }) => {
                 Password
               </label>
               <div className="mt-1">
-                <input
+                <PasswordInput
                   id="password"
                   name="password"
-                  type="password"
                   autoComplete="current-password"
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="block w-full appearance-none rounded-md border border-gray-300 px-3 py-2 placeholder-gray-400 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm"
                 />
               </div>
             </div>

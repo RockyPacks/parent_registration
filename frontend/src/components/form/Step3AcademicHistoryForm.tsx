@@ -11,6 +11,7 @@ interface Step3AcademicHistoryFormProps {
   onAcademicHistoryComplete?: () => void;
   onStepChange?: (step: number) => void;
   onDataChange?: (data: any) => void;
+  initialData?: any;
 }
 
 const Step3AcademicHistoryForm: React.FC<Step3AcademicHistoryFormProps> = ({
@@ -18,7 +19,8 @@ const Step3AcademicHistoryForm: React.FC<Step3AcademicHistoryFormProps> = ({
   onStepComplete,
   onAcademicHistoryComplete,
   onStepChange,
-  onDataChange
+  onDataChange,
+  initialData
 }) => {
   // Handle form submission
   const handleSubmit = useCallback(() => {
@@ -41,6 +43,7 @@ const Step3AcademicHistoryForm: React.FC<Step3AcademicHistoryFormProps> = ({
         applicationId={applicationId}
         onSubmit={handleSubmit}
         onDataChange={onDataChange}
+        initialData={initialData}
       />
     </>
   );

@@ -33,9 +33,50 @@ const FamilyInformation: React.FC<FamilyInformationProps> = ({ initialFamilyData
     nextOfKinRelationship: '',
     nextOfKinMobile: '',
     nextOfKinEmail: '',
-    nextOfKinIdNumber: '', // Added missing nextOfKinIdNumber
+    nextOfKinIdNumber: '',
+    nextOfKinPhone: '',
+    nextOfKinAlternateMobile: '',
+    nextOfKinPhysicalAddress: '',
     ...initialNextOfKinData
   });
+
+  const [isFamilyInitialized, setIsFamilyInitialized] = useState(false);
+  const [isNextOfKinInitialized, setIsNextOfKinInitialized] = useState(false);
+
+  // Update form data when initialFamilyData changes (e.g., after data is loaded from localStorage/backend)
+  // Only run once when component first receives data to prevent infinite loops
+  useEffect(() => {
+    // Check if initialFamilyData has meaningful content (not just empty object)
+    const hasMeaningfulData = initialFamilyData && Object.keys(initialFamilyData).length > 0 &&
+      (initialFamilyData.fatherSurname || initialFamilyData.motherSurname ||
+       initialFamilyData.fatherFirstName || initialFamilyData.motherFirstName);
+    
+    if (!isFamilyInitialized && hasMeaningfulData) {
+      console.log("FamilyInformation: Initializing with familyData:", initialFamilyData);
+      setFamilyFormData(prev => ({
+        ...prev,
+        ...initialFamilyData
+      }));
+      setIsFamilyInitialized(true);
+    }
+  }, [initialFamilyData, isFamilyInitialized]);
+
+  // Update nextOfKin form data when initialNextOfKinData changes
+  // Only run once when component first receives data to prevent infinite loops
+  useEffect(() => {
+    // Check if initialNextOfKinData has meaningful content (not just empty object)
+    const hasMeaningfulData = initialNextOfKinData && Object.keys(initialNextOfKinData).length > 0 &&
+      (initialNextOfKinData.nextOfKinSurname || initialNextOfKinData.nextOfKinFirstName || initialNextOfKinData.nextOfKinEmail);
+    
+    if (!isNextOfKinInitialized && hasMeaningfulData) {
+      console.log("FamilyInformation: Initializing with nextOfKinData:", initialNextOfKinData);
+      setNextOfKinFormData(prev => ({
+        ...prev,
+        ...initialNextOfKinData
+      }));
+      setIsNextOfKinInitialized(true);
+    }
+  }, [initialNextOfKinData, isNextOfKinInitialized]);
 
   const [errors, setErrors] = useState({
     fatherSurname: '',
@@ -60,13 +101,20 @@ const FamilyInformation: React.FC<FamilyInformationProps> = ({ initialFamilyData
     if (onFamilyDataChange) {
       onFamilyDataChange(familyFormData);
     }
-  }, [familyFormData, onFamilyDataChange]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [familyFormData]);
 
   useEffect(() => {
     if (onNextOfKinDataChange) {
+      // Only send meaningful data (not empty objects)
+      const hasData = nextOfKinFormData.nextOfKinSurname || nextOfKinFormData.nextOfKinFirstName || 
+                      nextOfKinFormData.nextOfKinEmail || nextOfKinFormData.nextOfKinMobile;
+      console.log("FamilyInformation: Next of kin data change detected. Has meaningful data:", hasData);
+      console.log("FamilyInformation: Sending next of kin data to parent:", nextOfKinFormData);
       onNextOfKinDataChange(nextOfKinFormData);
     }
-  }, [nextOfKinFormData, onNextOfKinDataChange]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [nextOfKinFormData]);
 
 
   // Check if at least one parent is fully filled

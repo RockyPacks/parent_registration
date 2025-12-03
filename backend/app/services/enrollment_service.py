@@ -136,11 +136,17 @@ class EnrollmentService:
 
             if data.next_of_kin:
                 try:
+                    logger.info(f"=== NEXT OF KIN DATA RECEIVED IN AUTO-SAVE ===")
+                    logger.info(f"Type: {type(data.next_of_kin)}")
+                    logger.info(f"Data: {data.next_of_kin}")
                     self.save_next_of_kin_data_partial(application_id, data.next_of_kin)
                     saved_sections.append("next_of_kin")
                 except Exception as e:
                     logger.warning(f"Failed to save next of kin data: {str(e)}")
+                    logger.exception("Full next_of_kin save error:")
                     failed_sections.append("next_of_kin")
+            else:
+                logger.info(f"=== NO NEXT OF KIN DATA IN AUTO-SAVE REQUEST ===")
 
             message = "Progress saved successfully"
             if failed_sections:
@@ -446,7 +452,13 @@ class EnrollmentService:
     def save_next_of_kin_data_partial(self, application_id: str, data: Any) -> None:
         """Save next of kin data (partial auto-save)"""
         try:
+            logger.info(f"=== SAVE_NEXT_OF_KIN_DATA_PARTIAL CALLED ===")
+            logger.info(f"Application ID: {application_id}")
+            logger.info(f"Data received: {data}")
+            logger.info(f"Data type: {type(data)}")
+            
             if not data:
+                logger.info(f"No next_of_kin data provided for application {application_id}")
                 return
             
             # Build the update data from the incoming data
@@ -455,6 +467,8 @@ class EnrollmentService:
                 update_data = data.model_dump(exclude_unset=True)
             elif isinstance(data, dict):
                 update_data = data
+            
+            logger.info(f"Next of kin raw data received: {update_data}")
             
             if not update_data:
                 return
@@ -474,10 +488,50 @@ class EnrollmentService:
             }
             
             for frontend_key, db_key in mapping.items():
-                if frontend_key in update_data:
+                if frontend_key in update_data and update_data[frontend_key]:
                     mapped_data[db_key] = update_data[frontend_key]
             
-            if not mapped_data:
+            # Normalize relationship to match database CHECK constraint
+            # Valid values: 'Mother', 'Father', 'Brother', 'Sister', 'Aunt', 'Uncle', 
+            #               'Grandmother', 'Grandfather', 'Cousin', 'Guardian', 'Other'
+            if 'relationship' in mapped_data:
+                relationship = mapped_data['relationship']
+                # Capitalize first letter to match database constraint format
+                if relationship:
+                    # Map common variations to valid values
+                    relationship_map = {
+                        'mother': 'Mother', 'mom': 'Mother', 'mum': 'Mother',
+                        'father': 'Father', 'dad': 'Father',
+                        'brother': 'Brother', 'bro': 'Brother',
+                        'sister': 'Sister', 'sis': 'Sister',
+                        'aunt': 'Aunt', 'auntie': 'Aunt',
+                        'uncle': 'Uncle',
+                        'grandmother': 'Grandmother', 'grandma': 'Grandmother', 'gran': 'Grandmother',
+                        'grandfather': 'Grandfather', 'grandpa': 'Grandfather',
+                        'cousin': 'Cousin',
+                        'guardian': 'Guardian',
+                        'other': 'Other',
+                        'parent': 'Guardian', 'spouse': 'Other', 'sibling': 'Other',
+                        'friend': 'Other', 'grandparent': 'Grandmother'
+                    }
+                    normalized = relationship_map.get(relationship.lower(), relationship.capitalize())
+                    # Ensure it's a valid value
+                    valid_values = ['Mother', 'Father', 'Brother', 'Sister', 'Aunt', 'Uncle', 
+                                   'Grandmother', 'Grandfather', 'Cousin', 'Guardian', 'Other']
+                    if normalized not in valid_values:
+                        normalized = 'Other'
+                    mapped_data['relationship'] = normalized
+            
+            logger.info(f"Next of kin mapped data: {mapped_data}")
+            
+            # Check if we have the required fields for creating a next_of_kin record
+            required_fields = ['surname', 'first_name', 'relationship', 'mobile_number', 'email_address']
+            missing_fields = [f for f in required_fields if f not in mapped_data or not mapped_data[f]]
+            
+            logger.info(f"Next of kin required fields check - mapped_data keys: {list(mapped_data.keys())}, missing: {missing_fields}")
+            
+            if missing_fields:
+                logger.info(f"Skipping next_of_kin save - missing required fields: {missing_fields}")
                 return
             
             # Add application_id
@@ -485,8 +539,9 @@ class EnrollmentService:
             
             # Create or update using the repository
             next_of_kin_create = NextOfKinCreate(**mapped_data)
+            logger.info(f"Attempting to save next_of_kin to database for application {application_id}: {mapped_data}")
             next_of_kin_repository.create_next_of_kin(next_of_kin_create)
-            logger.info(f"Saved next of kin data for application {application_id}")
+            logger.info(f"Successfully saved next of kin data for application {application_id}")
         except Exception as e:
             logger.warning(f"Failed to save next of kin data: {str(e)}")
             # Don't raise - let the main auto-save continue
@@ -495,6 +550,7 @@ class EnrollmentService:
         """Save next of kin data (complete submission)"""
         try:
             if not data:
+                logger.info(f"No next_of_kin data provided for complete submission {application_id}")
                 return
             
             # Build the data
@@ -504,28 +560,66 @@ class EnrollmentService:
             elif isinstance(data, dict):
                 next_of_kin_data = data
             
+            logger.info(f"Next of kin complete submission raw data: {next_of_kin_data}")
+            
             if not next_of_kin_data:
                 return
             
-            # Map frontend field names to backend field names
+            # Data comes from API already in snake_case (next_of_kin_surname, etc.)
+            # Map to database field names (which are also snake_case but slightly different)
             mapped_data = {}
             mapping = {
-                'nextOfKinSurname': 'surname',
-                'nextOfKinFirstName': 'first_name',
-                'nextOfKinIdNumber': 'id_number',
-                'nextOfKinRelationship': 'relationship',
-                'nextOfKinMobile': 'mobile_number',
-                'nextOfKinEmail': 'email_address',
-                'nextOfKinPhone': 'phone_number',
-                'nextOfKinAlternateMobile': 'alternate_mobile',
-                'nextOfKinPhysicalAddress': 'physical_address',
+                'next_of_kin_surname': 'surname',
+                'next_of_kin_first_name': 'first_name',
+                'next_of_kin_id_number': 'id_number',
+                'next_of_kin_relationship': 'relationship',
+                'next_of_kin_mobile': 'mobile_number',
+                'next_of_kin_email': 'email_address',
+                'next_of_kin_phone': 'phone_number',
+                'next_of_kin_alternate_mobile': 'alternate_mobile',
+                'next_of_kin_physical_address': 'physical_address',
             }
             
             for frontend_key, db_key in mapping.items():
-                if frontend_key in next_of_kin_data:
+                if frontend_key in next_of_kin_data and next_of_kin_data[frontend_key]:
                     mapped_data[db_key] = next_of_kin_data[frontend_key]
             
-            if not mapped_data:
+            logger.info(f"Next of kin complete mapped data: {mapped_data}")
+            
+            # Normalize relationship to match database CHECK constraint
+            # Valid values: 'Mother', 'Father', 'Brother', 'Sister', 'Aunt', 'Uncle', 
+            #               'Grandmother', 'Grandfather', 'Cousin', 'Guardian', 'Other'
+            if 'relationship' in mapped_data:
+                relationship = mapped_data['relationship']
+                if relationship:
+                    relationship_map = {
+                        'mother': 'Mother', 'mom': 'Mother', 'mum': 'Mother',
+                        'father': 'Father', 'dad': 'Father',
+                        'brother': 'Brother', 'bro': 'Brother',
+                        'sister': 'Sister', 'sis': 'Sister',
+                        'aunt': 'Aunt', 'auntie': 'Aunt',
+                        'uncle': 'Uncle',
+                        'grandmother': 'Grandmother', 'grandma': 'Grandmother', 'gran': 'Grandmother',
+                        'grandfather': 'Grandfather', 'grandpa': 'Grandfather',
+                        'cousin': 'Cousin',
+                        'guardian': 'Guardian',
+                        'other': 'Other',
+                        'parent': 'Guardian', 'spouse': 'Other', 'sibling': 'Other',
+                        'friend': 'Other', 'grandparent': 'Grandmother'
+                    }
+                    normalized = relationship_map.get(relationship.lower(), relationship.capitalize())
+                    valid_values = ['Mother', 'Father', 'Brother', 'Sister', 'Aunt', 'Uncle', 
+                                   'Grandmother', 'Grandfather', 'Cousin', 'Guardian', 'Other']
+                    if normalized not in valid_values:
+                        normalized = 'Other'
+                    mapped_data['relationship'] = normalized
+            
+            # Check if we have the required fields for creating a next_of_kin record
+            required_fields = ['surname', 'first_name', 'relationship', 'mobile_number', 'email_address']
+            missing_fields = [f for f in required_fields if f not in mapped_data or not mapped_data[f]]
+            
+            if missing_fields:
+                logger.warning(f"Skipping next_of_kin save - missing required fields: {missing_fields}")
                 return
             
             # Add application_id
@@ -534,7 +628,7 @@ class EnrollmentService:
             # Create using the repository
             next_of_kin_create = NextOfKinCreate(**mapped_data)
             next_of_kin_repository.create_next_of_kin(next_of_kin_create)
-            logger.info(f"Saved next of kin data for application {application_id}")
+            logger.info(f"✅ Successfully saved next of kin data for application {application_id}")
         except Exception as e:
             logger.error(f"Failed to save next of kin data: {str(e)}")
             raise

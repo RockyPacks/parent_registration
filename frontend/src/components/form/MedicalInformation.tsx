@@ -26,14 +26,27 @@ const MedicalInformation: React.FC<MedicalInformationProps> = ({ initialData, on
     allergies: ''
   });
 
+  const [isInitialized, setIsInitialized] = useState(false);
 
+  // Update form data when initialData changes (e.g., after data is loaded from localStorage/backend)
+  // Only run once when component first receives data to prevent infinite loops
+  useEffect(() => {
+    if (!isInitialized && initialData && Object.keys(initialData).length > 0) {
+      setFormData(prev => ({
+        ...prev,
+        ...initialData
+      }));
+      setIsInitialized(true);
+    }
+  }, [initialData, isInitialized]);
 
   useEffect(() => {
     if (onDataChange) {
       // Send to parent component which will handle localStorage via MainContent
       onDataChange(formData);
     }
-  }, [formData, onDataChange]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [formData]);
 
   const validateField = (field: string, value: string) => {
     let error = '';

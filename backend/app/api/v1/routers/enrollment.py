@@ -24,13 +24,15 @@ async def auto_save_enrollment(
     """Auto-save enrollment progress"""
     try:
         return enrollment_service.auto_save_enrollment(data, current_user.get("id"))
+    except HTTPException:
+        # Re-raise HTTP exceptions (like auth errors)
+        raise
     except Exception as e:
-        logger.error(f"Auto-save failed: {str(e)}")
-        # Return a success response to prevent frontend errors
-        # The frontend will retry or handle gracefully
-        return AutoSaveResponse(
-            message="Auto-save completed with warnings",
-            application_id=data.application_id or "unknown"
+        logger.error(f"Auto-save failed for user {current_user.get('id')}: {str(e)}", exc_info=True)
+        # Return error response so frontend knows save failed
+        raise HTTPException(
+            status_code=500,
+            detail=f"Auto-save failed: {str(e)}"
         )
 
 @router.post("/initiate-application", response_model=Dict[str, Any])

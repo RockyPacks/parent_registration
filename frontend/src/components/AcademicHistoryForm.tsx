@@ -15,29 +15,55 @@ interface AcademicHistoryFormProps {
   onSubmit: () => void;
   onBack?: () => void;
   onDataChange?: (data: AcademicHistoryData) => void;
+  initialData?: AcademicHistoryData;
 }
 
-const AcademicHistoryForm: React.FC<AcademicHistoryFormProps> = ({ applicationId, onSubmit, onBack, onDataChange }) => {
+const AcademicHistoryForm: React.FC<AcademicHistoryFormProps> = ({ applicationId, onSubmit, onBack, onDataChange, initialData }) => {
   const { addToast } = useToast();
-  const [formData, setFormData] = useState<AcademicHistoryData>({
-    schoolName: '',
-    schoolType: '',
-    lastGradeCompleted: '',
-    academicYearCompleted: '',
-    reasonForLeaving: '',
-    principalName: '',
-    schoolPhoneNumber: '',
-    schoolEmail: '',
-    schoolAddress: '',
-    reportCard: null,
-    additionalNotes: ''
-  });
+  
+  // Initialize form data with initialData from localStorage if available
+  const getInitialFormData = (): AcademicHistoryData => {
+    if (initialData && Object.keys(initialData).length > 0) {
+      console.log('Initializing form with localStorage data:', initialData);
+      return {
+        schoolName: initialData.schoolName || '',
+        schoolType: initialData.schoolType || '',
+        lastGradeCompleted: initialData.lastGradeCompleted || '',
+        academicYearCompleted: initialData.academicYearCompleted || '',
+        reasonForLeaving: initialData.reasonForLeaving || '',
+        principalName: initialData.principalName || '',
+        schoolPhoneNumber: initialData.schoolPhoneNumber || '',
+        schoolEmail: initialData.schoolEmail || '',
+        schoolAddress: initialData.schoolAddress || '',
+        reportCard: null,
+        reportCardUrl: initialData.reportCardUrl || '',
+        additionalNotes: initialData.additionalNotes || ''
+      };
+    }
+    return {
+      schoolName: '',
+      schoolType: '',
+      lastGradeCompleted: '',
+      academicYearCompleted: '',
+      reasonForLeaving: '',
+      principalName: '',
+      schoolPhoneNumber: '',
+      schoolEmail: '',
+      schoolAddress: '',
+      reportCard: null,
+      additionalNotes: ''
+    };
+  };
+  
+  const [formData, setFormData] = useState<AcademicHistoryData>(getInitialFormData);
   const [dataLoadedFromBackend, setDataLoadedFromBackend] = useState(false);
+  const [dataInitialized, setDataInitialized] = useState(!!initialData && Object.keys(initialData).length > 0);
 
   // Load existing data from backend if application exists (when user returns to this step)
+  // Only load from backend if we don't already have initialData from localStorage
   React.useEffect(() => {
     const loadExistingData = async () => {
-      if (!applicationId || dataLoadedFromBackend) return;
+      if (!applicationId || dataLoadedFromBackend || dataInitialized) return;
       
       try {
         console.log('Loading academic history data for application:', applicationId);
@@ -74,7 +100,7 @@ const AcademicHistoryForm: React.FC<AcademicHistoryFormProps> = ({ applicationId
     if (applicationId) {
       loadExistingData();
     }
-  }, [applicationId, dataLoadedFromBackend]);
+  }, [applicationId, dataLoadedFromBackend, dataInitialized]);
 
   const [expandedSections, setExpandedSections] = useState({
     schoolDetails: true,
@@ -111,8 +137,43 @@ const AcademicHistoryForm: React.FC<AcademicHistoryFormProps> = ({ applicationId
       setFormData(prev => ({ ...prev, [name]: values }));
   };
 
-  const handleFileChange = (file: File | null) => {
-      setFormData(prev => ({ ...prev, reportCard: file }));
+  const [isUploading, setIsUploading] = useState(false);
+
+  const handleFileChange = async (file: File | null) => {
+    if (!file) {
+      // User cleared the file selection
+      setFormData(prev => ({ ...prev, reportCard: null }));
+      return;
+    }
+
+    // Check if we have an applicationId to upload to
+    if (!applicationId || applicationId.startsWith('temp_')) {
+      addToast('Please complete Step 1 first before uploading files', 'warning');
+      return;
+    }
+
+    // Immediately upload the file
+    setIsUploading(true);
+    try {
+      addToast('Uploading report card...', 'info');
+      const uploadResult = await apiService.uploadFile(
+        file,
+        applicationId,
+        'academic_history'
+      );
+      const reportCardUrl = uploadResult.file.download_url;
+      console.log('Report card uploaded immediately:', reportCardUrl);
+      
+      // Update formData with the URL (not the File object) so it persists
+      setFormData(prev => ({ ...prev, reportCard: null, reportCardUrl: reportCardUrl }));
+      addToast('Report card uploaded successfully!', 'success');
+    } catch (uploadError: any) {
+      const errorMsg = uploadError.message || 'Failed to upload report card';
+      addToast(`Upload error: ${errorMsg}`, 'error');
+      console.error('Report card upload failed:', uploadError);
+    } finally {
+      setIsUploading(false);
+    }
   };
 
   const validateForm = (): boolean => {
@@ -235,6 +296,9 @@ const AcademicHistoryForm: React.FC<AcademicHistoryFormProps> = ({ applicationId
           );
           reportCardUrl = uploadResult.file.download_url;
           console.log('Report card uploaded:', reportCardUrl);
+          
+          // Update formData with the new URL so it gets saved to localStorage via onDataChange
+          setFormData(prev => ({ ...prev, reportCardUrl: reportCardUrl, reportCard: null }));
         } catch (uploadError: any) {
           const errorMsg = uploadError.message || 'Failed to upload report card';
           addToast(`Upload error: ${errorMsg}`, 'error');
@@ -403,7 +467,16 @@ const AcademicHistoryForm: React.FC<AcademicHistoryFormProps> = ({ applicationId
                       ✓ Report card already uploaded. Upload a new file to replace it.
                     </div>
                   )}
-                  <FileUpload onFileChange={handleFileChange} />
+                  {isUploading && (
+                    <div className="mb-2 p-2 bg-blue-50 border border-blue-200 rounded text-sm text-blue-700 flex items-center">
+                      <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      Uploading report card...
+                    </div>
+                  )}
+                  <FileUpload onFileChange={handleFileChange} isUploading={isUploading} />
                   {validationErrors.reportCard && (
                     <p className="mt-1 text-sm text-red-600">{validationErrors.reportCard}</p>
                   )}

@@ -9,7 +9,8 @@ interface Step4FeeAgreementProps {
   onFeeAgreementComplete?: () => void;
   onStepChange?: (step: number) => void;
   onStepComplete?: (stepNumber: number) => void;
-  onDataChange?: (data: any) => void; // Add this prop
+  onDataChange?: (data: any) => void;
+  initialData?: { plan?: string };
 }
 
 const Step4FeeAgreement: React.FC<Step4FeeAgreementProps> = ({
@@ -17,19 +18,30 @@ const Step4FeeAgreement: React.FC<Step4FeeAgreementProps> = ({
   onFeeAgreementComplete,
   onStepChange,
   onStepComplete,
-  onDataChange // Destructure onDataChange prop
+  onDataChange,
+  initialData
 }) => {
+  // Initialize from initialData (localStorage via MainContent) or default
   const [selectedPlan, setSelectedPlan] = useState<string>(() => {
-    const saved = localStorage.getItem('financingPlan');
-    return saved ? JSON.parse(saved).plan || 'Pay Once Per Year' : 'Pay Once Per Year';
+    if (initialData?.plan) {
+      return initialData.plan;
+    }
+    return 'Pay Once Per Year';
   });
   const { addToast } = useToast();
+
+  // Update selectedPlan when initialData changes (e.g., after data is loaded from backend)
+  React.useEffect(() => {
+    if (initialData?.plan && initialData.plan !== selectedPlan) {
+      setSelectedPlan(initialData.plan);
+    }
+  }, [initialData?.plan]);
 
   // Call onDataChange whenever selectedPlan changes or initialData is loaded
   React.useEffect(() => {
     // Also include feeData, as it's often related to financing in the summary
     onDataChange && onDataChange({ plan: selectedPlan });
-  }, [selectedPlan]);
+  }, [selectedPlan, onDataChange]);
 
   const getPlanType = (planTitle: string): string => {
     const planMapping: { [key: string]: string } = {
@@ -38,7 +50,8 @@ const Step4FeeAgreement: React.FC<Step4FeeAgreementProps> = ({
       'Pay Once Per Year': 'annual_discount',
       'Buy Now, Pay Later': 'bnpl',
       'Forward Funding': 'forward_funding',
-      'Sibling Benefit': 'sibling_discount'
+      'Sibling Benefit': 'sibling_discount',
+      'Pay via EFT': 'eft'
     };
     return planMapping[planTitle] || planTitle.toLowerCase().replace(/\s+/g, '_');
   };
@@ -58,8 +71,7 @@ const Step4FeeAgreement: React.FC<Step4FeeAgreementProps> = ({
 
     try {
       const sanitizedPlan = sanitizePlanTitle(selectedPlan);
-      const financingData = { plan: sanitizedPlan };
-      localStorage.setItem('financingPlan', JSON.stringify(financingData));
+      // Note: No need to write to localStorage here - onDataChange already handles user-specific storage
 
       let currentApplicationId = applicationId;
       if (!currentApplicationId) {

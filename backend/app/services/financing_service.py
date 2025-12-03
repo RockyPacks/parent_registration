@@ -17,7 +17,7 @@ class FinancingService:
         self.repository = financing_repository
 
     def save_financing_selection(self, application_id: str, plan_type: str, discount_rate: Optional[float] = None, cost_of_credit: Optional[float] = None, repayment_term: Optional[str] = None) -> str:
-        """Save financing selection for an application"""
+        """Save financing selection for an application - updates selected_plan in fee_responsibility table"""
         try:
             # Sanitize and validate application_id
             if not application_id or not isinstance(application_id, str):
@@ -28,7 +28,7 @@ class FinancingService:
             # Validate plan_type against allowed values
             allowed_plans = [
                 'monthly_flat', 'termly_discount', 'annual_discount',
-                'sibling_discount', 'bnpl', 'forward_funding', 'arrears-bnpl'
+                'sibling_discount', 'bnpl', 'forward_funding', 'arrears-bnpl', 'eft'
             ]
 
             if not plan_type or not isinstance(plan_type, str):
@@ -39,27 +39,38 @@ class FinancingService:
             if plan_type not in allowed_plans:
                 raise ValueError(f"Invalid plan type: {plan_type}. Allowed values: {', '.join(allowed_plans)}")
 
-            financing_id = self.repository.save_financing_selection(
-                application_id=application_id,
-                plan_type=plan_type,
-                discount_rate=discount_rate,
-                cost_of_credit=cost_of_credit,
-                repayment_term=repayment_term
-            )
-
-            # Automatically update selected_plan in fee_responsibility table
+            # Only update selected_plan in fee_responsibility table (no separate financing_selections table)
             self.repository.update_fee_responsibility_selected_plan(application_id, plan_type)
 
-            logger.info(f"Saved financing selection {financing_id} for application {application_id}")
-            return financing_id
+            logger.info(f"Updated selected_plan to {plan_type} for application {application_id}")
+            
+            # Return a dict that matches FinancingSelectionResponse schema
+            return {
+                "application_id": application_id,
+                "plan_type": self._get_plan_display_name(plan_type)
+            }
         except Exception as e:
             logger.error(f"Failed to save financing selection for application {application_id}: {str(e)}")
             raise ExternalServiceError("Database", f"Failed to save financing selection: {str(e)}")
 
+    def _get_plan_display_name(self, plan_type: str) -> str:
+        """Convert plan_type code to display name"""
+        plan_name_mapping = {
+            'monthly_flat': 'Pay Monthly Debit',
+            'termly_discount': 'Pay Per Term',
+            'annual_discount': 'Pay Once Per Year',
+            'sibling_discount': 'Sibling Benefit',
+            'bnpl': 'Buy Now, Pay Later',
+            'forward_funding': 'Forward Funding',
+            'arrears-bnpl': 'Buy Now, Pay Later',
+            'eft': 'Pay via EFT'
+        }
+        return plan_name_mapping.get(plan_type, plan_type)
+
     def get_financing_selection(self, application_id: str) -> Optional[Dict[str, Any]]:
-        """Get financing selection for an application"""
+        """Get financing selection for an application - reads selected_plan from fee_responsibility"""
         try:
-            return self.repository.get_financing_selection(application_id)
+            return self.repository.get_financing_selection_from_fee_responsibility(application_id)
         except Exception as e:
             logger.error(f"Failed to get financing selection for application {application_id}: {str(e)}")
             raise ExternalServiceError("Database", f"Failed to retrieve financing selection: {str(e)}")

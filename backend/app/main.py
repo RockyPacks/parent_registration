@@ -129,7 +129,12 @@ app.add_middleware(
 app.add_middleware(RequestSizeLimitMiddleware, max_body_size=10 * 1024 * 1024)  # 10MB default
 
 # Rate limiting middleware (should be early in middleware stack)
+# Global rate limit - 60 requests per minute per IP
 app.add_middleware(RateLimitMiddleware, requests_per_minute=60)
+
+# Note: For endpoint-specific rate limits (e.g., file uploads, auth endpoints),
+# use the ENDPOINT_RATE_LIMITS configuration in rate_limit.py or implement
+# per-route rate limiting in the specific router endpoints
 
 # Add security headers middleware first (executes last)
 app.add_middleware(SecurityHeadersMiddleware)
@@ -138,9 +143,32 @@ app.add_middleware(SecurityHeadersMiddleware)
 app.add_middleware(GZipMiddleware, minimum_size=1000)
 
 # Security middleware - Trusted hosts
+# Build trusted hosts list based on environment
+trusted_hosts = []
+if os.getenv("FRONTEND_URL"):
+    # Extract hostname from URL
+    from urllib.parse import urlparse
+    parsed = urlparse(os.getenv("FRONTEND_URL"))
+    if parsed.hostname:
+        trusted_hosts.append(parsed.hostname)
+
+# Add known deployment URLs
+trusted_hosts.extend([
+    "localhost",
+    "127.0.0.1",
+    "parent-registration-frontend.onrender.com",
+    "parent-registration.onrender.com",
+])
+
+# If RENDER_DEPLOYMENT_URL is set, add it
+if os.getenv("RENDER_DEPLOYMENT_URL"):
+    parsed = urlparse(os.getenv("RENDER_DEPLOYMENT_URL"))
+    if parsed.hostname and parsed.hostname not in trusted_hosts:
+        trusted_hosts.append(parsed.hostname)
+
 app.add_middleware(
     TrustedHostMiddleware,
-    allowed_hosts=["*"]
+    allowed_hosts=trusted_hosts
 )
 
 # Performance monitoring middleware

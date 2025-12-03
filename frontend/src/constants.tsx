@@ -131,6 +131,18 @@ export const financingOptionsData = [
       { text: 'Family savings plan', type: 'positive' },
     ],
   },
+  {
+    title: 'Pay via EFT',
+    subtitle: 'Manual bank transfer',
+    price: 'Full Amount',
+    period: '',
+    tag: { type: 'none', text: '' },
+    features: [
+      { text: 'Pay directly from your bank', type: 'positive' },
+      { text: 'Upload proof of payment', type: 'positive' },
+      { text: 'Bank details provided after selection', type: 'info' },
+    ],
+  },
 ];
 
 export const qualifications = [
@@ -156,6 +168,14 @@ export const SCHOOL_TYPES = [
 ];
 
 export const GRADES = [
+  { value: 'gradeR', label: 'Grade R' },
+  { value: 'grade1', label: 'Grade 1' },
+  { value: 'grade2', label: 'Grade 2' },
+  { value: 'grade3', label: 'Grade 3' },
+  { value: 'grade4', label: 'Grade 4' },
+  { value: 'grade5', label: 'Grade 5' },
+  { value: 'grade6', label: 'Grade 6' },
+  { value: 'grade7', label: 'Grade 7' },
   { value: 'grade8', label: 'Grade 8' },
   { value: 'grade9', label: 'Grade 9' },
   { value: 'grade10', label: 'Grade 10' },

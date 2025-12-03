@@ -38,6 +38,50 @@ const getIncompleteRequirements = (isStudentCompleted: boolean, isFamilyComplete
   return incomplete;
 };
 
+// Get detailed missing fields for better error messages
+const getDetailedMissingFields = (studentData: any, familyData: any, feeData: any) => {
+  const missingFields: { section: string; fields: string[] }[] = [];
+  
+  // Student Information required fields
+  const studentMissing: string[] = [];
+  if (!studentData?.surname || studentData.surname.trim().length < 2) studentMissing.push('Surname');
+  if (!studentData?.firstName || studentData.firstName.trim().length < 2) studentMissing.push('First Name');
+  if (!studentData?.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(studentData.email)) studentMissing.push('Email Address');
+  if (!studentData?.phone || !/^(\+27|0)[6-8][0-9]{8}$/.test(studentData.phone)) studentMissing.push('Phone Number');
+  if (!studentData?.dob) studentMissing.push('Date of Birth');
+  if (!studentData?.gender) studentMissing.push('Gender');
+  if (!studentData?.homeLanguage) studentMissing.push('Home Language');
+  if (!studentData?.idNumber || !/^\d{13}$/.test(studentData.idNumber)) studentMissing.push('ID Number');
+  if (!studentData?.previousGrade) studentMissing.push('Previous Grade');
+  if (!studentData?.gradeAppliedFor) studentMissing.push('Grade Applied For');
+  if (!studentData?.previousSchool || studentData.previousSchool.trim().length < 3) studentMissing.push('Previous School');
+  if (studentMissing.length > 0) {
+    missingFields.push({ section: 'Student Information', fields: studentMissing });
+  }
+  
+  // Family Information required fields (at least one parent)
+  const familyMissing: string[] = [];
+  const hasFather = familyData?.fatherSurname && familyData?.fatherFirstName;
+  const hasMother = familyData?.motherSurname && familyData?.motherFirstName;
+  if (!hasFather && !hasMother) {
+    familyMissing.push('At least one parent\'s information (Father or Mother)');
+  }
+  if (familyMissing.length > 0) {
+    missingFields.push({ section: 'Family Information', fields: familyMissing });
+  }
+  
+  // Fee Responsibility required fields
+  const feeMissing: string[] = [];
+  if (!feeData?.feePerson || feeData.feePerson.trim().length === 0) feeMissing.push('Fee Payer Name');
+  if (!feeData?.relationship) feeMissing.push('Relationship to Student');
+  if (!feeData?.feeTermsAccepted) feeMissing.push('Fee Terms Acceptance');
+  if (feeMissing.length > 0) {
+    missingFields.push({ section: 'Fee Responsibility', fields: feeMissing });
+  }
+  
+  return missingFields;
+};
+
 const Step1StudentGuardian: React.FC<Step1StudentGuardianProps> = ({
   studentData,
   medicalData,
@@ -66,7 +110,29 @@ const Step1StudentGuardian: React.FC<Step1StudentGuardianProps> = ({
     isFeeResponsibilityCompleted
   );
   
+  const detailedMissingFields = getDetailedMissingFields(studentData, familyData, feeData);
   const canProceed = incompleteRequirements.length === 0;
+  
+  const handleSubmitClick = () => {
+    if (!canProceed) {
+      // Scroll to the first incomplete section
+      const firstIncompleteSection = detailedMissingFields[0]?.section;
+      if (firstIncompleteSection) {
+        const sectionMap: { [key: string]: string } = {
+          'Student Information': 'student-information',
+          'Family Information': 'family-information',
+          'Fee Responsibility': 'fee-responsibility'
+        };
+        const elementId = sectionMap[firstIncompleteSection];
+        const element = document.getElementById(elementId);
+        if (element) {
+          element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      }
+    } else {
+      onSubmitClick();
+    }
+  };
 
   return (
     <div className="flex-1 bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 min-h-screen">
@@ -127,6 +193,7 @@ const Step1StudentGuardian: React.FC<Step1StudentGuardianProps> = ({
         {/* Form Sections */}
         <div className="space-y-6">
           <UploadCard
+            id="student-information"
             title="Student Information"
             required
             collapsible={true}
@@ -144,6 +211,7 @@ const Step1StudentGuardian: React.FC<Step1StudentGuardianProps> = ({
           </UploadCard>
 
           <UploadCard
+            id="medical-information"
             title="Medical Information"
             required={false}
             collapsible={true}
@@ -161,6 +229,7 @@ const Step1StudentGuardian: React.FC<Step1StudentGuardianProps> = ({
           </UploadCard>
 
           <UploadCard
+            id="family-information"
             title="Family Information"
             required
             collapsible={true}
@@ -177,6 +246,7 @@ const Step1StudentGuardian: React.FC<Step1StudentGuardianProps> = ({
           </UploadCard>
 
           <UploadCard
+            id="fee-responsibility"
             title="Fee Responsibility"
             required
             collapsible={true}
@@ -184,7 +254,11 @@ const Step1StudentGuardian: React.FC<Step1StudentGuardianProps> = ({
             status={isFeeResponsibilityCompleted ? 'completed' : 'not-started'}
             icon={<FeeIcon className="w-8 h-8 text-yellow-400" />}
           >
-            <FeeResponsibility initialData={feeData} familyData={familyData} onDataChange={onFeeDataChange} />
+            <FeeResponsibility 
+              initialData={feeData} 
+              familyData={{ ...familyData, ...nextOfKinData }} 
+              onDataChange={onFeeDataChange} 
+            />
           </UploadCard>
 
           {/* Other form sections such as FamilyInformation, FeeResponsibility can be added here similarly with props */}
@@ -206,16 +280,21 @@ const Step1StudentGuardian: React.FC<Step1StudentGuardianProps> = ({
                   <svg className="w-5 h-5 text-amber-600 mt-0.5 mr-2 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
                     <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
                   </svg>
-                  <div className="text-left">
-                    <p className="text-sm font-medium text-amber-800 mb-2">Please complete the following required sections:</p>
-                    <ul className="text-sm text-amber-700 space-y-1">
-                      {incompleteRequirements.map((req, idx) => (
-                        <li key={idx} className="flex items-center">
-                          <span className="mr-2">•</span>
-                          <span>{req}</span>
-                        </li>
-                      ))}
-                    </ul>
+                  <div className="text-left flex-1">
+                    <p className="text-sm font-semibold text-amber-800 mb-3">Please complete the following required fields:</p>
+                    {detailedMissingFields.map((section, idx) => (
+                      <div key={idx} className="mb-3 last:mb-0">
+                        <p className="text-sm font-medium text-amber-700 mb-1">{section.section}:</p>
+                        <ul className="text-sm text-amber-600 space-y-1 ml-4">
+                          {section.fields.map((field, fieldIdx) => (
+                            <li key={fieldIdx} className="flex items-start">
+                              <span className="mr-2 text-amber-500">•</span>
+                              <span>{field}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    ))}
                   </div>
                 </div>
               </div>
@@ -226,7 +305,7 @@ const Step1StudentGuardian: React.FC<Step1StudentGuardianProps> = ({
             )}
             
             <button
-              onClick={onSubmitClick}
+              onClick={handleSubmitClick}
               disabled={!canProceed || isSubmitting || !applicationInitialized}
               className={`w-full py-4 px-8 rounded-lg transition-all duration-200 font-semibold text-lg shadow-lg ${
                 canProceed && !isSubmitting && applicationInitialized

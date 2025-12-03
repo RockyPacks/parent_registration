@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 
 interface UploadCardProps {
+  id?: string;
   title: string;
   required?: boolean;
   children: React.ReactNode;
@@ -14,6 +15,7 @@ interface UploadCardProps {
 }
 
 export const UploadCard: React.FC<UploadCardProps> = ({
+  id,
   title,
   required,
   children,
@@ -55,7 +57,9 @@ export const UploadCard: React.FC<UploadCardProps> = ({
   };
 
   return (
-    <div className={`bg-white rounded-lg border shadow-sm transition-all duration-200 ${
+    <div 
+      id={id}
+      className={`bg-white rounded-lg border shadow-sm transition-all duration-200 ${
       collapsible && !isOpen ? 'border-gray-200' : 'border-gray-200'
     }`}>
       <div

@@ -59,7 +59,13 @@ export const useUpload = () => {
       let uploadError: UploadError;
 
       if (error instanceof Error) {
-        if (error.message.includes('Network error')) {
+        // Handle abort errors gracefully - don't show as an error
+        if (error.name === 'AbortError' || error.message.includes('aborted')) {
+          uploadError = { type: 'cancelled', message: 'Upload was cancelled.' };
+          // Don't set error state for intentional cancellations
+          setUploadState({ isUploading: false, error: null, progress: 0 });
+          return null;
+        } else if (error.message.includes('Network error')) {
           uploadError = { type: 'network', message: 'Network connection failed. Please check your internet connection.' };
         } else if (error.message.includes('cancelled')) {
           uploadError = { type: 'cancelled', message: 'Upload was cancelled.' };

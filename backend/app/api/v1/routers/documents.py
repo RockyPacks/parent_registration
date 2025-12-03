@@ -7,6 +7,7 @@ from app.api.v1.schemas.enrollment import (
 )
 from app.services.document_service import document_service
 from app.core.security import get_current_user
+from app.core.file_rate_limit import check_file_upload_limit
 
 router = APIRouter()
 
@@ -25,7 +26,15 @@ async def upload_file(
     document_type: str = Form(...),
     current_user: dict = Depends(get_current_user)
 ) -> FileUploadResponse:
-    """Upload file to Supabase Storage"""
+    """Upload file to Supabase Storage with rate limiting"""
+    # Get file size
+    file.file.seek(0, 2)  # Seek to end
+    file_size = file.file.tell()
+    file.file.seek(0)  # Reset to beginning
+    
+    # Check file upload rate limit
+    check_file_upload_limit(current_user.get("id"), file_size)
+    
     return document_service.upload_file(file, application_id, document_type, current_user.get("id"))
 
 @router.get("/{application_id}/files", response_model=UploadedFilesResponse)

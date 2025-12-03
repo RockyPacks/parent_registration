@@ -304,7 +304,7 @@ class ApiService {
     });
   }
 
-  async autoSaveEnrollment(data: { application_id: string; student?: any; medical?: any; family?: any; fee?: any }): Promise<{ message: string; application_id: string }> {
+  async autoSaveEnrollment(data: { application_id: string; student?: any; medical?: any; family?: any; fee?: any; next_of_kin?: any }): Promise<{ message: string; application_id: string }> {
     // Only include sections that have actual data
     const filteredData: any = {
       application_id: data.application_id
@@ -329,6 +329,9 @@ class ApiService {
     }
     if (hasData(data.fee)) {
       filteredData.fee = data.fee;
+    }
+    if (hasData(data.next_of_kin)) {
+      filteredData.next_of_kin = data.next_of_kin;
     }
 
     // Only proceed if we have at least some data to save besides the application_id

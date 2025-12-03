@@ -51,43 +51,68 @@ const App: React.FC = () => {
       // Initialize auth state listener - now tab-specific with sessionStorage
       console.log("App.tsx: Setting up tab-specific auth state listener");
       let currentUserEmailRef = { current: null as string | null };
-      let isInitialLoad = true;
+      let hasInitialized = false;
+      let isLoadingApplication = false; // Prevent duplicate loads
 
       authService.initAuthListener(async (user) => {
-        console.log("App.tsx: Auth state changed in THIS TAB, user:", !!user);
-        const wasAuthenticated = isAuthenticated;
+        console.log("App.tsx: Auth state changed in THIS TAB, user:", !!user, "hasInitialized:", hasInitialized, "isLoadingApplication:", isLoadingApplication);
         
-        // On initial load, we'll handle authentication separately
-        // This prevents double-loading when both listener and manual check fire
-        if (isInitialLoad) {
+        // Skip if we're already loading an application (prevents duplicate calls)
+        if (isLoadingApplication) {
+          console.log("App.tsx: Skipping - already loading application");
+          return;
+        }
+        
+        // On initial load, handle authentication once
+        if (!hasInitialized) {
           console.log("App.tsx: Initial load handled by listener");
+          hasInitialized = true;
           setIsAuthenticated(!!user);
           setUserEmail(user?.email || null);
           setUserName(user?.full_name || null);
           
           if (user) {
             currentUserEmailRef.current = user.email;
-            await loadUserApplication(user.email);
+            isLoadingApplication = true;
+            try {
+              await loadUserApplication(user.email);
+            } finally {
+              isLoadingApplication = false;
+            }
           }
-          isInitialLoad = false;
           setAuthInitialized(true);
           return;
         }
 
         // For subsequent auth state changes (after initial load)
+        // Only process if user state actually changed
+        const newUserEmail = user?.email || null;
+        const previousUserEmail = currentUserEmailRef.current;
+        
+        // Skip if it's the same user (duplicate event)
+        if (newUserEmail === previousUserEmail) {
+          console.log("App.tsx: Skipping duplicate auth event for same user");
+          return;
+        }
+
         setIsAuthenticated(!!user);
-        setUserEmail(user?.email || null);
+        setUserEmail(newUserEmail);
         setUserName(user?.full_name || null);
 
-        if (!!user && !wasAuthenticated) {
+        if (user && !previousUserEmail) {
           // User just logged in - load their application
           console.log("App.tsx: User logged in, loading application");
-          currentUserEmailRef.current = user.email;
-          await loadUserApplication(user.email);
-        } else if (!user && wasAuthenticated) {
+          currentUserEmailRef.current = newUserEmail;
+          isLoadingApplication = true;
+          try {
+            await loadUserApplication(newUserEmail!);
+          } finally {
+            isLoadingApplication = false;
+          }
+        } else if (!user && previousUserEmail) {
           // User logged out - clear application state
           console.log("App.tsx: User logged out, clearing application state");
-          clearApplicationState(currentUserEmailRef.current);
+          clearApplicationState(previousUserEmail);
           currentUserEmailRef.current = null;
         }
       });
@@ -134,45 +159,78 @@ const App: React.FC = () => {
             // Determine completed steps based on actual backend data
             const backendCompletedSteps: number[] = [];
             
+            // Helper to check if an object has meaningful data (not just empty {})
+            const hasData = (obj: any): boolean => {
+              if (!obj || typeof obj !== 'object') return false;
+              if (Array.isArray(obj)) return obj.length > 0;
+              return Object.keys(obj).some(key => {
+                const val = obj[key];
+                return val !== null && val !== undefined && val !== '';
+              });
+            };
+            
             if (appData) {
               console.log("App.tsx: Application data loaded successfully");
+              console.log("App.tsx: Raw appData:", JSON.stringify(appData, null, 2));
               
-              // Check if step 1 data exists
-              if (appData.student?.surname && appData.student?.first_name && 
-                  appData.family && appData.fee?.fee_person) {
+              // Check if step 1 data exists - must have actual student data with required fields
+              const hasStudentData = appData.student?.surname && appData.student?.first_name;
+              const hasFamilyData = hasData(appData.family) && (appData.family?.father_surname || appData.family?.mother_surname);
+              const hasFeeData = appData.fee?.fee_person;
+              
+              console.log("App.tsx: Step 1 check - hasStudentData:", hasStudentData, "hasFamilyData:", hasFamilyData, "hasFeeData:", hasFeeData);
+              
+              if (hasStudentData && hasFamilyData && hasFeeData) {
                 backendCompletedSteps.push(1);
               }
               
-              // Check if step 2 data exists (documents)
-              if (appData.documents && appData.documents.length > 0) {
+              // Check if step 2 data exists (documents) - must have actual uploaded files
+              const hasDocuments = Array.isArray(appData.documents) && appData.documents.length > 0;
+              console.log("App.tsx: Step 2 check - hasDocuments:", hasDocuments, "count:", appData.documents?.length || 0);
+              
+              if (hasDocuments) {
                 backendCompletedSteps.push(2);
               }
               
-              // Check if step 3 data exists (academic history)
-              if (appData.academic_history && appData.academic_history.length > 0) {
+              // Check if step 3 data exists (academic history) - must have actual records
+              const hasAcademicHistory = Array.isArray(appData.academic_history) && appData.academic_history.length > 0;
+              console.log("App.tsx: Step 3 check - hasAcademicHistory:", hasAcademicHistory, "count:", appData.academic_history?.length || 0);
+              
+              if (hasAcademicHistory) {
                 backendCompletedSteps.push(3);
               }
               
-              // Check if step 4 data exists (fee agreement - financing selections)
-              if (appData.financing_selections && appData.financing_selections.length > 0) {
+              // Check if step 4 data exists (fee agreement - financing selections) - must have actual selections
+              const hasFinancingSelections = Array.isArray(appData.financing_selections) && appData.financing_selections.length > 0;
+              console.log("App.tsx: Step 4 check - hasFinancingSelections:", hasFinancingSelections, "count:", appData.financing_selections?.length || 0);
+              
+              if (hasFinancingSelections) {
                 backendCompletedSteps.push(4);
               }
               
-              // Check if step 5 data exists (declaration)
-              if (appData.declaration?.signed) {
+              // Check if step 5 data exists (declaration) - must be explicitly signed
+              const hasDeclaration = appData.declaration?.signed === true;
+              console.log("App.tsx: Step 5 check - hasDeclaration:", hasDeclaration, "signed:", appData.declaration?.signed);
+              
+              if (hasDeclaration) {
                 backendCompletedSteps.push(5);
               }
               
-              // IMPORTANT: Step 6 is ONLY complete when the application has been successfully submitted
-              // This is indicated by:
-              // 1. Application status being 'submitted' OR
-              // 2. A 'submitted_at' timestamp existing (backend sets this after successful submission)
-              // Never auto-mark step 6 as complete - it must be user-initiated from the Review & Submit screen
-              if ((appData.status === 'submitted' || appData.status === 'completed') && appData.submitted_at) {
-                console.log("App.tsx: Application status is:", appData.status, "with submitted_at:", appData.submitted_at, "- marking step 6 as complete");
+              // IMPORTANT: Step 6 is ONLY complete when:
+              // 1. Application status is 'submitted' AND has submitted_at timestamp
+              // 2. AND all prerequisite steps (1-5) have actual data
+              // This prevents showing step 6 as complete when submission failed to save data
+              const hasAllPrerequisites = hasStudentData && hasFamilyData && hasFeeData;
+              const isSubmitted = (appData.status === 'submitted' || appData.status === 'completed') && appData.submitted_at;
+              
+              if (isSubmitted && hasAllPrerequisites) {
+                console.log("App.tsx: Application is submitted with all prerequisite data - marking step 6 as complete");
                 backendCompletedSteps.push(6);
+              } else if (isSubmitted && !hasAllPrerequisites) {
+                console.log("App.tsx: Application status is 'submitted' but missing prerequisite data - NOT marking step 6 as complete (data save may have failed)");
+                console.log("App.tsx: Missing data check - hasStudentData:", hasStudentData, "hasFamilyData:", hasFamilyData, "hasFeeData:", hasFeeData);
               } else {
-                console.log("App.tsx: Application status:", appData.status, ", submitted_at:", appData.submitted_at, "- NOT marking step 6 as complete (step 6 only completes after final user submission)");
+                console.log("App.tsx: Application status:", appData.status, ", submitted_at:", appData.submitted_at, "- NOT marking step 6 as complete");
               }
 
               console.log("App.tsx: Backend completed steps:", backendCompletedSteps);
@@ -186,6 +244,8 @@ const App: React.FC = () => {
                   firstName: appData.student.first_name || '',
                   middleName: appData.student.middle_name || '',
                   preferredName: appData.student.preferred_name || '',
+                  email: appData.student.email || '',
+                  phone: appData.student.phone || '',
                   dob: appData.student.date_of_birth || '',
                   gender: appData.student.gender || '',
                   homeLanguage: appData.student.home_language || '',
@@ -243,7 +303,10 @@ const App: React.FC = () => {
               
               // Save loaded data to localStorage so forms can access it
               if (enrollmentData.student) {
+                console.log("App.tsx: Saving student data to localStorage:", enrollmentData.student);
                 storage.set(getUserKey(userEmail, 'studentData'), enrollmentData.student);
+              } else {
+                console.log("App.tsx: NO student data from backend to save");
               }
               if (enrollmentData.medical) {
                 storage.set(getUserKey(userEmail, 'medicalData'), enrollmentData.medical);
@@ -253,6 +316,81 @@ const App: React.FC = () => {
               }
               if (enrollmentData.fee) {
                 storage.set(getUserKey(userEmail, 'feeData'), enrollmentData.fee);
+              }
+              
+              // Save next of kin data from dedicated next_of_kin table
+              console.log("App.tsx: Backend next_of_kin data:", appData.next_of_kin);
+              if (appData.next_of_kin && Object.keys(appData.next_of_kin).length > 0) {
+                const nextOfKinData = {
+                  nextOfKinSurname: appData.next_of_kin.surname || '',
+                  nextOfKinFirstName: appData.next_of_kin.first_name || '',
+                  nextOfKinRelationship: appData.next_of_kin.relationship || '',
+                  nextOfKinMobile: appData.next_of_kin.mobile_number || '',
+                  nextOfKinEmail: appData.next_of_kin.email_address || '',
+                  nextOfKinIdNumber: appData.next_of_kin.id_number || '',
+                  nextOfKinPhone: appData.next_of_kin.phone_number || '',
+                  nextOfKinAlternateMobile: appData.next_of_kin.alternate_mobile || '',
+                  nextOfKinPhysicalAddress: appData.next_of_kin.physical_address || ''
+                };
+                storage.set(getUserKey(userEmail, 'nextOfKinData'), nextOfKinData);
+                console.log("App.tsx: Next of kin data saved to localStorage from next_of_kin table:", nextOfKinData);
+              }
+              
+              // Save financing data to localStorage (Step 4)
+              if (appData.financing_selections && appData.financing_selections.length > 0) {
+                // The plan_type from backend is now the user-friendly display name (e.g., "Pay Per Term")
+                // stored directly in fee_responsibility.selected_plan
+                const planType = appData.financing_selections[0].plan_type;
+                
+                // Check if it's already a display name or needs conversion
+                const knownDisplayNames = [
+                  'Pay Monthly Debit',
+                  'Pay Per Term',
+                  'Pay Once Per Year',
+                  'Buy Now, Pay Later',
+                  'Forward Funding',
+                  'Sibling Benefit',
+                  'Pay via EFT'
+                ];
+                
+                let planTitle = planType;
+                
+                // If it's in old format (code), convert to display name
+                if (!knownDisplayNames.includes(planType)) {
+                  const planTypeToTitle: { [key: string]: string } = {
+                    'monthly_flat': 'Pay Monthly Debit',
+                    'termly_discount': 'Pay Per Term',
+                    'annual_discount': 'Pay Once Per Year',
+                    'bnpl': 'Buy Now, Pay Later',
+                    'forward_funding': 'Forward Funding',
+                    'sibling_discount': 'Sibling Benefit',
+                    'eft': 'Pay via EFT'
+                  };
+                  planTitle = planTypeToTitle[planType] || 'Pay Once Per Year';
+                }
+                
+                storage.set(getUserKey(userEmail, 'financingData'), { plan: planTitle });
+                console.log("App.tsx: Financing data saved to localStorage:", { plan: planTitle });
+              }
+              
+              // Save academic history data to localStorage (Step 3)
+              if (appData.academic_history && appData.academic_history.length > 0) {
+                const academicData = appData.academic_history[0];
+                const academicHistoryData = {
+                  schoolName: academicData.school_name || '',
+                  schoolType: academicData.school_type || '',
+                  lastGradeCompleted: academicData.last_grade_completed || '',
+                  academicYearCompleted: academicData.academic_year_completed || '',
+                  reasonForLeaving: academicData.reason_for_leaving || '',
+                  principalName: academicData.principal_name || '',
+                  schoolPhoneNumber: academicData.school_phone_number || '',
+                  schoolEmail: academicData.school_email || '',
+                  schoolAddress: academicData.school_address || '',
+                  reportCardUrl: academicData.report_card_url || '',
+                  additionalNotes: academicData.additional_notes || ''
+                };
+                storage.set(getUserKey(userEmail, 'academicHistoryData'), academicHistoryData);
+                console.log("App.tsx: Academic history data saved to localStorage:", academicHistoryData);
               }
               
               // Set completed steps based on backend data

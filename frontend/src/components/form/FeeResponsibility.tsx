@@ -13,6 +13,7 @@ interface FeeResponsibilityProps {
 
 const FeeResponsibility: React.FC<FeeResponsibilityProps> = ({ initialData, familyData, onDataChange }) => {
   const { addToast } = useToast();
+  const [isInitialized, setIsInitialized] = useState(false);
   const [formData, setFormData] = useState({
     feePerson: '',
     relationship: '',
@@ -41,50 +42,29 @@ const FeeResponsibility: React.FC<FeeResponsibilityProps> = ({ initialData, fami
     accountType: ''
   });
 
-  // Auto-populate parent information when feePerson changes
+  // Update form data when initialData changes (e.g., after data is loaded from localStorage/backend)
   useEffect(() => {
-    if (formData.feePerson && familyData) {
-      let parentData = {};
-      
-      if (formData.feePerson === 'Father') {
-        parentData = {
-          parentIdNumber: familyData.fatherIdNumber || '',
-          parentFirstName: familyData.fatherFirstName || '',
-          parentSurname: familyData.fatherSurname || '',
-          parentEmail: familyData.fatherEmail || '',
-          parentMobile: familyData.fatherMobile || '',
-        };
-      } else if (formData.feePerson === 'Mother') {
-        parentData = {
-          parentIdNumber: familyData.motherIdNumber || '',
-          parentFirstName: familyData.motherFirstName || '',
-          parentSurname: familyData.motherSurname || '',
-          parentEmail: familyData.motherEmail || '',
-          parentMobile: familyData.motherMobile || '',
-        };
-      } else if (formData.feePerson === 'Guardian') {
-        parentData = {
-          parentIdNumber: familyData.nextOfKinIdNumber || '',
-          parentFirstName: familyData.nextOfKinFirstName || '',
-          parentSurname: familyData.nextOfKinSurname || '',
-          parentEmail: familyData.nextOfKinEmail || '',
-          parentMobile: familyData.nextOfKinMobile || '',
-        };
-      }
-
+    // Check if initialData has meaningful content (not just empty object)
+    const hasMeaningfulData = initialData && Object.keys(initialData).length > 0 && 
+      (initialData.feePerson || initialData.bankName || initialData.parentEmail);
+    
+    if (!isInitialized && hasMeaningfulData) {
+      console.log('FeeResponsibility: Initializing with data:', initialData);
       setFormData(prev => ({
         ...prev,
-        ...parentData
+        ...initialData
       }));
+      setIsInitialized(true);
     }
-  }, [formData.feePerson, familyData]);
+  }, [initialData, isInitialized]);
 
   useEffect(() => {
     if (onDataChange) {
       // Send to parent component which will handle localStorage via MainContent
       onDataChange(formData);
     }
-  }, [formData, onDataChange]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [formData]);
 
   const validateField = (field: string, value: string | boolean) => {
     let error = '';
@@ -140,11 +120,66 @@ const FeeResponsibility: React.FC<FeeResponsibilityProps> = ({ initialData, fami
   };
 
   const handleInputChange = (field: string, value: string | boolean) => {
-    setFormData(prev => ({
-      ...prev,
-      [field]: value
-    }));
-    validateField(field, value);
+    // Special handling for feePerson changes - auto-populate parent information
+    if (field === 'feePerson' && value !== formData.feePerson && familyData) {
+      let parentData = {};
+      
+      console.log('FeeResponsibility: feePerson changed to:', value);
+      console.log('FeeResponsibility: familyData available:', familyData);
+      
+      if (value === 'Father') {
+        parentData = {
+          parentIdNumber: familyData.fatherIdNumber || '',
+          parentFirstName: familyData.fatherFirstName || '',
+          parentSurname: familyData.fatherSurname || '',
+          parentEmail: familyData.fatherEmail || '',
+          parentMobile: familyData.fatherMobile || '',
+        };
+        console.log('FeeResponsibility: Auto-populating Father data:', parentData);
+      } else if (value === 'Mother') {
+        parentData = {
+          parentIdNumber: familyData.motherIdNumber || '',
+          parentFirstName: familyData.motherFirstName || '',
+          parentSurname: familyData.motherSurname || '',
+          parentEmail: familyData.motherEmail || '',
+          parentMobile: familyData.motherMobile || '',
+        };
+        console.log('FeeResponsibility: Auto-populating Mother data:', parentData);
+      } else if (value === 'Guardian') {
+        parentData = {
+          parentIdNumber: familyData.nextOfKinIdNumber || '',
+          parentFirstName: familyData.nextOfKinFirstName || '',
+          parentSurname: familyData.nextOfKinSurname || '',
+          parentEmail: familyData.nextOfKinEmail || '',
+          parentMobile: familyData.nextOfKinMobile || '',
+        };
+        console.log('FeeResponsibility: Auto-populating Guardian data:', parentData);
+      } else {
+        // For "Other", clear parent fields
+        parentData = {
+          parentIdNumber: '',
+          parentFirstName: '',
+          parentSurname: '',
+          parentEmail: '',
+          parentMobile: '',
+        };
+      }
+
+      setFormData(prev => ({
+        ...prev,
+        [field]: value,
+        ...parentData
+      }));
+    } else {
+      setFormData(prev => ({
+        ...prev,
+        [field]: value
+      }));
+    }
+    
+    if (field !== 'feeTermsAccepted') {
+      validateField(field, value);
+    }
   };
 
   // Auto-save functionality removed - handled by parent component

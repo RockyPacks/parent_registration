@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import { authService } from '../services/auth';
 import knitIcon from '../../assets/knit-icon.png';
+import PasswordInput from './ui/PasswordInput';
 
 interface SignupPageProps {
   onSignupSuccess: () => void;
@@ -163,18 +164,17 @@ const SignupPage: React.FC<SignupPageProps> = ({ onSignupSuccess, onSwitchToLogi
                 Password
               </label>
               <div className="mt-1">
-                <input
+                <PasswordInput
                   id="password"
                   name="password"
-                  type="password"
                   autoComplete="new-password"
                   required
                   minLength={8}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="block w-full appearance-none rounded-md border border-gray-300 px-3 py-2 placeholder-gray-400 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm"
+                  aria-describedby="password-requirements"
                 />
-                <p className="mt-1 text-xs text-gray-500">
+                <p id="password-requirements" className="mt-1 text-xs text-gray-500">
                   Password must be at least 8 characters long and include at least one uppercase letter, one lowercase letter, and one special character.
                 </p>
               </div>

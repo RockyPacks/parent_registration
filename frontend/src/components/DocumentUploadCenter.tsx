@@ -87,7 +87,8 @@ export const DocumentUploadCenter: React.FC<DocumentUploadCenterProps> = ({
   userId = 'anonymous',
   applicationId,
   onDocumentUploadComplete,
-  onBack
+  onBack,
+  onDocumentsChange
 }) => {
   const [categories, setCategories] = useState<Record<string, DocumentCategory>>(initialCategories);
   const [activeCategory, setActiveCategory] = useState<string>('proofOfAddress');
@@ -95,6 +96,7 @@ export const DocumentUploadCenter: React.FC<DocumentUploadCenterProps> = ({
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isComplete, setIsComplete] = useState(false);
+  const [deletingFileIds, setDeletingFileIds] = useState<Set<string>>(new Set());
   const { uploadState, uploadFile, resetUploadState } = useUpload();
 
   // Log application ID for debugging - should always use prop, not localStorage
@@ -206,9 +208,12 @@ export const DocumentUploadCenter: React.FC<DocumentUploadCenterProps> = ({
       setUploadedFiles(data.files || []);
       // Save to localStorage so ReviewSubmitStep can access them
       localStorage.setItem('uploadedFiles', JSON.stringify(data.files || []));
+      // Notify parent component of documents change
+      onDocumentsChange && onDocumentsChange(data.files || []);
     } catch (error: any) {
       setUploadedFiles([]);
       localStorage.setItem('uploadedFiles', JSON.stringify([]));
+      onDocumentsChange && onDocumentsChange([]);
       const errorMsg = 'Failed to load uploaded files: ' + (error.message || 'Network error');
       setErrorMessage(errorMsg);
       setTimeout(() => setErrorMessage(null), 5000);
@@ -352,6 +357,11 @@ export const DocumentUploadCenter: React.FC<DocumentUploadCenterProps> = ({
   };
 
   const handleFileDelete = useCallback(async (fileId: string) => {
+    // Prevent double-click by checking if already deleting
+    if (deletingFileIds.has(fileId)) {
+      return;
+    }
+
     const currentApplicationId = applicationId;
 
     if (!currentApplicationId) {
@@ -361,8 +371,10 @@ export const DocumentUploadCenter: React.FC<DocumentUploadCenterProps> = ({
       return;
     }
 
-    try {
+    // Mark file as being deleted
+    setDeletingFileIds(prev => new Set(prev).add(fileId));
 
+    try {
       // Delete from backend
       await apiService.deleteFile(currentApplicationId, fileId);
 
@@ -371,11 +383,21 @@ export const DocumentUploadCenter: React.FC<DocumentUploadCenterProps> = ({
       setSuccessMessage('File deleted successfully!');
       setTimeout(() => setSuccessMessage(null), 3000);
     } catch (error: any) {
-      const errorMsg = 'Failed to delete file: ' + (error.message || 'Network error');
-      setErrorMessage(errorMsg);
-      setTimeout(() => setErrorMessage(null), 5000);
+      // Only show error if it's not a 404 (file already deleted)
+      if (!error.message?.includes('404') && !error.message?.includes('not found')) {
+        const errorMsg = 'Failed to delete file: ' + (error.message || 'Network error');
+        setErrorMessage(errorMsg);
+        setTimeout(() => setErrorMessage(null), 5000);
+      }
+    } finally {
+      // Remove file from deleting set
+      setDeletingFileIds(prev => {
+        const next = new Set(prev);
+        next.delete(fileId);
+        return next;
+      });
     }
-  }, [applicationId, loadUploadedFiles]);
+  }, [applicationId, loadUploadedFiles, deletingFileIds]);
 
   // Helper function to get actual file count for a category
   const getCategoryFileCount = (categoryId: string) => {
@@ -656,9 +678,14 @@ export const DocumentUploadCenter: React.FC<DocumentUploadCenterProps> = ({
                       <div className="flex items-center gap-2 w-full sm:w-auto">
                         <button
                           onClick={() => handleFileDelete(file.id)}
-                          className="px-4 py-2 bg-gradient-to-r from-red-500 to-red-600 text-white text-sm rounded-lg hover:from-red-600 hover:to-red-700 transition-all duration-200 flex-1 sm:flex-none text-center shadow-sm"
+                          disabled={deletingFileIds.has(file.id)}
+                          className={`px-4 py-2 text-white text-sm rounded-lg transition-all duration-200 flex-1 sm:flex-none text-center shadow-sm ${
+                            deletingFileIds.has(file.id)
+                              ? 'bg-gray-400 cursor-not-allowed'
+                              : 'bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700'
+                          }`}
                         >
-                          Delete
+                          {deletingFileIds.has(file.id) ? 'Deleting...' : 'Delete'}
                         </button>
                       </div>
                     </div>

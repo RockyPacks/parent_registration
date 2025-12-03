@@ -32,6 +32,8 @@ class StudentInfo(BaseModel):
     first_name: str = Field(..., min_length=1, max_length=100, description="Student's first name")
     middle_name: Optional[str] = Field(None, max_length=100, description="Student's middle name")
     preferred_name: Optional[str] = Field(None, max_length=100, description="Student's preferred name")
+    email: Optional[str] = Field(None, max_length=255, description="Student's email address")
+    phone: Optional[str] = Field(None, max_length=20, description="Student's phone number")
     date_of_birth: str = Field(..., pattern=r'^\d{4}-\d{2}-\d{2}$', description="Date of birth in YYYY-MM-DD format")
     gender: str = Field(..., pattern=r'^(male|female|other)$', description="Student's gender")
     home_language: str = Field(..., min_length=1, max_length=50, description="Student's home language")
@@ -51,6 +53,8 @@ class StudentInfoPartial(BaseModel):
     first_name: Optional[str] = Field(None, min_length=1, max_length=100, description="Student's first name")
     middle_name: Optional[str] = Field(None, max_length=100, description="Student's middle name")
     preferred_name: Optional[str] = Field(None, max_length=100, description="Student's preferred name")
+    email: Optional[str] = Field(None, max_length=255, description="Student's email address")
+    phone: Optional[str] = Field(None, max_length=20, description="Student's phone number")
     date_of_birth: Optional[str] = Field(None, pattern=r'^\d{4}-\d{2}-\d{2}$', description="Date of birth in YYYY-MM-DD format")
     gender: Optional[str] = Field(None, pattern=r'^(male|female|other)$', description="Student's gender")
     home_language: Optional[str] = Field(None, min_length=1, max_length=50, description="Student's home language")
@@ -434,6 +438,7 @@ class FinancingPlanType(str, Enum):
     BNPL = "bnpl"
     FORWARD_FUNDING = "forward_funding"
     ARREARS_BNPL = "arrears-bnpl"
+    EFT = "eft"
 
 
 class FinancingSelectionRequest(BaseModel):
@@ -446,14 +451,9 @@ class FinancingSelectionRequest(BaseModel):
 
 
 class FinancingSelectionResponse(BaseModel):
-    """Financing selection response schema."""
-    id: str
+    """Financing selection response schema - simplified for fee_responsibility table."""
     application_id: str
-    plan_type: FinancingPlanType
-    discount_rate: Optional[float]
-    cost_of_credit: Optional[float]
-    repayment_term: Optional[str]
-    created_at: str
+    plan_type: str  # Changed from FinancingPlanType enum to str since it's now user-friendly text
 
 
 # ============================================================================
@@ -495,7 +495,7 @@ class UploadedFile(BaseModel):
     id: str = Field(..., description="Unique file identifier")
     filename: str = Field(..., description="Processed filename")
     original_filename: str = Field(..., description="Original uploaded filename")
-    file_size: int = Field(..., gt=0, description="File size in bytes")
+    file_size: int = Field(..., ge=0, description="File size in bytes")
     content_type: str = Field(..., description="MIME content type")
     document_type: str = Field(..., description="Type of document")
     download_url: str = Field(..., description="Public download URL")
