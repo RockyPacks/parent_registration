@@ -68,7 +68,8 @@ class AuthService {
     try {
       // Determine the redirect URL - use environment variable or current origin
       const redirectUrl = import.meta.env.VITE_APP_URL || window.location.origin;
-      const emailRedirectUrl = `${redirectUrl}/login`;
+      // Change to root path so Supabase can process the token before showing login
+      const emailRedirectUrl = `${redirectUrl}/`;
       
       console.log('Signup: Email redirect URL:', emailRedirectUrl);
       
