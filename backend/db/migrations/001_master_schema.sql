@@ -60,6 +60,8 @@ CREATE TABLE IF NOT EXISTS public.students (
   CONSTRAINT students_application_id_fkey FOREIGN KEY (application_id)
     REFERENCES public.applications(id) ON DELETE CASCADE,
   CONSTRAINT students_application_id_unique UNIQUE (application_id),
+  -- NOTE: Database only validates format (13 digits). Application layer validates
+  -- Luhn checksum and date of birth. See app/core/validators.py for full validation.
   CONSTRAINT students_id_number_check CHECK (id_number ~ '^\d{13}$'),
   CONSTRAINT students_gender_check CHECK (
     gender IN ('male', 'female', 'other', 'prefer_not_to_say')

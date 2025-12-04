@@ -47,6 +47,18 @@ export interface DocumentStatus {
   }>;
 }
 
+export interface SchoolFees {
+  id: string;
+  grade: string;
+  annual_fee: number;
+  term_fee: number;
+  registration_fee: number;
+  re_registration_fee: number;
+  sport_fee: number;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface EnrollmentData {
   application_id: string;
   student: {
@@ -453,6 +465,23 @@ class ApiService {
       method: 'POST',
       body: JSON.stringify({ application_id: applicationId }),
     });
+  }
+
+  /**
+   * Get school fees for a specific grade
+   * @param grade - Grade level (e.g., 'Grade R', 'Grade 1', 'Grade 10')
+   * @returns SchoolFees object with fee structure
+   */
+  async getSchoolFees(grade: string): Promise<SchoolFees> {
+    return this.request<SchoolFees>(`/fees/?grade=${encodeURIComponent(grade)}`);
+  }
+
+  /**
+   * Get all school fees
+   * @returns Array of all fee structures
+   */
+  async getAllSchoolFees(): Promise<SchoolFees[]> {
+    return this.request<SchoolFees[]>('/fees/all');
   }
 }
 

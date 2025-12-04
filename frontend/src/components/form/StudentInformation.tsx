@@ -7,6 +7,7 @@ import DatePickerField from '../ui/DatePickerField';
 import { StudentIcon } from '../Icons';
 import { useToast } from '../../hooks/useToast';
 import Footer from '../Footer';
+import { validateSAID } from '../../utils/saIdValidator';
 
 interface StudentInformationProps {
   initialData?: any;
@@ -120,8 +121,13 @@ const StudentInformation: React.FC<StudentInformationProps> = ({ initialData, on
         }
         break;
       case 'idNumber':
-        if (!value || (typeof value === 'string' && !/^\d{13}$/.test(value))) {
-          error = 'ID Number must be exactly 13 digits';
+        if (!value) {
+          error = 'ID Number is required';
+        } else if (typeof value === 'string') {
+          const validationResult = validateSAID(value);
+          if (!validationResult.isValid) {
+            error = validationResult.error || 'Invalid SA ID number';
+          }
         }
         break;
       case 'dob':

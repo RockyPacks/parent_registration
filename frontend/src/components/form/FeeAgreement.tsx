@@ -2,15 +2,17 @@ import React from 'react';
 import AffordabilityCard from '../AffordabilityCard';
 import FinancingOptions from '../FinancingOptions';
 import InfoSection from '../InfoSection';
+import { SchoolFees } from '../../services/api';
 
 interface FeeAgreementProps {
   applicationId?: string | null;
   selectedPlan: string;
   onSelectPlan: (plan: string) => void;
   onBack?: () => void;
+  fees: SchoolFees;
 }
 
-const FeeAgreement: React.FC<FeeAgreementProps> = ({ applicationId, selectedPlan, onSelectPlan, onBack }) => {
+const FeeAgreement: React.FC<FeeAgreementProps> = ({ applicationId, selectedPlan, onSelectPlan, onBack, fees }) => {
   return (
     <div className="font-sans text-gray-800">
       <div className="container mx-auto px-3 sm:px-4 md:px-6 lg:px-8 py-8 md:py-12">
@@ -22,8 +24,8 @@ const FeeAgreement: React.FC<FeeAgreementProps> = ({ applicationId, selectedPlan
         </header>
 
         <main className="space-y-6 md:space-y-10">
-          <AffordabilityCard />
-          <FinancingOptions selectedPlan={selectedPlan} onSelectPlan={onSelectPlan} />
+          <AffordabilityCard fees={fees} />
+          <FinancingOptions selectedPlan={selectedPlan} onSelectPlan={onSelectPlan} fees={fees} />
           
           {/* EFT Payment Instructions - Show when EFT is selected */}
           {selectedPlan === 'Pay via EFT' && (

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { ReviewSubmitStep } from '../ReviewSubmitStep';
 import CheckIcon from '../icons/CheckIcon'; // Corrected: CheckIcon is a default export
 import ApplicationForm from '../ApplicationForm'; // Import ApplicationForm
+import ConfirmationPage from '../ConfirmationPage'; // Import new ConfirmationPage
 import { SummaryData } from '../../types'; // Import SummaryData type
 import { useReactToPrint } from 'react-to-print'; // Re-import useReactToPrint for this component
 import html2canvas from 'html2canvas';
@@ -502,23 +503,38 @@ const Step6ReviewSubmitStep: React.FC<Step6ReviewSubmitStepProps> = ({
   return (
     <div className="flex-1 bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 min-h-screen">
       {showConfirmationCard ? (
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16 flex justify-center items-center">
-          <ApplicationSubmittedCard summaryData={currentData} applicationId={generatedApplicationId} />
-        </div>
+        <ConfirmationPage 
+          studentName={`${studentData?.firstName || ''} ${studentData?.surname || ''}`.trim() || undefined}
+          applicationId={generatedApplicationId}
+          summaryData={currentData}
+          onClose={() => {
+            // Optional: Add navigation logic here (e.g., redirect to dashboard)
+            // For now, we'll just hide the confirmation and show the review page again
+            setShowConfirmationCard(false);
+          }}
+        />
       ) : (
         <>
-          <div className="bg-white/80 backdrop-blur-sm border-b border-white/20">
-            <div className="max-w-6xl mx-auto px-6 sm:px-8 py-24">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h1 className="text-3xl font-bold text-gray-900 mb-2">Review and Submit</h1>
+          <div className="bg-white/80 backdrop-blur-sm border-b border-white/20 mt-24">
+            <div className="max-w-6xl mx-auto px-6 sm:px-8 py-12">
+              <div className="flex flex-col md:flex-row md:items-center md:justify-between space-y-4 md:space-y-0">
+                <div className="flex-1">
+                  <h1 className="text-3xl md:text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-green-600 via-blue-600 to-purple-600 mb-2">Review and Submit</h1>
                   <p className="text-gray-700 font-medium">Final review of your enrollment application</p>
                 </div>
                 <div className="hidden md:flex items-center space-x-4">
-                  <div className="text-right">
-                    <div className="text-sm font-medium text-gray-500">Step 6 of 6</div>
-                    <div className="w-32 bg-gray-200 rounded-full h-2 mt-1">
-                      <div className="bg-gradient-to-r from-blue-500 to-purple-600 h-2 rounded-full transition-all duration-500" style={{width: '100%'}}></div>
+                  <div className="flex items-center space-x-3">
+                    {/* Modern Step Indicator */}
+                    <div className="flex items-center justify-center w-12 h-12 rounded-full bg-gradient-to-br from-green-500 to-blue-600 shadow-lg animate-pulse">
+                      <div className="flex items-center justify-center w-10 h-10 rounded-full bg-white">
+                        <span className="text-transparent bg-clip-text bg-gradient-to-br from-green-600 to-blue-600 font-bold text-lg">6</span>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-xs font-medium text-gray-500 uppercase tracking-wide">Step 6 of 6</div>
+                      <div className="text-sm font-semibold text-transparent bg-clip-text bg-gradient-to-r from-green-600 to-blue-600">
+                        100% Complete
+                      </div>
                     </div>
                   </div>
                   <div className="bg-gradient-to-r from-blue-500 to-purple-600 rounded-full p-3">

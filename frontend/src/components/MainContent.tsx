@@ -112,7 +112,7 @@ const MainContent: React.FC<MainContentProps> = (props) => {
     setDocumentsData(userDocs || (globalDocs ? JSON.parse(globalDocs) : []));
     setAcademicHistoryData(storage.get(getUserKey('academicHistoryData'), {}) || {});
     setFinancingData(storage.get(getUserKey('financingData'), { plan: 'Pay Once Per Year' }) || { plan: 'Pay Once Per Year' }); // Ensure financingData has a default plan
-    setDeclarationData(storage.get(getUserKey('declarationData'), { signed: false }) || { signed: false }); // Ensure declarationData has a default signed status
+    setDeclarationData(storage.get(getUserKey('declarationData'), {}) || {}); // Start with empty object, not { signed: false }
     setNextOfKinData(storage.get(getUserKey('nextOfKinData'), {}) || {});
     setDataLoaded(true);
   }, [getUserKey, applicationInitialized]);

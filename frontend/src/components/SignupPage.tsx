@@ -5,7 +5,7 @@ import knitIcon from '../../assets/knit-icon.png';
 import PasswordInput from './ui/PasswordInput';
 
 interface SignupPageProps {
-  onSignupSuccess: () => void;
+  onSignupSuccess: (email: string) => void;
   onSwitchToLogin: () => void;
 }
 
@@ -82,7 +82,7 @@ const SignupPage: React.FC<SignupPageProps> = ({ onSignupSuccess, onSwitchToLogi
     try {
       const fullName = `${firstName.trim()} ${lastName.trim()}`;
       await authService.signup(fullName, email.trim(), password.trim());
-      onSignupSuccess();
+      onSignupSuccess(email.trim());
     } catch (err: any) {
       setError(err.message || 'Failed to sign up. Please try again.');
     } finally {

@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import FeeAgreement from './FeeAgreement';
 import Footer from '../Footer';
-import { apiService } from '../../services/api';
+import { apiService, SchoolFees } from '../../services/api';
 import { useToast } from '../../hooks/useToast';
 
 interface Step4FeeAgreementProps {
@@ -28,20 +28,64 @@ const Step4FeeAgreement: React.FC<Step4FeeAgreementProps> = ({
     }
     return 'Pay Once Per Year';
   });
+  const [fees, setFees] = useState<SchoolFees | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const { addToast } = useToast();
+  
+  // Use ref to avoid re-render loops with onDataChange callback
+  const onDataChangeRef = useRef(onDataChange);
+  useEffect(() => {
+    onDataChangeRef.current = onDataChange;
+  }, [onDataChange]);
+
+  // Fetch fees based on the student's grade
+  useEffect(() => {
+    const fetchFees = async () => {
+      if (!applicationId) {
+        setLoading(false);
+        return;
+      }
+
+      try {
+        setLoading(true);
+        setError(null);
+        
+        // 1. Get Application to find the grade
+        const appData = await apiService.getApplication(applicationId);
+        const grade = appData.student?.grade_applied_for;
+
+        if (grade) {
+          // 2. Get Fees for that grade
+          const feeData = await apiService.getSchoolFees(grade);
+          setFees(feeData);
+        } else {
+          setError('Grade information not found. Please complete student information first.');
+        }
+      } catch (err: any) {
+        console.error('Failed to load fees:', err);
+        setError('Could not load fee structure. Please try again.');
+        addToast('Could not load fee structure', 'error');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchFees();
+  }, [applicationId, addToast]);
 
   // Update selectedPlan when initialData changes (e.g., after data is loaded from backend)
-  React.useEffect(() => {
-    if (initialData?.plan && initialData.plan !== selectedPlan) {
+  useEffect(() => {
+    if (initialData?.plan) {
       setSelectedPlan(initialData.plan);
     }
   }, [initialData?.plan]);
 
   // Call onDataChange whenever selectedPlan changes or initialData is loaded
-  React.useEffect(() => {
+  useEffect(() => {
     // Also include feeData, as it's often related to financing in the summary
-    onDataChange && onDataChange({ plan: selectedPlan });
-  }, [selectedPlan, onDataChange]);
+    onDataChangeRef.current?.({ plan: selectedPlan });
+  }, [selectedPlan]);
 
   const getPlanType = (planTitle: string): string => {
     const planMapping: { [key: string]: string } = {
@@ -101,18 +145,26 @@ const Step4FeeAgreement: React.FC<Step4FeeAgreementProps> = ({
   return (
     <div className="flex-1 bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 min-h-screen">
       {/* Header Section */}
-      <div className="bg-white/80 backdrop-blur-sm border-b border-white/20">
-        <div className="max-w-6xl mx-auto px-6 sm:px-8 py-24">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900 mb-2">Fee Agreement</h1>
+      <div className="bg-white/80 backdrop-blur-sm border-b border-white/20 mt-24">
+        <div className="max-w-6xl mx-auto px-6 sm:px-8 py-12">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between space-y-4 md:space-y-0">
+            <div className="flex-1">
+              <h1 className="text-3xl md:text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 mb-2">Fee Agreement</h1>
               <p className="text-gray-700 font-medium">Review and agree to the school fee structure</p>
             </div>
             <div className="hidden md:flex items-center space-x-4">
-              <div className="text-right">
-                <div className="text-sm font-medium text-gray-500">Step 4 of 6</div>
-                <div className="w-32 bg-gray-200 rounded-full h-2 mt-1">
-                  <div className="bg-gradient-to-r from-blue-500 to-purple-600 h-2 rounded-full transition-all duration-500" style={{width: '67%'}}></div>
+              <div className="flex items-center space-x-3">
+                {/* Modern Step Indicator */}
+                <div className="flex items-center justify-center w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 shadow-lg">
+                  <div className="flex items-center justify-center w-10 h-10 rounded-full bg-white">
+                    <span className="text-transparent bg-clip-text bg-gradient-to-br from-blue-600 to-purple-600 font-bold text-lg">4</span>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <div className="text-xs font-medium text-gray-500 uppercase tracking-wide">Step 4 of 6</div>
+                  <div className="text-sm font-semibold text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600">
+                    67% Complete
+                  </div>
                 </div>
               </div>
               <div className="bg-gradient-to-r from-blue-500 to-purple-600 rounded-full p-3">
@@ -126,12 +178,35 @@ const Step4FeeAgreement: React.FC<Step4FeeAgreementProps> = ({
       </div>
 
       <div className="max-w-6xl mx-auto px-3 sm:px-4 md:px-6 lg:px-8 pt-16 md:pt-24 pb-64">
-        <FeeAgreement
-          applicationId={applicationId}
-          selectedPlan={selectedPlan}
-          onSelectPlan={setSelectedPlan}
-          onBack={() => onStepChange && onStepChange(3)}
-        />
+        {loading ? (
+          <div className="text-center py-12">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+            <p className="mt-4 text-gray-600">Loading fee structure...</p>
+          </div>
+        ) : error ? (
+          <div className="text-center py-12">
+            <div className="text-red-600 mb-4">
+              <svg className="w-12 h-12 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <p className="text-red-600 font-semibold mb-2">{error}</p>
+            <button
+              onClick={() => onStepChange && onStepChange(1)}
+              className="mt-4 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+            >
+              Go to Student Information
+            </button>
+          </div>
+        ) : fees ? (
+          <FeeAgreement
+            applicationId={applicationId}
+            selectedPlan={selectedPlan}
+            onSelectPlan={setSelectedPlan}
+            onBack={() => onStepChange && onStepChange(3)}
+            fees={fees}
+          />
+        ) : null}
       </div>
 
       <Footer

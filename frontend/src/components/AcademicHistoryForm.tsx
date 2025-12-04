@@ -350,28 +350,56 @@ const AcademicHistoryForm: React.FC<AcademicHistoryFormProps> = ({ applicationId
 
 
   return (
-    <div className="w-full flex flex-col min-h-screen">
-      <form onSubmit={handleSubmit} className="flex-1 w-full max-w-6xl mx-auto px-4 pt-20 pb-40">
-        {/* Form Title */}
-        <div className="mb-8">
-          <h2 className="text-3xl font-bold text-gray-900 mb-2">Academic History</h2>
-          <p className="text-gray-600">Provide details about your previous school and academic performance</p>
+    <div className="flex-1 bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 min-h-screen">
+      {/* Header Section - Matching Document Upload Center */}
+      <div className="bg-white/80 backdrop-blur-sm border-b border-white/20 mt-24">
+        <div className="max-w-6xl mx-auto px-6 sm:px-8 py-12">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between space-y-4 md:space-y-0">
+            <div className="flex-1">
+              <h1 className="text-3xl md:text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 mb-2">Academic History</h1>
+              <p className="text-gray-700 font-medium">Provide details about your previous school and academic performance</p>
+            </div>
+            <div className="hidden md:flex items-center space-x-4">
+              <div className="flex items-center space-x-3">
+                {/* Modern Step Indicator */}
+                <div className="flex items-center justify-center w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 shadow-lg">
+                  <div className="flex items-center justify-center w-10 h-10 rounded-full bg-white">
+                    <span className="text-transparent bg-clip-text bg-gradient-to-br from-blue-600 to-purple-600 font-bold text-lg">3</span>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <div className="text-xs font-medium text-gray-500 uppercase tracking-wide">Step 3 of 6</div>
+                  <div className="text-sm font-semibold text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600">
+                    50% Complete
+                  </div>
+                </div>
+              </div>
+              <div className="bg-gradient-to-r from-blue-500 to-purple-600 rounded-full p-3">
+                <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                </svg>
+              </div>
+            </div>
+          </div>
         </div>
+      </div>
 
-        {/* Progress Bar - Hidden on Step 3 */}
+      <form onSubmit={handleSubmit} className="max-w-6xl mx-auto px-6 sm:px-8 pt-32 pb-32">
 
-        {/* Cards Container - Fixed spacing */}
+        {/* Cards Container - Modern Design */}
         <div className="space-y-6">
           {/* Card 1: School Details */}
-          <div className="bg-white rounded-lg border border-gray-300 shadow-md overflow-hidden hover:shadow-lg transition-shadow duration-200">
+          <div className="bg-white rounded-xl border border-gray-200 shadow-lg overflow-hidden hover:shadow-xl hover:scale-[1.01] transition-all duration-300">
             <button
               type="button"
               onClick={() => toggleSection('schoolDetails')}
-              className="w-full px-6 py-4 text-left flex items-center justify-between hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors duration-200"
+              className="w-full px-6 py-5 text-left flex items-center justify-between hover:bg-gradient-to-r hover:from-blue-50 hover:to-purple-50 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200"
             >
               <div className="flex items-center space-x-3">
-                <SchoolIcon className="h-6 w-6 text-blue-600" />
-                <h3 className="text-xl font-semibold text-gray-800">Previous School Details</h3>
+                <div className="p-2 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg shadow-md">
+                  <SchoolIcon className="h-6 w-6 text-white" />
+                </div>
+                <h3 className="text-xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600">Previous School Details</h3>
               </div>
               {expandedSections.schoolDetails ? (
                 <ChevronUpIcon className="h-5 w-5 text-gray-500" />
@@ -380,7 +408,7 @@ const AcademicHistoryForm: React.FC<AcademicHistoryFormProps> = ({ applicationId
               )}
             </button>
             {expandedSections.schoolDetails && (
-              <div className="px-6 pb-6 space-y-6 border-t border-gray-200">
+              <div className="px-6 pb-6 pt-6 space-y-6 border-t border-blue-100 bg-gradient-to-b from-blue-50/30 to-transparent">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <Input label="School Name" name="schoolName" value={formData.schoolName} onChange={handleChange} placeholder="Enter school name" required />
                   <Select label="School Type" name="schoolType" value={formData.schoolType} onChange={handleChange} options={SCHOOL_TYPES} placeholder="Select school type" required />
@@ -410,15 +438,17 @@ const AcademicHistoryForm: React.FC<AcademicHistoryFormProps> = ({ applicationId
           </div>
 
           {/* Card 2: School Contact Information */}
-          <div className="bg-white rounded-lg border border-gray-300 shadow-md overflow-hidden hover:shadow-lg transition-shadow duration-200">
+          <div className="bg-white rounded-xl border border-gray-200 shadow-lg overflow-hidden hover:shadow-xl hover:scale-[1.01] transition-all duration-300">
             <button
               type="button"
               onClick={() => toggleSection('schoolContact')}
-              className="w-full px-6 py-4 text-left flex items-center justify-between hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors duration-200"
+              className="w-full px-6 py-5 text-left flex items-center justify-between hover:bg-gradient-to-r hover:from-green-50 hover:to-teal-50 focus:outline-none focus:ring-2 focus:ring-green-500 transition-all duration-200"
             >
               <div className="flex items-center space-x-3">
-                <ContactIcon className="h-6 w-6 text-blue-600" />
-                <h3 className="text-xl font-semibold text-gray-800">School Contact Information</h3>
+                <div className="p-2 bg-gradient-to-br from-green-500 to-teal-600 rounded-lg shadow-md">
+                  <ContactIcon className="h-6 w-6 text-white" />
+                </div>
+                <h3 className="text-xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-green-600 to-teal-600">School Contact Information</h3>
               </div>
               {expandedSections.schoolContact ? (
                 <ChevronUpIcon className="h-5 w-5 text-gray-500" />
@@ -427,7 +457,7 @@ const AcademicHistoryForm: React.FC<AcademicHistoryFormProps> = ({ applicationId
               )}
             </button>
             {expandedSections.schoolContact && (
-              <div className="px-6 pb-6 space-y-6 border-t border-gray-200">
+              <div className="px-6 pb-6 pt-6 space-y-6 border-t border-green-100 bg-gradient-to-b from-green-50/30 to-transparent">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <Input label="Principal / Teacher Name" name="principalName" value={formData.principalName} onChange={handleChange} placeholder="Enter name" />
                   <Input label="School Phone Number" name="schoolPhoneNumber" value={formData.schoolPhoneNumber} onChange={handleChange} placeholder="+27 11 123 4567 or 011 123 4567" />
@@ -439,15 +469,17 @@ const AcademicHistoryForm: React.FC<AcademicHistoryFormProps> = ({ applicationId
           </div>
 
           {/* Card 3: Academic Performance */}
-          <div className="bg-white rounded-lg border border-gray-300 shadow-md overflow-hidden hover:shadow-lg transition-shadow duration-200">
+          <div className="bg-white rounded-xl border border-gray-200 shadow-lg overflow-hidden hover:shadow-xl hover:scale-[1.01] transition-all duration-300">
             <button
               type="button"
               onClick={() => toggleSection('academicPerformance')}
-              className="w-full px-6 py-4 text-left flex items-center justify-between hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors duration-200"
+              className="w-full px-6 py-5 text-left flex items-center justify-between hover:bg-gradient-to-r hover:from-purple-50 hover:to-pink-50 focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all duration-200"
             >
               <div className="flex items-center space-x-3">
-                <PerformanceIcon className="h-6 w-6 text-blue-600" />
-                <h3 className="text-xl font-semibold text-gray-800">Academic Performance & Comments</h3>
+                <div className="p-2 bg-gradient-to-br from-purple-500 to-pink-600 rounded-lg shadow-md">
+                  <PerformanceIcon className="h-6 w-6 text-white" />
+                </div>
+                <h3 className="text-xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-pink-600">Academic Performance & Comments</h3>
               </div>
               {expandedSections.academicPerformance ? (
                 <ChevronUpIcon className="h-5 w-5 text-gray-500" />
@@ -456,7 +488,7 @@ const AcademicHistoryForm: React.FC<AcademicHistoryFormProps> = ({ applicationId
               )}
             </button>
             {expandedSections.academicPerformance && (
-              <div className="px-6 pb-6 space-y-6 border-t border-gray-200">
+              <div className="px-6 pb-6 pt-6 space-y-6 border-t border-purple-100 bg-gradient-to-b from-purple-50/30 to-transparent">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Upload Last Report Card <span className="text-red-500">*</span>

@@ -20,12 +20,15 @@ const getUserKey = (email: string | null, key: string) => email ? `${email}_${ke
 const App: React.FC = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [showSignup, setShowSignup] = useState(false);
+  const [showEmailConfirmation, setShowEmailConfirmation] = useState(false);
+  const [confirmationEmail, setConfirmationEmail] = useState<string>('');
   const [activeStep, setActiveStep] = useState(1);
   const [enrollmentData, setEnrollmentData] = useState<Partial<EnrollmentData>>({});
   const [applicationId, setApplicationId] = useState<string | null>(null);
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [userName, setUserName] = useState<string | null>(null);
   const [completedSteps, setCompletedSteps] = useState<number[]>([]);
+  const [inProgressSteps, setInProgressSteps] = useState<number[]>([]);
   const [currentView, setCurrentView] = useState<'enrollment' | 'payment-confirmation'>('enrollment');
   const [authInitialized, setAuthInitialized] = useState(false);
   const [applicationInitialized, setApplicationInitialized] = useState(false);
@@ -185,11 +188,20 @@ const App: React.FC = () => {
               }
               
               // Check if step 2 data exists (documents) - must have actual uploaded files
-              const hasDocuments = Array.isArray(appData.documents) && appData.documents.length > 0;
-              console.log("App.tsx: Step 2 check - hasDocuments:", hasDocuments, "count:", appData.documents?.length || 0);
+              // Required documents: proof of address (1), ID documents (2), payslips (3), bank statement (1)
+              // Minimum total: 7 documents
+              const documentCount = Array.isArray(appData.documents) ? appData.documents.length : 0;
+              const hasDocuments = documentCount > 0;
+              const hasAllRequiredDocuments = documentCount >= 7; // Adjust based on your requirements
               
-              if (hasDocuments) {
+              console.log("App.tsx: Step 2 check - hasDocuments:", hasDocuments, "count:", documentCount, "hasAllRequired:", hasAllRequiredDocuments);
+              
+              if (hasAllRequiredDocuments) {
                 backendCompletedSteps.push(2);
+              } else if (hasDocuments && !hasAllRequiredDocuments) {
+                // Some documents uploaded but not all - mark as in-progress
+                inProgressSteps.push(2);
+                console.log("App.tsx: Step 2 marked as IN-PROGRESS - have", documentCount, "docs, need 7+");
               }
               
               // Check if step 3 data exists (academic history) - must have actual records
@@ -218,22 +230,35 @@ const App: React.FC = () => {
               
               // IMPORTANT: Step 6 is ONLY complete when:
               // 1. Application status is 'submitted' AND has submitted_at timestamp
-              // 2. AND all prerequisite steps (1-5) have actual data
-              // This prevents showing step 6 as complete when submission failed to save data
+              // 2. AND ALL prerequisite steps (1-5) are ACTUALLY complete with data
+              // This prevents showing step 6 as complete when steps are missing
               const hasAllPrerequisites = hasStudentData && hasFamilyData && hasFeeData;
+              const allStepsComplete = backendCompletedSteps.includes(1) && 
+                                       backendCompletedSteps.includes(2) && 
+                                       backendCompletedSteps.includes(3) && 
+                                       backendCompletedSteps.includes(4) && 
+                                       backendCompletedSteps.includes(5);
               const isSubmitted = (appData.status === 'submitted' || appData.status === 'completed') && appData.submitted_at;
               
-              if (isSubmitted && hasAllPrerequisites) {
-                console.log("App.tsx: Application is submitted with all prerequisite data - marking step 6 as complete");
+              console.log("App.tsx: Step 6 check - status:", appData.status, "submitted_at:", appData.submitted_at);
+              console.log("App.tsx: Step 6 check - hasAllPrerequisites:", hasAllPrerequisites, "allStepsComplete:", allStepsComplete);
+              console.log("App.tsx: Step 6 check - completed steps so far:", backendCompletedSteps);
+              
+              if (isSubmitted && hasAllPrerequisites && allStepsComplete) {
+                console.log("App.tsx: ✓ Application is submitted with ALL steps complete - marking step 6 as complete");
                 backendCompletedSteps.push(6);
-              } else if (isSubmitted && !hasAllPrerequisites) {
-                console.log("App.tsx: Application status is 'submitted' but missing prerequisite data - NOT marking step 6 as complete (data save may have failed)");
-                console.log("App.tsx: Missing data check - hasStudentData:", hasStudentData, "hasFamilyData:", hasFamilyData, "hasFeeData:", hasFeeData);
-              } else {
-                console.log("App.tsx: Application status:", appData.status, ", submitted_at:", appData.submitted_at, "- NOT marking step 6 as complete");
+              } else if (isSubmitted && !allStepsComplete) {
+                console.log("App.tsx: ✗ Application is submitted but NOT all steps complete - NOT marking step 6 as complete");
+                console.log("App.tsx: Missing steps - need all of [1,2,3,4,5] but have:", backendCompletedSteps);
+              } else if (!isSubmitted) {
+                console.log("App.tsx: ✗ Application NOT submitted - NOT marking step 6 as complete");
               }
 
               console.log("App.tsx: Backend completed steps:", backendCompletedSteps);
+              
+              // IMPORTANT: Always use backend-determined steps, ignore any stale localStorage data
+              // This ensures the UI accurately reflects the actual state of the application
+              console.log("App.tsx: Using backend completed steps (ignoring any stale localStorage)");
               
               // Transform backend data to frontend format
               const enrollmentData: Partial<EnrollmentData> = {};
@@ -394,9 +419,26 @@ const App: React.FC = () => {
               }
               
               // Set completed steps based on backend data
+              // CRITICAL: Clear any stale localStorage data and use ONLY backend data
+              console.log("App.tsx: Clearing any stale completedSteps from localStorage");
+              
+              // SAFETY CHECK: Remove step 6 from backendCompletedSteps if application is not actually submitted
+              // This prevents any stale data or bugs from showing step 6 as complete prematurely
+              const isActuallySubmitted = (appData.status === 'submitted' || appData.status === 'completed') && appData.submitted_at;
+              if (!isActuallySubmitted && backendCompletedSteps.includes(6)) {
+                console.warn("App.tsx: WARNING - Step 6 found in completed steps but application not submitted! Removing step 6.");
+                const index = backendCompletedSteps.indexOf(6);
+                if (index > -1) {
+                  backendCompletedSteps.splice(index, 1);
+                }
+              }
+              
               setCompletedSteps(backendCompletedSteps);
+              setInProgressSteps(inProgressSteps);
               storage.set(userCompletedStepsKey, backendCompletedSteps);
-              console.log("App.tsx: Completed steps saved to localStorage:", backendCompletedSteps);
+              storage.set(getUserKey(userEmail, 'inProgressSteps'), inProgressSteps);
+              console.log("App.tsx: Completed steps set from backend:", backendCompletedSteps);
+              console.log("App.tsx: In-progress steps set from backend:", inProgressSteps);
               
               // Determine the active step
               let targetStep = 1;
@@ -481,10 +523,10 @@ const App: React.FC = () => {
     setShowSignup(false);
   };
 
-  const handleSignupSuccess = () => {
+  const handleSignupSuccess = (email: string) => {
     setShowSignup(false);
-    // Optionally show a success message or redirect to login
-    alert('Account created successfully! Please log in.');
+    setShowEmailConfirmation(true);
+    setConfirmationEmail(email);
   };
 
   const handleLogout = async () => {
@@ -604,6 +646,16 @@ const App: React.FC = () => {
     setActiveStep(6); // Advance to review and submit
   };
 
+  // Auto-hide email confirmation toast after 5 seconds
+  useEffect(() => {
+    if (showEmailConfirmation) {
+      const timer = setTimeout(() => {
+        setShowEmailConfirmation(false);
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [showEmailConfirmation]);
+
   const handleStepComplete = (stepNumber: number) => {
     setCompletedSteps(prev => {
       const newSteps = [...new Set([...prev, stepNumber])]; // Use Set to ensure uniqueness
@@ -616,6 +668,63 @@ const App: React.FC = () => {
   };
 
   if (!isAuthenticated && authInitialized) {
+    return (
+      <>
+        {/* Toast Notification - Fixed position overlay */}
+        {showEmailConfirmation && (
+          <div className="fixed top-4 right-4 z-50 max-w-md w-full animate-slide-in">
+            <div className="bg-white rounded-lg shadow-2xl border-l-4 border-green-500 p-4">
+              <div className="flex items-start">
+                <div className="flex-shrink-0">
+                  <svg className="w-6 h-6 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+                <div className="ml-3 flex-1">
+                  <h3 className="text-sm font-semibold text-gray-900">
+                    Email Confirmation Sent!
+                  </h3>
+                  <p className="mt-1 text-sm text-gray-600">
+                    Check your email at <span className="font-medium text-blue-600">{confirmationEmail}</span> and click the confirmation link to verify your account.
+                  </p>
+                  <div className="mt-3 flex space-x-3">
+                    <button
+                      onClick={() => {
+                        setShowEmailConfirmation(false);
+                        setShowSignup(false);
+                      }}
+                      className="text-sm font-medium text-blue-600 hover:text-blue-800"
+                    >
+                      Go to Login
+                    </button>
+                    <button
+                      onClick={() => setShowEmailConfirmation(false)}
+                      className="text-sm font-medium text-gray-600 hover:text-gray-800"
+                    >
+                      Close
+                    </button>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowEmailConfirmation(false)}
+                  className="ml-4 flex-shrink-0 text-gray-400 hover:text-gray-600"
+                >
+                  <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+        
+        {showSignup ? (
+          <SignupPage onSignupSuccess={handleSignupSuccess} onSwitchToLogin={() => setShowSignup(false)} />
+        ) : (
+          <LoginPage onLogin={handleLogin} onSwitchToSignup={() => setShowSignup(true)} />
+        )}
+      </>
+    );
     if (showSignup) {
       return <SignupPage onSignupSuccess={handleSignupSuccess} onSwitchToLogin={() => setShowSignup(false)} />;
     } else {
@@ -650,7 +759,7 @@ const App: React.FC = () => {
       <div className="min-h-screen bg-gray-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <main className="flex flex-col md:flex-row">
-            <Sidebar steps={steps} activeStep={activeStep} onStepClick={handleStepClick} completedSteps={completedSteps} />
+            <Sidebar steps={steps} activeStep={activeStep} onStepClick={handleStepClick} completedSteps={completedSteps} inProgressSteps={inProgressSteps} />
             <div className="flex-1 flex flex-col md:ml-[25%] bg-white border border-gray-200 shadow-sm md:rounded-lg">
             <MainContent
               activeStep={activeStep}

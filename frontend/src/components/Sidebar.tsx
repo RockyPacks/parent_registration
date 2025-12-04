@@ -12,12 +12,14 @@ interface SidebarProps {
   activeStep: number;
   onStepClick?: (stepNumber: number) => void;
   completedSteps?: number[];
+  inProgressSteps?: number[];
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ steps, activeStep, onStepClick, completedSteps = [] }) => {
+const Sidebar: React.FC<SidebarProps> = ({ steps, activeStep, onStepClick, completedSteps = [], inProgressSteps = [] }) => {
   const getStepStatus = (stepNumber: number) => {
     if (completedSteps.includes(stepNumber)) return 'completed';
     if (stepNumber === activeStep) return 'active';
+    if (inProgressSteps.includes(stepNumber)) return 'in-progress';
     return 'pending';
   };
 
@@ -36,6 +38,12 @@ const Sidebar: React.FC<SidebarProps> = ({ steps, activeStep, onStepClick, compl
         return (
           <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
             <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+          </svg>
+        );
+      case 'in-progress':
+        return (
+          <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clipRule="evenodd" />
           </svg>
         );
       case 'active':
@@ -60,16 +68,53 @@ const Sidebar: React.FC<SidebarProps> = ({ steps, activeStep, onStepClick, compl
       <div className="mb-6 md:mb-8">
         <h2 className="text-lg md:text-xl font-bold text-gray-900 mb-1">Application Progress</h2>
         <p className="text-xs md:text-sm text-gray-600 mb-3 md:mb-4">Complete all steps to submit your enrollment</p>
-        <div className="space-y-2">
-          <div className="flex justify-between text-xs md:text-sm font-medium text-gray-700">
-            <span>Progress</span>
-            <span>{progressPercentage}%</span>
+        
+        {/* Modern Progress Bar */}
+        <div className="space-y-3">
+          <div className="flex justify-between items-center text-sm font-semibold">
+            <span className="text-gray-700">Progress</span>
+            <div className="flex items-center space-x-2">
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600 font-bold">
+                {progressPercentage}%
+              </span>
+              <span className="text-gray-400 text-xs font-normal">
+                ({completedSteps.length}/{steps.length})
+              </span>
+            </div>
           </div>
-          <div className="w-full bg-gray-100 rounded-full h-2 md:h-2.5">
-            <div
-              className="bg-gradient-to-r from-blue-500 to-blue-600 h-2 md:h-2.5 rounded-full transition-all duration-500 ease-out"
-              style={{ width: `${progressPercentage}%` }}
-            ></div>
+          
+          {/* Enhanced Progress Bar */}
+          <div className="relative">
+            <div className="w-full bg-gradient-to-r from-gray-100 to-gray-200 rounded-full h-3 shadow-inner overflow-hidden">
+              <div
+                className="relative h-full bg-gradient-to-r from-blue-500 via-blue-600 to-purple-600 rounded-full transition-all duration-700 ease-out shadow-lg"
+                style={{ width: `${progressPercentage}%` }}
+              >
+                {/* Animated shine effect */}
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white to-transparent opacity-30 animate-[shimmer_2s_infinite]"></div>
+                
+                {/* Glow effect */}
+                {progressPercentage > 0 && (
+                  <div className="absolute right-0 top-1/2 -translate-y-1/2 w-2 h-2 bg-white rounded-full shadow-lg animate-pulse"></div>
+                )}
+              </div>
+            </div>
+            
+            {/* Progress milestones */}
+            <div className="flex justify-between mt-2 px-1">
+              {[0, 25, 50, 75, 100].map((milestone) => (
+                <div
+                  key={milestone}
+                  className={`text-[10px] font-medium transition-colors duration-300 ${
+                    progressPercentage >= milestone
+                      ? 'text-blue-600'
+                      : 'text-gray-400'
+                  }`}
+                >
+                  {milestone === 0 ? 'Start' : milestone === 100 ? 'Done' : `${milestone}%`}
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       </div>
@@ -89,6 +134,8 @@ const Sidebar: React.FC<SidebarProps> = ({ steps, activeStep, onStepClick, compl
                     ? 'bg-blue-50 border-blue-200 text-blue-900 shadow-sm cursor-pointer'
                     : status === 'completed'
                     ? 'bg-green-50 border-green-200 text-green-800 hover:bg-green-100 cursor-pointer'
+                    : status === 'in-progress'
+                    ? 'bg-yellow-50 border-yellow-300 text-yellow-900 hover:bg-yellow-100 cursor-pointer'
                     : isStep6Locked
                     ? 'bg-gray-50 border-gray-200 text-gray-400 cursor-not-allowed opacity-60'
                     : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50 hover:border-gray-300 cursor-pointer'
@@ -102,6 +149,8 @@ const Sidebar: React.FC<SidebarProps> = ({ steps, activeStep, onStepClick, compl
                       ? 'bg-blue-600 text-white'
                       : status === 'completed'
                       ? 'bg-green-600 text-white'
+                      : status === 'in-progress'
+                      ? 'bg-yellow-500 text-white'
                       : step.isRiskAssessment
                       ? 'bg-orange-100 text-orange-600 border border-orange-200'
                       : 'bg-gray-200 text-gray-600'
@@ -111,12 +160,12 @@ const Sidebar: React.FC<SidebarProps> = ({ steps, activeStep, onStepClick, compl
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className={`font-medium text-xs md:text-sm truncate ${
-                    status === 'active' ? 'text-blue-900' : status === 'completed' ? 'text-green-800' : 'text-gray-900'
+                    status === 'active' ? 'text-blue-900' : status === 'completed' ? 'text-green-800' : status === 'in-progress' ? 'text-yellow-900' : 'text-gray-900'
                   }`}>
                     {step.title}
                   </p>
                   <p className={`text-xs truncate ${
-                    status === 'active' ? 'text-blue-700' : status === 'completed' ? 'text-green-600' : 'text-gray-500'
+                    status === 'active' ? 'text-blue-700' : status === 'completed' ? 'text-green-600' : status === 'in-progress' ? 'text-yellow-700' : 'text-gray-500'
                   }`}>
                     {step.subtitle}
                   </p>

@@ -6,10 +6,11 @@ including student information, medical details, family information,
 and fee responsibility data.
 """
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, validator
 from typing import Dict, Any, Optional, List
 from datetime import datetime
 from enum import Enum
+from app.core.validators import validate_sa_id_number, SAIDValidationError
 
 
 class ApplicationStatus(str, Enum):
@@ -41,6 +42,17 @@ class StudentInfo(BaseModel):
     previous_grade: str = Field(..., min_length=1, max_length=20, description="Previous grade completed")
     grade_applied_for: str = Field(..., min_length=1, max_length=20, description="Grade applying for")
     previous_school: str = Field(..., min_length=1, max_length=100, description="Previous school attended")
+    
+    @validator('id_number')
+    def validate_id_number(cls, v):
+        """Validate South African ID number with Luhn checksum."""
+        if not v:
+            return v
+        try:
+            validate_sa_id_number(v)
+            return v
+        except SAIDValidationError as e:
+            raise ValueError(str(e))
 
 
 class StudentInfoPartial(BaseModel):
@@ -62,6 +74,17 @@ class StudentInfoPartial(BaseModel):
     previous_grade: Optional[str] = Field(None, min_length=1, max_length=20, description="Previous grade completed")
     grade_applied_for: Optional[str] = Field(None, min_length=1, max_length=20, description="Grade applying for")
     previous_school: Optional[str] = Field(None, min_length=1, max_length=100, description="Previous school attended")
+    
+    @validator('id_number')
+    def validate_id_number(cls, v):
+        """Validate South African ID number with Luhn checksum."""
+        if not v:
+            return v
+        try:
+            validate_sa_id_number(v)
+            return v
+        except SAIDValidationError as e:
+            raise ValueError(str(e))
 
 
 class MedicalInfo(BaseModel):
@@ -111,6 +134,17 @@ class FamilyInfo(BaseModel):
     next_of_kin_relationship: Optional[str] = Field(None, max_length=50, description="Next of kin's relationship")
     next_of_kin_mobile: Optional[str] = Field(None, pattern=r'^\+?[\d\s\-\(\)]+$', description="Next of kin's mobile number")
     next_of_kin_email: Optional[str] = Field(None, description="Next of kin's email address")
+    
+    @validator('father_id_number', 'mother_id_number')
+    def validate_parent_id_numbers(cls, v):
+        """Validate parent ID numbers with Luhn checksum."""
+        if not v:
+            return v
+        try:
+            validate_sa_id_number(v)
+            return v
+        except SAIDValidationError as e:
+            raise ValueError(str(e))
 
 
 class FamilyInfoPartial(BaseModel):
@@ -136,6 +170,17 @@ class FamilyInfoPartial(BaseModel):
     next_of_kin_relationship: Optional[str] = Field(None, max_length=50, description="Next of kin's relationship")
     next_of_kin_mobile: Optional[str] = Field(None, pattern=r'^\+?[\d\s\-\(\)]+$', description="Next of kin's mobile number")
     next_of_kin_email: Optional[str] = Field(None, description="Next of kin's email address")
+    
+    @validator('father_id_number', 'mother_id_number')
+    def validate_parent_id_numbers(cls, v):
+        """Validate parent ID numbers with Luhn checksum."""
+        if not v:
+            return v
+        try:
+            validate_sa_id_number(v)
+            return v
+        except SAIDValidationError as e:
+            raise ValueError(str(e))
 
 
 class FeeResponsibilityInfo(BaseModel):
@@ -160,6 +205,17 @@ class FeeResponsibilityInfo(BaseModel):
     branch_code: Optional[str] = Field(None, max_length=6, description="Bank branch code (6 digits)")
     account_number: Optional[str] = Field(None, max_length=12, description="Bank account number for fee deductions")
     account_type: Optional[str] = Field(None, max_length=50, description="Bank account type (e.g., Cheque, Savings, Current)")
+    
+    @validator('parent_id_number')
+    def validate_parent_id_number(cls, v):
+        """Validate parent ID number with Luhn checksum."""
+        if not v:
+            return v
+        try:
+            validate_sa_id_number(v)
+            return v
+        except SAIDValidationError as e:
+            raise ValueError(str(e))
 
 
 class FeeResponsibilityInfoPartial(BaseModel):
@@ -183,11 +239,20 @@ class FeeResponsibilityInfoPartial(BaseModel):
     branch_code: Optional[str] = Field(None, max_length=6, description="Bank branch code (6 digits)")
     account_number: Optional[str] = Field(None, max_length=12, description="Bank account number for fee deductions")
     account_type: Optional[str] = Field(None, max_length=50, description="Bank account type (e.g., Cheque, Savings, Current)")
-    """
-    Declaration information schema.
+    
+    @validator('parent_id_number')
+    def validate_parent_id_number(cls, v):
+        """Validate parent ID number with Luhn checksum."""
+        if not v:
+            return v
+        try:
+            validate_sa_id_number(v)
+            return v
+        except SAIDValidationError as e:
+            raise ValueError(str(e))
 
-    Contains declaration confirmations and signature details.
-    """
+
+class DeclarationInfo(BaseModel):
     agree_truth: bool = Field(default=False, description="Agreement to truth of information")
     agree_policies: bool = Field(default=False, description="Agreement to school policies")
     agree_financial: bool = Field(default=False, description="Agreement to financial responsibility")

@@ -1,7 +1,7 @@
 import React from 'react';
 import CheckIcon from './icons/CheckIcon';
 import WarningIcon from './icons/WarningIcon';
-import UsersIcon from './icons/UsersIcon';
+import InfoIcon from './icons/InfoIcon';
 
 // Define the shape of financing option data used in constants
 interface FinancingOptionData {
@@ -21,10 +21,10 @@ interface OptionCardProps {
 }
 
 const tagStyles: Record<string, string> = {
-  save: 'bg-success-light text-success-DEFAULT',
-  cost: 'bg-warning-light text-warning-DEFAULT',
-  'best-value': 'bg-primary text-white',
-  none: 'hidden',
+  save: 'bg-gradient-to-r from-green-400 to-green-500 text-white px-4 py-1 rounded-full text-xs font-semibold shadow-md',
+  cost: 'bg-gradient-to-r from-orange-400 to-orange-500 text-white px-4 py-1 rounded-full text-xs font-semibold shadow-md',
+  'best-value': 'bg-gradient-to-r from-blue-500 to-purple-600 text-white px-4 py-1 rounded-full text-xs font-semibold shadow-md animate-pulse',
+  none: 'bg-gray-500 text-white px-4 py-1 rounded-full text-xs font-semibold',
 };
 
 const Feature: React.FC<{ feature: { text: string; type: string } }> = ({ feature }) => {
@@ -35,7 +35,9 @@ const Feature: React.FC<{ feature: { text: string; type: string } }> = ({ featur
       case 'warning':
         return <WarningIcon className="h-5 w-5 text-warning-DEFAULT" />;
       case 'info':
-        return <UsersIcon className="h-5 w-5 text-primary" />;
+        return <InfoIcon className="h-4 w-4 text-blue-500" />;
+      case 'neutral':
+        return <InfoIcon className="h-4 w-4 text-gray-500" />;
       default:
         return null;
     }

@@ -3,6 +3,7 @@ import FormSection from './FormSection';
 import InputField from '../ui/InputField';
 import { FamilyIcon } from '../Icons';
 import { useToast } from '../../hooks/useToast';
+import { validateSAID } from '../../utils/saIdValidator';
 
 interface FamilyInformationProps {
   initialFamilyData?: any;
@@ -158,8 +159,11 @@ const FamilyInformation: React.FC<FamilyInformationProps> = ({ initialFamilyData
       case 'nextOfKinIdNumber': // Added validation for nextOfKinIdNumber
         if (!value.trim()) {
           error = 'ID number is required';
-        } else if (!/^\d{13}$/.test(value)) {
-          error = 'ID number must be exactly 13 digits';
+        } else {
+          const validationResult = validateSAID(value);
+          if (!validationResult.isValid) {
+            error = validationResult.error || 'Invalid SA ID number';
+          }
         }
         break;
       case 'fatherMobile':
