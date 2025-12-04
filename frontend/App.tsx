@@ -48,6 +48,17 @@ const App: React.FC = () => {
     // Check if user is already authenticated on app load
     const initializeAuth = async () => {
       console.log("App.tsx: initializeAuth called");
+      
+      // Handle PKCE code exchange from email confirmation
+      const urlParams = new URLSearchParams(window.location.search);
+      const code = urlParams.get('code');
+      
+      if (code) {
+        console.log("App.tsx: PKCE code detected in URL, exchanging for session");
+        // Clean up URL (remove code parameter)
+        window.history.replaceState({}, document.title, window.location.pathname);
+      }
+      
       const { authService } = await import('./src/services/auth');
       console.log("App.tsx: authService loaded, checking authentication");
 
