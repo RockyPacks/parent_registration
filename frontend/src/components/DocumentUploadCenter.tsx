@@ -167,16 +167,27 @@ export const DocumentUploadCenter: React.FC<DocumentUploadCenterProps> = ({
       return updated;
     });
 
-    // Check completion status
-    checkCompletionStatus();
   }, [uploadedFiles]);
+
+  // Check completion status whenever categories change
+  useEffect(() => {
+    checkCompletionStatus();
+  }, [categories, applicationId]);
 
   const checkCompletionStatus = async () => {
     try {
+      // First attempt local check for immediate UI feedback
+      const catList = Object.values(categories);
+      const isLocalComplete = catList.length > 0 && catList.every((category: DocumentCategory) => category.status === CategoryStatus.Completed);
+      
+      // Still query backend
       const complete = await isAllRequiredComplete();
-      setIsComplete(complete);
+      
+      setIsComplete(isLocalComplete || complete);
     } catch (error) {
-      setIsComplete(false);
+      const catList = Object.values(categories);
+      const isLocalComplete = catList.length > 0 && catList.every((category: DocumentCategory) => category.status === CategoryStatus.Completed);
+      setIsComplete(isLocalComplete);
     }
   };
 
@@ -349,10 +360,15 @@ export const DocumentUploadCenter: React.FC<DocumentUploadCenterProps> = ({
       }
       // Use the new upload summary API for completion tracking
       const summary = await apiService.getUploadSummary(currentApplicationId);
-      return summary.completed_categories >= 4; // All 4 categories completed
+      // Wait a tick for the categories checking loop above to also happen
+      if (summary && summary.completed_categories >= 4) {
+          return true;
+      }
+      return false;
     } catch (error) {
       // Fallback to local category checking
-      return categoryList.every((category: DocumentCategory) => category.status === CategoryStatus.Completed);
+      const catList = Object.values(categories);
+      return catList.length > 0 && catList.every((category: DocumentCategory) => category.status === CategoryStatus.Completed);
     }
   };
 

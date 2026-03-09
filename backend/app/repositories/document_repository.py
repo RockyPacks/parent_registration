@@ -74,8 +74,9 @@ class DocumentRepository(BaseRepository):
                         uploaded_by: str) -> str:
         """
         Save file record to uploaded_files table.
-        
-        Each file is stored as a separate row in the uploaded_files table.
+
+        The uploaded_files table uses a JSONB 'files' array (one row per application).
+        This method appends the new file entry to that array, creating the row if needed.
 
         Args:
             application_id: Application ID
@@ -87,19 +88,18 @@ class DocumentRepository(BaseRepository):
             bucket_name: Storage bucket name
             file_path: Path in storage
             download_url: Public download URL
-            uploaded_by: User who uploaded the file
+            uploaded_by: User who uploaded the file (stored as user_id)
 
         Returns:
-            File record ID
+            File entry ID
 
         Raises:
             ExternalServiceError: If database operation fails
         """
         try:
             file_id = str(uuid.uuid4())
-            uploaded_files_data = {
+            new_file = {
                 "id": file_id,
-                "application_id": application_id,
                 "filename": filename,
                 "original_filename": original_filename,
                 "file_size": file_size,
@@ -108,13 +108,30 @@ class DocumentRepository(BaseRepository):
                 "bucket_name": bucket_name,
                 "file_path": file_path,
                 "download_url": download_url,
-                "uploaded_by": uploaded_by,
                 "created_at": datetime.now().isoformat()
             }
-            result = self.supabase.table("uploaded_files").insert(uploaded_files_data).execute()
+
+            # Check if a row already exists for this application (UNIQUE constraint on application_id)
+            existing = self.supabase.table("uploaded_files").select("id, files").eq("application_id", application_id).execute()
+
+            if existing.data:
+                # Append to existing files array
+                current_files = existing.data[0].get("files") or []
+                current_files.append(new_file)
+                self.supabase.table("uploaded_files").update({
+                    "files": current_files,
+                    "updated_at": datetime.now().isoformat()
+                }).eq("application_id", application_id).execute()
+            else:
+                # Insert new row with this file as the first entry
+                self.supabase.table("uploaded_files").insert({
+                    "application_id": application_id,
+                    "user_id": uploaded_by,
+                    "files": [new_file]
+                }).execute()
+
             logger.info(f"Saved file record to uploaded_files for application {application_id}: {document_type}")
-            
-            return str(result.data[0]["id"])
+            return file_id
         except Exception as e:
             logger.error(f"Failed to save file record for application {application_id}: {str(e)}")
             raise ExternalServiceError("Database", "Failed to save file record")
@@ -133,14 +150,13 @@ class DocumentRepository(BaseRepository):
             ExternalServiceError: If database operation fails
         """
         try:
-            # Query uploaded_files table instead of application_documents
-            docs_result = self.supabase.table("uploaded_files").select("*").eq("application_id", application_id).execute()
+            result = self.supabase.table("uploaded_files").select("files").eq("application_id", application_id).execute()
 
-            # Group by document type
-            summary = []
+            all_files = []
+            if result.data:
+                all_files = result.data[0].get("files") or []
+
             doc_types = ["proof_of_address", "id_document", "payslip", "bank_statement"]
-
-            # Define requirements for each document type
             requirements = {
                 "proof_of_address": 1,
                 "id_document": 2,
@@ -148,21 +164,19 @@ class DocumentRepository(BaseRepository):
                 "bank_statement": 1
             }
 
+            summary = []
             for doc_type in doc_types:
-                type_docs = [doc for doc in docs_result.data if doc.get("document_type") == doc_type]
-                # All files in uploaded_files are considered completed
-                completed_count = len(type_docs)
+                type_docs = [f for f in all_files if f.get("document_type") == doc_type]
                 required_count = requirements.get(doc_type, 1)
-
                 summary.append({
                     "document_type": doc_type,
                     "uploaded_count": len(type_docs),
                     "required_count": required_count,
-                    "completed": completed_count >= required_count,
+                    "completed": len(type_docs) >= required_count,
                     "files": [{
-                        "file_url": doc.get("download_url"),
-                        "filename": doc.get("original_filename") or doc.get("filename") or f"{doc_type}_{doc.get('id', '')[:8]}.pdf"
-                    } for doc in type_docs]
+                        "file_url": f.get("download_url"),
+                        "filename": f.get("original_filename") or f.get("filename") or f"{doc_type}.pdf"
+                    } for f in type_docs]
                 })
 
             return summary
@@ -178,61 +192,68 @@ class DocumentRepository(BaseRepository):
             application_id: Application ID
 
         Returns:
-            List of uploaded file details
+            List of uploaded file details (from the JSONB files array)
 
         Raises:
             ExternalServiceError: If database operation fails
         """
         try:
-            # Query uploaded_files table for file records
-            result = self.supabase.table("uploaded_files").select("*").eq("application_id", application_id).execute()
+            result = self.supabase.table("uploaded_files").select("files").eq("application_id", application_id).execute()
 
-            files = []
-            for file_data in result.data:
-                files.append({
-                    "id": str(file_data["id"]),
-                    "filename": file_data.get("filename", ""),
-                    "original_filename": file_data.get("original_filename", ""),
-                    "file_size": file_data.get("file_size", 0),
-                    "content_type": file_data.get("content_type", "application/octet-stream"),
-                    "document_type": file_data.get("document_type", "unknown"),
-                    "download_url": file_data.get("download_url", ""),
-                    "created_at": file_data.get("created_at", "")
-                })
+            if not result.data:
+                return []
 
-            return files
+            files_data = result.data[0].get("files") or []
+            return [
+                {
+                    "id": f.get("id", ""),
+                    "filename": f.get("filename", ""),
+                    "original_filename": f.get("original_filename", ""),
+                    "file_size": f.get("file_size", 0),
+                    "content_type": f.get("content_type", "application/octet-stream"),
+                    "document_type": f.get("document_type", "unknown"),
+                    "download_url": f.get("download_url", ""),
+                    "created_at": f.get("created_at", "")
+                }
+                for f in files_data
+            ]
         except Exception as e:
             logger.error(f"Failed to get uploaded files for application {application_id}: {str(e)}")
             raise ExternalServiceError("Database", "Failed to retrieve uploaded files")
 
     def delete_file(self, file_id: str, application_id: str) -> Optional[Dict[str, Any]]:
         """
-        Delete file record from uploaded_files table.
+        Delete a file entry from the JSONB files array in uploaded_files.
 
         Args:
-            file_id: File record ID to delete
-            application_id: Application ID for verification
+            file_id: File entry ID (inside the files JSONB array)
+            application_id: Application ID for row lookup
 
         Returns:
-            File data for cleanup or None if not found
+            The deleted file data, or None if not found
 
         Raises:
             ExternalServiceError: If database operation fails
         """
         try:
-            # Get file info before deletion
-            file_result = self.supabase.table("uploaded_files").select("*").eq("id", file_id).eq("application_id", application_id).execute()
-            if not file_result.data:
+            result = self.supabase.table("uploaded_files").select("id, files").eq("application_id", application_id).execute()
+            if not result.data:
                 return None
 
-            file_data = file_result.data[0]
+            files_data = result.data[0].get("files") or []
+            file_to_delete = next((f for f in files_data if f.get("id") == file_id), None)
+            if not file_to_delete:
+                return None
 
-            # Delete from uploaded_files table
-            self.supabase.table("uploaded_files").delete().eq("id", file_id).execute()
-            
+            new_files = [f for f in files_data if f.get("id") != file_id]
+            self.supabase.table("uploaded_files").update({
+                "files": new_files,
+                "updated_at": datetime.now().isoformat()
+            }).eq("application_id", application_id).execute()
+
             logger.info(f"Deleted file {file_id} for application {application_id}")
-            return file_data
-            
+            return file_to_delete
+
         except Exception as e:
             logger.error(f"Failed to delete file {file_id} for application {application_id}: {str(e)}")
             raise ExternalServiceError("Database", "Failed to delete file")
@@ -271,27 +292,26 @@ class DocumentRepository(BaseRepository):
             ExternalServiceError: If database operation fails
         """
         try:
-            # Get all uploaded files for this application
-            result = self.supabase.table("uploaded_files").select("*").eq("application_id", application_id).execute()
-            
+            result = self.supabase.table("uploaded_files").select("files").eq("application_id", application_id).execute()
+
             if not result.data:
                 return {"completed_categories": 0, "uploaded_types": [], "total_files": 0}
-            
-            # Get unique document types
+
+            files_data = result.data[0].get("files") or []
+
             doc_types = set()
-            for file_data in result.data:
-                doc_type = file_data.get("document_type")
+            for f in files_data:
+                doc_type = f.get("document_type")
                 if doc_type:
                     doc_types.add(doc_type)
-            
-            # Determine completion (all 4 categories must have files)
+
             required_types = {"proof_of_address", "id_document", "payslip", "bank_statement"}
             completed_count = len(doc_types.intersection(required_types))
-            
+
             return {
                 "completed_categories": completed_count,
                 "uploaded_types": list(doc_types),
-                "total_files": len(result.data)
+                "total_files": len(files_data)
             }
         except Exception as e:
             logger.error(f"Failed to get upload summary for {application_id}: {str(e)}")

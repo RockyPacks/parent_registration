@@ -60,10 +60,13 @@ class EnrollmentService:
             logger.warning(f"Failed to create academic history for application {application_id}: {str(e)}")
             # Don't raise - this is not critical to the main enrollment flow
 
-    def get_or_create_application_for_user(self, user_id: str) -> Dict[str, Any]:
+    def get_or_create_application_for_user(
+        self, user_id: str, user_metadata: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
         """
         Retrieves an existing application for a user or creates a new one.
         This ensures every authenticated user has an application ID upon login.
+        School association is stored from user metadata on first creation.
         """
         try:
             # Check if user already has ANY application (in_progress or submitted)
@@ -72,13 +75,38 @@ class EnrollmentService:
             if existing_app:
                 application_id = str(existing_app['id'])
                 status = existing_app.get('status', ApplicationStatus.IN_PROGRESS)
+                school_name = existing_app.get('school_name')
                 logger.info(f"Found existing application {application_id} for user {user_id}")
-                return {"application_id": application_id, "status": status}
+                return {
+                    "application_id": application_id,
+                    "status": status,
+                    "school_name": school_name,
+                }
             else:
-                # Create a new application if none exists
-                application_id = self.repository.create_application(user_id)
-                logger.info(f"Created new application {application_id} for user {user_id}")
-                return {"application_id": application_id, "status": ApplicationStatus.IN_PROGRESS}
+                # Extract school info from user metadata (set during signup)
+                meta = user_metadata or {}
+                school_name = meta.get("school_applying_for") or None
+                school_id_external = meta.get("school_id_external") or None
+                if school_id_external is not None:
+                    try:
+                        school_id_external = int(school_id_external)
+                    except (ValueError, TypeError):
+                        school_id_external = None
+
+                application_id = self.repository.create_application(
+                    user_id,
+                    school_name=school_name,
+                    school_id_external=school_id_external,
+                )
+                logger.info(
+                    f"Created new application {application_id} for user {user_id} "
+                    f"(school: {school_name})"
+                )
+                return {
+                    "application_id": application_id,
+                    "status": ApplicationStatus.IN_PROGRESS,
+                    "school_name": school_name,
+                }
         except Exception as e:
             logger.error(f"Failed to get or create application for user {user_id}: {str(e)}")
             raise HTTPException(status_code=500, detail="Could not retrieve or create user application.")
@@ -102,7 +130,7 @@ class EnrollmentService:
 
             if data.student:
                 try:
-                    self.repository.save_student_data_partial(application_id, data.student)
+                    self.repository.save_student_data_partial(application_id, data.student, user_id)
                     saved_sections.append("student")
                     # Create academic history from student data
                     self.create_academic_history_from_student_data(application_id, data.student)
@@ -112,7 +140,7 @@ class EnrollmentService:
 
             if data.medical:
                 try:
-                    self.repository.save_medical_data_partial(application_id, data.medical)
+                    self.repository.save_medical_data_partial(application_id, data.medical, user_id)
                     saved_sections.append("medical")
                 except Exception as e:
                     logger.warning(f"Failed to save medical data: {str(e)}")
@@ -120,7 +148,7 @@ class EnrollmentService:
 
             if data.family:
                 try:
-                    self.repository.save_family_data_partial(application_id, data.family)
+                    self.repository.save_family_data_partial(application_id, data.family, user_id)
                     saved_sections.append("family")
                 except Exception as e:
                     logger.warning(f"Failed to save family data: {str(e)}")
@@ -128,7 +156,7 @@ class EnrollmentService:
 
             if data.fee:
                 try:
-                    self.repository.save_fee_data_partial(application_id, data.fee)
+                    self.repository.save_fee_data_partial(application_id, data.fee, user_id)
                     saved_sections.append("fee")
                 except Exception as e:
                     logger.warning(f"Failed to save fee data: {str(e)}")
@@ -180,9 +208,7 @@ class EnrollmentService:
             existing_app = self.repository.get_user_application(user_id)
             if existing_app:
                 application_id = str(existing_app['id'])
-                # Update status to submitted
-                self.repository.update_application_status(application_id, ApplicationStatus.SUBMITTED, submitted_at=True)
-                logger.info(f"Updating existing application {application_id} to submitted status")
+                logger.info(f"Using existing application {application_id} for enrollment submission")
             else:
                 # Create new application if none exists (shouldn't happen in normal flow)
                 application_id = self.repository.create_application(user_id, ApplicationStatus.SUBMITTED)
@@ -193,29 +219,37 @@ class EnrollmentService:
 
             # Save all enrollment data with error handling for each step
             try:
-                self.repository.save_student_data(application_id, data.student)
+                logger.info(f"DEBUG: Saving student data with user_id={user_id}, app_id={application_id}")
+                self.repository.save_student_data(application_id, data.student, user_id)
+                logger.info(f"DEBUG: Student data saved successfully")
                 # Create academic history from student data
                 self.create_academic_history_from_student_data(application_id, data.student)
             except Exception as e:
-                logger.error(f"Failed to save student data: {str(e)}")
+                logger.error(f"FAILED TO SAVE STUDENT DATA: {str(e)}", exc_info=True)
                 raise
                 
             try:
-                self.repository.save_medical_data(application_id, data.medical)
+                logger.info(f"DEBUG: Saving medical data with user_id={user_id}")
+                self.repository.save_medical_data(application_id, data.medical, user_id)
+                logger.info(f"DEBUG: Medical data saved successfully")
             except Exception as e:
-                logger.error(f"Failed to save medical data: {str(e)}")
+                logger.error(f"FAILED TO SAVE MEDICAL DATA: {str(e)}", exc_info=True)
                 raise
                 
             try:
-                self.repository.save_family_data(application_id, data.family)
+                logger.info(f"DEBUG: Saving family data with user_id={user_id}")
+                self.repository.save_family_data(application_id, data.family, user_id)
+                logger.info(f"DEBUG: Family data saved successfully")
             except Exception as e:
-                logger.error(f"Failed to save family data: {str(e)}")
+                logger.error(f"FAILED TO SAVE FAMILY DATA: {str(e)}", exc_info=True)
                 raise
                 
             try:
-                self.repository.save_fee_data(application_id, data.fee)
+                logger.info(f"DEBUG: Saving fee data with user_id={user_id}")
+                self.repository.save_fee_data(application_id, data.fee, user_id)
+                logger.info(f"DEBUG: Fee data saved successfully")
             except Exception as e:
-                logger.error(f"Failed to save fee data: {str(e)}")
+                logger.error(f"FAILED TO SAVE FEE DATA: {str(e)}", exc_info=True)
                 raise
 
             if data.next_of_kin:
@@ -225,6 +259,8 @@ class EnrollmentService:
                     logger.error(f"Failed to save next of kin data: {str(e)}")
                     raise
 
+            # Update status to submitted ONLY after all data is saved successfully
+            self.repository.update_application_status(application_id, ApplicationStatus.SUBMITTED, submitted_at=True)
             logger.info(f"Successfully submitted enrollment for application {application_id}")
             return SubmitEnrollmentResponse(
                 message="Enrollment submitted successfully",
@@ -297,13 +333,13 @@ class EnrollmentService:
 
             # Save all provided data sections
             if data.student:
-                self.repository.save_student_data(application_id, data.student)
+                self.repository.save_student_data(application_id, data.student, user_id)
             if data.medical:
-                self.repository.save_medical_data(application_id, data.medical)
+                self.repository.save_medical_data(application_id, data.medical, user_id)
             if data.family:
-                self.repository.save_family_data(application_id, data.family)
+                self.repository.save_family_data(application_id, data.family, user_id)
             if data.fee:
-                self.repository.save_fee_data(application_id, data.fee)
+                self.repository.save_fee_data(application_id, data.fee, user_id)
 
             # Save academic history if provided
             if data.academic_history:

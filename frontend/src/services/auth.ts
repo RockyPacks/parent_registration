@@ -47,7 +47,7 @@ class AuthService {
     }
   }
 
-  async signup(fullName: string, email: string, password: string): Promise<AuthResponse> {
+  async signup(fullName: string, email: string, password: string, schoolName?: string, schoolId?: number | null): Promise<AuthResponse> {
     // Password validation: at least 8 characters with 1 uppercase, 1 lowercase, 1 special character
     if (password.length < 8) {
       throw new Error('Password must be at least 8 characters long.');
@@ -77,7 +77,11 @@ class AuthService {
         email,
         password,
         options: {
-          data: { full_name: fullName },
+          data: {
+            full_name: fullName,
+            ...(schoolName ? { school_applying_for: schoolName } : {}),
+            ...(schoolId != null ? { school_id_external: schoolId } : {}),
+          },
           emailRedirectTo: emailRedirectUrl,
         },
       });

@@ -63,7 +63,7 @@ const MainContent: React.FC<MainContentProps> = (props) => {
       setLocalCompletedSteps(prev => [...prev, 2]);
     }
     onStepComplete && onStepComplete(2);
-    
+
     // IMPORTANT: Always navigate to step 3 (Academic History), never skip ahead
     console.log('MainContent: Explicitly navigating to step 3 (Academic History)');
     onStepChange && onStepChange(3);
@@ -121,7 +121,7 @@ const MainContent: React.FC<MainContentProps> = (props) => {
   useEffect(() => {
     const fetchDocuments = async () => {
       if (!applicationId || !dataLoaded) return;
-      
+
       try {
         const { apiService } = await import('../services/api');
         const data = await apiService.getUploadedFiles(applicationId);
@@ -135,7 +135,7 @@ const MainContent: React.FC<MainContentProps> = (props) => {
         console.warn("MainContent: Could not fetch documents from backend:", error);
       }
     };
-    
+
     fetchDocuments();
   }, [applicationId, dataLoaded, getUserKey]);
 
@@ -282,12 +282,12 @@ const MainContent: React.FC<MainContentProps> = (props) => {
         fee: combinedData.fee,
         next_of_kin: nextOfKinData
       };
-      
+
       console.log('MainContent: Auto-save payload being sent to backend:', autoSavePayload);
       console.log('MainContent: next_of_kin data specifically:', JSON.stringify(nextOfKinData, null, 2));
       console.log('MainContent: nextOfKinData keys:', Object.keys(nextOfKinData));
       console.log('MainContent: nextOfKinData has data?', Object.keys(nextOfKinData).length > 0);
-      
+
       const result = await apiService.autoSaveEnrollment(autoSavePayload);
 
       setSavingStatus('saved');
@@ -449,7 +449,7 @@ const MainContent: React.FC<MainContentProps> = (props) => {
       setFullApplicationData(data);
 
       addToast('Application submitted successfully!', 'success');
-      
+
       // ONLY mark step 6 as complete after successful backend submission
       console.log('MainContent: Marking step 6 as complete');
       onStepComplete && onStepComplete(6);
@@ -471,13 +471,13 @@ const MainContent: React.FC<MainContentProps> = (props) => {
         setIsSubmitting(false);
         return;
       }
-      
+
       if (!isFamilyInfoCompleted) {
         addToast('Please complete at least one parent\'s information in Family Information section.', 'error');
         setIsSubmitting(false);
         return;
       }
-      
+
       if (!isFeeResponsibilityCompleted) {
         addToast('Please complete all required Fee Responsibility fields.', 'error');
         setIsSubmitting(false);
@@ -708,6 +708,7 @@ const MainContent: React.FC<MainContentProps> = (props) => {
         <Suspense fallback={<div>Loading Step 4...</div>}>
           <Step4FeeAgreement
             applicationId={applicationId}
+            grade={studentData?.gradeAppliedFor}
             onFeeAgreementComplete={onFeeAgreementComplete}
             onStepChange={onStepChange}
             onStepComplete={(step) => {

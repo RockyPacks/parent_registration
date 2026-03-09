@@ -124,6 +124,7 @@ class FinancingRepository(BaseRepository):
     def update_fee_responsibility_selected_plan(self, application_id: str, plan_type: str) -> None:
         """
         Update the selected_plan in fee_responsibility table when financing selection changes.
+        Creates the fee_responsibility record if it doesn't exist.
 
         Args:
             application_id: Application ID
@@ -151,15 +152,39 @@ class FinancingRepository(BaseRepository):
             if selected_plan:
                 selected_plan = selected_plan.strip()
 
-            # Update the selected_plan in fee_responsibility table (only update, don't insert)
-            result = self.supabase.table("fee_responsibility").update({
-                "selected_plan": selected_plan
-            }).eq("application_id", application_id).execute()
-
-            if not result.data:
-                logger.warning(f"No fee_responsibility record found for application {application_id}")
-            else:
+            # First, check if fee_responsibility record exists for this application
+            existing = self.supabase.table("fee_responsibility").select("id").eq("application_id", application_id).execute()
+            
+            if existing.data and len(existing.data) > 0:
+                # Update existing record
+                result = self.supabase.table("fee_responsibility").update({
+                    "selected_plan": selected_plan
+                }).eq("application_id", application_id).execute()
                 logger.info(f"Updated selected_plan to '{selected_plan}' for application {application_id}")
+            else:
+                # Create new fee_responsibility record with minimal required fields
+                # Then update with selected_plan
+                logger.info(f"No existing fee_responsibility record found for {application_id}, creating new record")
+                try:
+                    # Create record with required fields (fee_person and relationship are required)
+                    new_record_data = {
+                        "application_id": application_id,
+                        "fee_person": "Parent/Guardian",  # Default value
+                        "relationship": "Parent",  # Default value
+                        "selected_plan": selected_plan
+                    }
+                    result = self.supabase.table("fee_responsibility").insert(new_record_data).execute()
+                    logger.info(f"Created new fee_responsibility record with selected_plan '{selected_plan}' for application {application_id}")
+                except Exception as insert_error:
+                    # If insert fails, try update (in case of race condition)
+                    if "unique" in str(insert_error).lower() or "duplicate" in str(insert_error).lower():
+                        logger.warning(f"Race condition: record already exists, updating selected_plan for {application_id}")
+                        result = self.supabase.table("fee_responsibility").update({
+                            "selected_plan": selected_plan
+                        }).eq("application_id", application_id).execute()
+                        logger.info(f"Updated selected_plan to '{selected_plan}' for application {application_id}")
+                    else:
+                        raise insert_error
         except Exception as e:
             logger.error(f"Failed to update selected_plan for application {application_id}: {str(e)}")
             raise ExternalServiceError("Database", "Failed to update selected plan")

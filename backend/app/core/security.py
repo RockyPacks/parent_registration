@@ -24,6 +24,7 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(securit
             "email": "mock@example.com",
             "role": "authenticated",
             "aud": "authenticated",
+            "user_metadata": {},
         }
 
     try:
@@ -67,11 +68,13 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(securit
             )
         
         # Extract user information from the token
+        user_metadata = decoded.get("user_metadata") or {}
         return {
             "id": decoded.get("sub"),
             "email": decoded.get("email", "unknown@example.com"),
             "role": decoded.get("role", "authenticated"),
             "aud": decoded.get("aud", "authenticated"),
+            "user_metadata": user_metadata,
         }
 
     except jwt.DecodeError as e:

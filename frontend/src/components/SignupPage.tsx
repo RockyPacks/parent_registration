@@ -1,6 +1,7 @@
 // SignupPage.tsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { authService } from '../services/auth';
+import { schoolsSupabase } from '../services/supabase';
 import knitIcon from '../../assets/knit-icon.png';
 import PasswordInput from './ui/PasswordInput';
 
@@ -9,13 +10,55 @@ interface SignupPageProps {
   onSwitchToLogin: () => void;
 }
 
+interface School {
+  id: number;
+  name: string;
+}
+
 const SignupPage: React.FC<SignupPageProps> = ({ onSignupSuccess, onSwitchToLogin }) => {
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [selectedSchool, setSelectedSchool] = useState('');
+  const [selectedSchoolId, setSelectedSchoolId] = useState<number | null>(null);
+  const [schools, setSchools] = useState<School[]>([]);
+  const [schoolsLoading, setSchoolsLoading] = useState(true);
+  const [schoolsError, setSchoolsError] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    let mounted = true;
+    const loadSchools = async () => {
+      try {
+        const { data, error } = await schoolsSupabase
+          .from('Schools')
+          .select('id, schoolName')
+          .order('schoolName', { ascending: true });
+        if (!mounted) return;
+        if (error) {
+          console.warn('[Schools]', error.message);
+          setSchoolsError('Could not load schools list.');
+        } else {
+          const list: School[] = (data ?? []).map((row: any) => ({
+            id: row.id as number,
+            name: row.schoolName as string,
+          }));
+          setSchools(list);
+        }
+      } catch (e: any) {
+        if (mounted) {
+          console.warn('[Schools]', e.message);
+          setSchoolsError('Could not load schools list.');
+        }
+      } finally {
+        if (mounted) setSchoolsLoading(false);
+      }
+    };
+    loadSchools();
+    return () => { mounted = false; };
+  }, []);
 
   const validateInputs = () => {
     const trimmedFirstName = firstName.trim();
@@ -42,6 +85,10 @@ const SignupPage: React.FC<SignupPageProps> = ({ onSignupSuccess, onSwitchToLogi
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(trimmedEmail)) {
       return 'Please enter a valid email address.';
+    }
+
+    if (!selectedSchool) {
+      return 'Please select a school you are applying for.';
     }
 
     // Password validation: at least 8 characters with 1 uppercase, 1 lowercase, 1 special character
@@ -81,7 +128,7 @@ const SignupPage: React.FC<SignupPageProps> = ({ onSignupSuccess, onSwitchToLogi
 
     try {
       const fullName = `${firstName.trim()} ${lastName.trim()}`;
-      await authService.signup(fullName, email.trim(), password.trim());
+      await authService.signup(fullName, email.trim(), password.trim(), selectedSchool, selectedSchoolId);
       onSignupSuccess(email.trim());
     } catch (err: any) {
       setError(err.message || 'Failed to sign up. Please try again.');
@@ -156,6 +203,49 @@ const SignupPage: React.FC<SignupPageProps> = ({ onSignupSuccess, onSwitchToLogi
                   onChange={(e) => setEmail(e.target.value)}
                   className="block w-full appearance-none rounded-md border border-gray-300 px-3 py-2 placeholder-gray-400 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm"
                 />
+              </div>
+            </div>
+
+            {/* School Applying For */}
+            <div>
+              <label htmlFor="school" className="block text-sm font-medium text-gray-700">
+                School Applying For <span className="text-red-500">*</span>
+              </label>
+              <div className="mt-1">
+                {schoolsLoading ? (
+                  <div className="flex items-center gap-2 rounded-md border border-gray-300 px-3 py-2 bg-gray-50">
+                    <svg className="animate-spin h-4 w-4 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+                    </svg>
+                    <span className="text-sm text-gray-500">Loading schools…</span>
+                  </div>
+                ) : schoolsError ? (
+                  <div className="rounded-md bg-yellow-50 border border-yellow-200 px-3 py-2">
+                    <p className="text-sm text-yellow-800">{schoolsError}</p>
+                  </div>
+                ) : (
+                  <select
+                    id="school"
+                    name="school"
+                    required
+                    value={selectedSchool}
+                    onChange={(e) => {
+                      const name = e.target.value;
+                      setSelectedSchool(name);
+                      const found = schools.find((s) => s.name === name);
+                      setSelectedSchoolId(found ? found.id : null);
+                    }}
+                    className="block w-full appearance-none rounded-md border border-gray-300 px-3 py-2 bg-white shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm text-gray-900 disabled:bg-gray-100"
+                  >
+                    <option value="">— Select a school —</option>
+                    {schools.map((school) => (
+                      <option key={school.id} value={school.name}>
+                        {school.name}
+                      </option>
+                    ))}
+                  </select>
+                )}
               </div>
             </div>
 

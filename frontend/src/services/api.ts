@@ -103,6 +103,7 @@ export interface EnrollmentData {
     relationship: string;
     feeTermsAccepted: boolean;
   };
+  next_of_kin?: any;
 }
 
 class ApiService {
@@ -300,7 +301,7 @@ class ApiService {
       if (snakeCaseData.family.mother_email === '') {
         snakeCaseData.family.mother_email = undefined;
       }
-      
+
       // Next of kin fields - convert 'none' or empty strings to undefined
       const nokFields = ['next_of_kin_surname', 'next_of_kin_first_name', 'next_of_kin_relationship', 'next_of_kin_mobile', 'next_of_kin_email'];
       for (const field of nokFields) {
@@ -377,7 +378,7 @@ class ApiService {
       if (snakeCaseData.family.mother_email === '') {
         snakeCaseData.family.mother_email = undefined;
       }
-      
+
       // Next of kin fields - convert 'none' or empty strings to undefined
       const nokFields = ['next_of_kin_surname', 'next_of_kin_first_name', 'next_of_kin_relationship', 'next_of_kin_mobile', 'next_of_kin_email'];
       for (const field of nokFields) {
@@ -441,11 +442,11 @@ class ApiService {
       application_id,
       ...snakeCaseData
     };
-    
+
     console.log('API submitAcademicHistory - Extracted application_id:', application_id);
     console.log('API submitAcademicHistory - Form data:', formData);
     console.log('API submitAcademicHistory - Final payload:', payload);
-    
+
     try {
       console.log('Starting API request to /academic/academic-history');
       const result = await this.request<{ message: string; application_id: string }>('/academic/academic-history', {

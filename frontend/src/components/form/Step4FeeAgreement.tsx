@@ -6,6 +6,7 @@ import { useToast } from '../../hooks/useToast';
 
 interface Step4FeeAgreementProps {
   applicationId?: string | null;
+  grade?: string; // Grade passed down from parent state
   onFeeAgreementComplete?: () => void;
   onStepChange?: (step: number) => void;
   onStepComplete?: (stepNumber: number) => void;
@@ -15,6 +16,7 @@ interface Step4FeeAgreementProps {
 
 const Step4FeeAgreement: React.FC<Step4FeeAgreementProps> = ({
   applicationId,
+  grade: passedGrade,
   onFeeAgreementComplete,
   onStepChange,
   onStepComplete,
@@ -32,8 +34,7 @@ const Step4FeeAgreement: React.FC<Step4FeeAgreementProps> = ({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { addToast } = useToast();
-  
-  // Use ref to avoid re-render loops with onDataChange callback
+
   const onDataChangeRef = useRef(onDataChange);
   useEffect(() => {
     onDataChangeRef.current = onDataChange;
@@ -42,26 +43,35 @@ const Step4FeeAgreement: React.FC<Step4FeeAgreementProps> = ({
   // Fetch fees based on the student's grade
   useEffect(() => {
     const fetchFees = async () => {
-      if (!applicationId) {
+      // Prioritize the grade passed via props, fallback to fetching from application
+      let grade = passedGrade;
+
+      console.log('Step4FeeAgreement: Fetching fees. Grade from props:', grade);
+
+      if (!grade && applicationId) {
+        try {
+          console.log('Step4FeeAgreement: Grade not in props, fetching application...');
+          const appData = await apiService.getApplication(applicationId);
+          grade = appData.student?.grade_applied_for;
+          console.log('Step4FeeAgreement: Grade fetched from backend:', grade);
+        } catch (err) {
+          console.error('Step4FeeAgreement: Failed to fetch application for grade:', err);
+        }
+      }
+
+      if (!grade) {
         setLoading(false);
+        setError('Grade information not found. Please complete student information first.');
         return;
       }
 
       try {
         setLoading(true);
         setError(null);
-        
-        // 1. Get Application to find the grade
-        const appData = await apiService.getApplication(applicationId);
-        const grade = appData.student?.grade_applied_for;
 
-        if (grade) {
-          // 2. Get Fees for that grade
-          const feeData = await apiService.getSchoolFees(grade);
-          setFees(feeData);
-        } else {
-          setError('Grade information not found. Please complete student information first.');
-        }
+        // 2. Get Fees for that grade
+        const feeData = await apiService.getSchoolFees(grade);
+        setFees(feeData);
       } catch (err: any) {
         console.error('Failed to load fees:', err);
         setError('Could not load fee structure. Please try again.');
@@ -72,7 +82,7 @@ const Step4FeeAgreement: React.FC<Step4FeeAgreementProps> = ({
     };
 
     fetchFees();
-  }, [applicationId, addToast]);
+  }, [applicationId, passedGrade, addToast]);
 
   // Update selectedPlan when initialData changes (e.g., after data is loaded from backend)
   useEffect(() => {
@@ -211,7 +221,7 @@ const Step4FeeAgreement: React.FC<Step4FeeAgreementProps> = ({
 
       <Footer
         onBack={() => onStepChange && onStepChange(3)}
-        onSave={() => {}}
+        onSave={() => { }}
         onNext={handleNext}
         showBack={true}
         showSave={false}

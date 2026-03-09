@@ -64,8 +64,13 @@ class DeclarationRepository(BaseRepository):
                 self.supabase.table(self.table_name).update(filtered_data).eq("application_id", application_id).execute()
             else:
                 # Create new declaration
-                self.supabase.table(self.table_name).insert(filtered_data).execute()
-                
+                try:
+                    self.supabase.table(self.table_name).insert(filtered_data).execute()
+                except Exception as e:
+                    if "unique" in str(e).lower() or "duplicate" in str(e).lower():
+                        self.supabase.table(self.table_name).update(filtered_data).eq("application_id", application_id).execute()
+                    else:
+                        raise
         except Exception as e:
             logger.error(f"Failed to save declaration for application {application_id}: {str(e)}")
             raise ExternalServiceError("Database", "Failed to save declaration information")

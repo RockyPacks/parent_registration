@@ -41,9 +41,12 @@ async def initiate_application(
 ) -> Dict[str, Any]:
     """
     Get the user's existing application ID and status, or create a new one.
-    This should be called by the frontend immediately after login.
+    School association is read from the JWT user_metadata on first creation.
     """
-    return enrollment_service.get_or_create_application_for_user(current_user.get("id"))
+    return enrollment_service.get_or_create_application_for_user(
+        current_user.get("id"),
+        user_metadata=current_user.get("user_metadata"),
+    )
 
 
 @router.post("/submit", response_model=SubmitEnrollmentResponse)

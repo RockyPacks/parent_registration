@@ -27,13 +27,21 @@ class EnrollmentRepository(BaseRepository):
     def __init__(self):
         super().__init__("applications")
 
-    def create_application(self, user_id: str, status: ApplicationStatus = ApplicationStatus.IN_PROGRESS) -> str:
+    def create_application(
+        self,
+        user_id: str,
+        status: ApplicationStatus = ApplicationStatus.IN_PROGRESS,
+        school_name: Optional[str] = None,
+        school_id_external: Optional[int] = None,
+    ) -> str:
         """
         Create a new application.
 
         Args:
             user_id: ID of the user creating the application
             status: Initial application status
+            school_name: Name of the school the parent is applying to
+            school_id_external: Integer ID of the school in the Knit Schools DB
 
         Returns:
             Application ID
@@ -41,10 +49,14 @@ class EnrollmentRepository(BaseRepository):
         Raises:
             ExternalServiceError: If database operation fails
         """
-        data = {
+        data: Dict[str, Any] = {
             "user_id": user_id,
-            "status": status.value
+            "status": status.value,
         }
+        if school_name:
+            data["school_name"] = school_name
+        if school_id_external is not None:
+            data["school_id_external"] = school_id_external
         result = self.insert(data)
         return str(result["id"])
 
@@ -96,18 +108,14 @@ class EnrollmentRepository(BaseRepository):
     def get_user_application(self, user_id: str) -> Optional[Dict[str, Any]]:
         """
         Get user's application (any status).
-
-        Args:
-            user_id: User ID
-
-        Returns:
-            Application data or None if not found
-
-        Raises:
-            ExternalServiceError: If database operation fails
+        Returns the most recent one if multiple exist.
         """
         try:
-            result = self.supabase.table(self.table_name).select("*").eq("user_id", user_id).execute()
+            result = self.supabase.table(self.table_name)\
+                .select("*")\
+                .eq("user_id", user_id)\
+                .order("created_at", desc=True)\
+                .execute()
             return result.data[0] if result.data else None
         except Exception as e:
             logger.error(f"Failed to get application for user {user_id}: {str(e)}")
@@ -130,13 +138,14 @@ class EnrollmentRepository(BaseRepository):
             data["submitted_at"] = datetime.now().isoformat()
         self.update(application_id, data)
 
-    def save_student_data(self, application_id: str, student_data: StudentInfo) -> None:
+    def save_student_data(self, application_id: str, student_data: StudentInfo, user_id: str = None) -> None:
         """
         Save student information.
 
         Args:
             application_id: Application ID
             student_data: Student information to save
+            user_id: User ID (optional, used for RLS)
 
         Raises:
             ExternalServiceError: If database operation fails
@@ -144,6 +153,8 @@ class EnrollmentRepository(BaseRepository):
         try:
             data = student_data.model_dump()
             data["application_id"] = application_id
+            if user_id:
+                data["user_id"] = user_id
             logger.debug(f"Saving student data for application {application_id}: {data}")
             
             # First, check if a student record already exists for this application
@@ -156,19 +167,40 @@ class EnrollmentRepository(BaseRepository):
                 logger.info(f"Updated existing student record {existing_id} for application {application_id}")
             else:
                 # Insert new record
-                result = self.supabase.table("students").insert(data).execute()
-                logger.info(f"Inserted new student record for application {application_id}")
+                try:
+                    result = self.supabase.table("students").insert(data).execute()
+                    logger.info(f"Inserted new student record for application {application_id}")
+                except Exception as e:
+                    error_str = str(e).lower()
+                    if "unique" in error_str or "duplicate" in error_str or "409" in error_str:
+                        # Unique constraint violation - likely on id_number
+                        # Try to update the existing record with that id_number
+                        logger.info(f"Unique constraint violation on insert, attempting update by id_number: {data.get('id_number')}")
+                        try:
+                            id_number = data.get('id_number')
+                            if id_number:
+                                result = self.supabase.table("students").update(data).eq("id_number", id_number).execute()
+                                logger.info(f"Updated student record using id_number: {id_number}")
+                            else:
+                                raise
+                        except Exception as update_error:
+                            logger.error(f"Failed to update student by id_number: {str(update_error)}")
+                            raise
+                    else:
+                        logger.error(f"Non-unique constraint error: {str(e)}")
+                        raise
         except Exception as e:
             logger.error(f"Failed to save student data for application {application_id}: {str(e)}", exc_info=True)
             raise ExternalServiceError("Database", f"Failed to save student information: {str(e)}")
 
-    def save_medical_data(self, application_id: str, medical_data: MedicalInfo) -> None:
+    def save_medical_data(self, application_id: str, medical_data: MedicalInfo, user_id: str = None) -> None:
         """
         Save medical information.
 
         Args:
             application_id: Application ID
             medical_data: Medical information to save
+            user_id: User ID for RLS policy
 
         Raises:
             ExternalServiceError: If database operation fails
@@ -176,6 +208,8 @@ class EnrollmentRepository(BaseRepository):
         try:
             data = medical_data.model_dump()
             data["application_id"] = application_id
+            if user_id:
+                data["user_id"] = user_id
             
             # Check if record already exists for this application
             existing = self.supabase.table("medical_info").select("id").eq("application_id", application_id).execute()
@@ -186,73 +220,80 @@ class EnrollmentRepository(BaseRepository):
                 logger.info(f"Updated medical info for application {application_id}")
             else:
                 # Insert new record
-                self.supabase.table("medical_info").insert(data).execute()
-                logger.info(f"Inserted medical info for application {application_id}")
+                try:
+                    self.supabase.table("medical_info").insert(data).execute()
+                    logger.info(f"Inserted medical info for application {application_id}")
+                except Exception as e:
+                    if "unique" in str(e).lower() or "duplicate" in str(e).lower():
+                        self.supabase.table("medical_info").update(data).eq("application_id", application_id).execute()
+                    else:
+                        raise
         except Exception as e:
             logger.error(f"Failed to save medical data for application {application_id}: {str(e)}")
             raise ExternalServiceError("Database", "Failed to save medical information")
 
-    def save_family_data(self, application_id: str, family_data: FamilyInfo) -> None:
+    def save_family_data(self, application_id: str, family_data: FamilyInfo, user_id: str = None) -> None:
         """
         Save family information to parents table.
-        
-        The parents table uses a normalized structure with one row per parent:
-        - Each parent (father/mother) is stored as a separate row
-        - The 'relationship' column indicates 'father' or 'mother'
-
-        Args:
-            application_id: Application ID
-            family_data: Family information to save
-
-        Raises:
-            ExternalServiceError: If database operation fails
+        Normalizes into multiple records based on relationship.
         """
         try:
-            # Delete existing parent records for this application to avoid duplicates
-            self.supabase.table("parents").delete().eq("application_id", application_id).execute()
-            logger.info(f"Cleared existing parent records for application {application_id}")
+            existing = self.supabase.table("parents").select("*").eq("application_id", application_id).execute()
+            existing_parents = {p.get("relationship"): p for p in (existing.data or [])}
             
-            # Insert father data if provided
-            if family_data.father_surname and family_data.father_first_name:
-                father_data = {
+            def upsert_parent(relationship, surname, first_name, id_number, mobile, email):
+                if not surname and not first_name:
+                    return
+                data = {
                     "application_id": application_id,
-                    "relationship": "father",
-                    "surname": family_data.father_surname,
-                    "first_name": family_data.father_first_name,
-                    "id_number": family_data.father_id_number,
-                    "mobile": family_data.father_mobile,
-                    "email": family_data.father_email,
-                    "is_primary": True  # Father is primary by default
+                    "relationship": relationship,
+                    "surname": surname or "",
+                    "first_name": first_name or "",
+                    "id_number": id_number,
+                    "mobile": mobile,
+                    "email": email,
+                    "is_primary": False
                 }
-                self.supabase.table("parents").insert(father_data).execute()
-                logger.info(f"Inserted father record for application {application_id}")
+                if user_id:
+                    data["user_id"] = user_id
+                
+                if relationship in existing_parents:
+                    self.supabase.table("parents").update(data).eq("id", existing_parents[relationship]["id"]).execute()
+                    logger.info(f"Updated {relationship} record for application {application_id}")
+                else:
+                    self.supabase.table("parents").insert(data).execute()
+                    logger.info(f"Inserted {relationship} record for application {application_id}")
+
+            upsert_parent(
+                "Father",
+                family_data.father_surname,
+                family_data.father_first_name,
+                family_data.father_id_number,
+                family_data.father_mobile,
+                family_data.father_email
+            )
             
-            # Insert mother data if provided
-            if family_data.mother_surname and family_data.mother_first_name:
-                mother_data = {
-                    "application_id": application_id,
-                    "relationship": "mother",
-                    "surname": family_data.mother_surname,
-                    "first_name": family_data.mother_first_name,
-                    "id_number": family_data.mother_id_number,
-                    "mobile": family_data.mother_mobile,
-                    "email": family_data.mother_email,
-                    "is_primary": False  # Mother is secondary by default
-                }
-                self.supabase.table("parents").insert(mother_data).execute()
-                logger.info(f"Inserted mother record for application {application_id}")
+            upsert_parent(
+                "Mother",
+                family_data.mother_surname,
+                family_data.mother_first_name,
+                family_data.mother_id_number,
+                family_data.mother_mobile,
+                family_data.mother_email
+            )
 
         except Exception as e:
             logger.error(f"Failed to save family data for application {application_id}: {str(e)}")
             raise ExternalServiceError("Database", "Failed to save family information")
 
-    def save_fee_data(self, application_id: str, fee_data: FeeResponsibilityInfo) -> None:
+    def save_fee_data(self, application_id: str, fee_data: FeeResponsibilityInfo, user_id: str = None) -> None:
         """
         Save fee responsibility information.
 
         Args:
             application_id: Application ID
             fee_data: Fee responsibility information to save
+            user_id: User ID for RLS policy
 
         Raises:
             ExternalServiceError: If database operation fails
@@ -260,6 +301,8 @@ class EnrollmentRepository(BaseRepository):
         try:
             data = fee_data.model_dump()
             data["application_id"] = application_id
+            if user_id:
+                data["user_id"] = user_id
 
             # Note: selected_plan is now automatically managed by financing_service.save_financing_selection
             # This method no longer populates selected_plan to avoid conflicts
@@ -273,19 +316,26 @@ class EnrollmentRepository(BaseRepository):
                 logger.info(f"Updated fee responsibility for application {application_id}")
             else:
                 # Insert new record
-                self.supabase.table("fee_responsibility").insert(data).execute()
-                logger.info(f"Inserted fee responsibility for application {application_id}")
+                try:
+                    self.supabase.table("fee_responsibility").insert(data).execute()
+                    logger.info(f"Inserted fee responsibility for application {application_id}")
+                except Exception as e:
+                    if "unique" in str(e).lower() or "duplicate" in str(e).lower():
+                        self.supabase.table("fee_responsibility").update(data).eq("application_id", application_id).execute()
+                    else:
+                        raise
         except Exception as e:
             logger.error(f"Failed to save fee data for application {application_id}: {str(e)}")
             raise ExternalServiceError("Database", "Failed to save fee responsibility information")
 
-    def save_student_data_partial(self, application_id: str, student_data: StudentInfoPartial) -> None:
+    def save_student_data_partial(self, application_id: str, student_data: StudentInfoPartial, user_id: str = None) -> None:
         """
         Save partial student information.
 
         Args:
             application_id: Application ID
             student_data: Partial student information to save
+            user_id: User ID for RLS policy
 
         Raises:
             ExternalServiceError: If database operation fails
@@ -294,22 +344,44 @@ class EnrollmentRepository(BaseRepository):
             data = student_data.model_dump(exclude_unset=True)
             if data:  # Only update if there's data to update
                 data["application_id"] = application_id
+                if user_id:
+                    data["user_id"] = user_id
                 # Try update first, if no rows affected, insert new
                 result = self.supabase.table("students").update(data).eq("application_id", application_id).execute()
                 if not result.data:
                     # No existing record, insert instead
-                    self.supabase.table("students").insert(data).execute()
+                    try:
+                        self.supabase.table("students").insert(data).execute()
+                    except Exception as e:
+                        error_str = str(e).lower()
+                        if "unique" in error_str or "duplicate" in error_str or "409" in error_str:
+                            # Unique constraint violation - likely on id_number
+                            # Try to update the existing record with that id_number
+                            logger.info(f"Unique constraint violation on insert, attempting update by id_number: {data.get('id_number')}")
+                            try:
+                                id_number = data.get('id_number')
+                                if id_number:
+                                    self.supabase.table("students").update(data).eq("id_number", id_number).execute()
+                                    logger.info(f"Updated student record using id_number: {id_number}")
+                                else:
+                                    raise
+                            except Exception as update_error:
+                                logger.error(f"Failed to update student by id_number: {str(update_error)}")
+                                raise
+                        else:
+                            raise
         except Exception as e:
             logger.error(f"Failed to save partial student data for application {application_id}: {str(e)}")
             raise ExternalServiceError("Database", "Failed to save student information")
 
-    def save_medical_data_partial(self, application_id: str, medical_data: MedicalInfoPartial) -> None:
+    def save_medical_data_partial(self, application_id: str, medical_data: MedicalInfoPartial, user_id: str = None) -> None:
         """
         Save partial medical information.
 
         Args:
             application_id: Application ID
             medical_data: Partial medical information to save
+            user_id: User ID for RLS policy
 
         Raises:
             ExternalServiceError: If database operation fails
@@ -318,6 +390,8 @@ class EnrollmentRepository(BaseRepository):
             data = medical_data.model_dump(exclude_unset=True)
             if data:  # Only update if there's data to update
                 data["application_id"] = application_id
+                if user_id:
+                    data["user_id"] = user_id
                 
                 # Check if record already exists for this application
                 existing = self.supabase.table("medical_info").select("id").eq("application_id", application_id).execute()
@@ -328,103 +402,78 @@ class EnrollmentRepository(BaseRepository):
                     logger.info(f"Updated partial medical info for application {application_id}")
                 else:
                     # Insert new record
-                    self.supabase.table("medical_info").insert(data).execute()
-                    logger.info(f"Inserted partial medical info for application {application_id}")
+                    try:
+                        self.supabase.table("medical_info").insert(data).execute()
+                        logger.info(f"Inserted partial medical info for application {application_id}")
+                    except Exception as e:
+                        if "unique" in str(e).lower() or "duplicate" in str(e).lower():
+                            self.supabase.table("medical_info").update(data).eq("application_id", application_id).execute()
+                        else:
+                            raise
         except Exception as e:
             logger.error(f"Failed to save partial medical data for application {application_id}: {str(e)}")
             raise ExternalServiceError("Database", "Failed to save medical information")
 
-    def save_family_data_partial(self, application_id: str, family_data: FamilyInfoPartial) -> None:
+    def save_family_data_partial(self, application_id: str, family_data: FamilyInfoPartial, user_id: str = None) -> None:
         """
-        Save partial family information to parents table.
-        
-        The parents table uses a normalized structure with one row per parent.
-
-        Args:
-            application_id: Application ID
-            family_data: Partial family information to save
-
-        Raises:
-            ExternalServiceError: If database operation fails
+        Save partial family information to parents table based on normalized schema.
         """
         try:
-            # Check if father data is being updated
-            has_father_data = (
-                (family_data.father_surname is not None and family_data.father_surname) or
-                (family_data.father_first_name is not None and family_data.father_first_name)
-            )
+            existing = self.supabase.table("parents").select("*").eq("application_id", application_id).execute()
+            existing_parents = {p.get("relationship"): p for p in (existing.data or [])}
             
-            # Check if mother data is being updated
-            has_mother_data = (
-                (family_data.mother_surname is not None and family_data.mother_surname) or
-                (family_data.mother_first_name is not None and family_data.mother_first_name)
-            )
+            # Father
+            father_data = {}
+            if family_data.father_surname is not None: father_data["surname"] = family_data.father_surname
+            if family_data.father_first_name is not None: father_data["first_name"] = family_data.father_first_name
+            if family_data.father_id_number is not None: father_data["id_number"] = family_data.father_id_number
+            if family_data.father_mobile is not None: father_data["mobile"] = family_data.father_mobile
+            if family_data.father_email is not None: father_data["email"] = family_data.father_email
             
-            if has_father_data:
-                # Build father update data
-                father_data = {"application_id": application_id, "relationship": "father"}
-                if family_data.father_surname is not None:
-                    father_data["surname"] = family_data.father_surname
-                if family_data.father_first_name is not None:
-                    father_data["first_name"] = family_data.father_first_name
-                if family_data.father_id_number is not None:
-                    father_data["id_number"] = family_data.father_id_number
-                if family_data.father_mobile is not None:
-                    father_data["mobile"] = family_data.father_mobile
-                if family_data.father_email is not None:
-                    father_data["email"] = family_data.father_email
-                father_data["is_primary"] = True
-                
-                # Check if father record exists
-                existing_father = self.supabase.table("parents").select("*").eq("application_id", application_id).eq("relationship", "father").execute()
-                
-                if existing_father.data and len(existing_father.data) > 0:
-                    # Update existing father record
-                    self.supabase.table("parents").update(father_data).eq("id", existing_father.data[0]['id']).execute()
-                    logger.info(f"Updated father record (partial) for application {application_id}")
-                elif father_data.get("surname") and father_data.get("first_name"):
-                    # Insert new father record only if we have required fields
+            if father_data:
+                father_data["application_id"] = application_id
+                if user_id:
+                    father_data["user_id"] = user_id
+                father_data["relationship"] = "Father"
+                if "Father" in existing_parents:
+                    self.supabase.table("parents").update(father_data).eq("id", existing_parents["Father"]["id"]).execute()
+                else:
+                    if "surname" not in father_data: father_data["surname"] = ""
+                    if "first_name" not in father_data: father_data["first_name"] = ""
                     self.supabase.table("parents").insert(father_data).execute()
-                    logger.info(f"Inserted father record (partial) for application {application_id}")
+                    
+            # Mother
+            mother_data = {}
+            if family_data.mother_surname is not None: mother_data["surname"] = family_data.mother_surname
+            if family_data.mother_first_name is not None: mother_data["first_name"] = family_data.mother_first_name
+            if family_data.mother_id_number is not None: mother_data["id_number"] = family_data.mother_id_number
+            if family_data.mother_mobile is not None: mother_data["mobile"] = family_data.mother_mobile
+            if family_data.mother_email is not None: mother_data["email"] = family_data.mother_email
             
-            if has_mother_data:
-                # Build mother update data
-                mother_data = {"application_id": application_id, "relationship": "mother"}
-                if family_data.mother_surname is not None:
-                    mother_data["surname"] = family_data.mother_surname
-                if family_data.mother_first_name is not None:
-                    mother_data["first_name"] = family_data.mother_first_name
-                if family_data.mother_id_number is not None:
-                    mother_data["id_number"] = family_data.mother_id_number
-                if family_data.mother_mobile is not None:
-                    mother_data["mobile"] = family_data.mother_mobile
-                if family_data.mother_email is not None:
-                    mother_data["email"] = family_data.mother_email
-                mother_data["is_primary"] = False
-                
-                # Check if mother record exists
-                existing_mother = self.supabase.table("parents").select("*").eq("application_id", application_id).eq("relationship", "mother").execute()
-                
-                if existing_mother.data and len(existing_mother.data) > 0:
-                    # Update existing mother record
-                    self.supabase.table("parents").update(mother_data).eq("id", existing_mother.data[0]['id']).execute()
-                    logger.info(f"Updated mother record (partial) for application {application_id}")
-                elif mother_data.get("surname") and mother_data.get("first_name"):
-                    # Insert new mother record only if we have required fields
+            if mother_data:
+                mother_data["application_id"] = application_id
+                if user_id:
+                    mother_data["user_id"] = user_id
+                mother_data["relationship"] = "Mother"
+                if "Mother" in existing_parents:
+                    self.supabase.table("parents").update(mother_data).eq("id", existing_parents["Mother"]["id"]).execute()
+                else:
+                    if "surname" not in mother_data: mother_data["surname"] = ""
+                    if "first_name" not in mother_data: mother_data["first_name"] = ""
                     self.supabase.table("parents").insert(mother_data).execute()
-                    logger.info(f"Inserted mother record (partial) for application {application_id}")
-
+                    
         except Exception as e:
             logger.error(f"Failed to save partial family data for application {application_id}: {str(e)}")
             raise ExternalServiceError("Database", "Failed to save family information")
 
-    def save_fee_data_partial(self, application_id: str, fee_data: FeeResponsibilityInfoPartial) -> None:
+    def save_fee_data_partial(self, application_id: str, fee_data: FeeResponsibilityInfoPartial, user_id: str = None) -> None:
         """
         Save partial fee responsibility information.
 
         Args:
             application_id: Application ID
             fee_data: Partial fee responsibility information to save
+            user_id: User ID for RLS policy
 
         Raises:
             ExternalServiceError: If database operation fails
@@ -433,6 +482,8 @@ class EnrollmentRepository(BaseRepository):
             data = fee_data.model_dump(exclude_unset=True)
             if data:  # Only update if there's data to update
                 data["application_id"] = application_id
+                if user_id:
+                    data["user_id"] = user_id
 
                 # Note: selected_plan is now automatically managed by financing_service.save_financing_selection
                 # This method no longer populates selected_plan to avoid conflicts
@@ -446,8 +497,14 @@ class EnrollmentRepository(BaseRepository):
                     logger.info(f"Updated partial fee responsibility for application {application_id}")
                 else:
                     # Insert new record
-                    self.supabase.table("fee_responsibility").insert(data).execute()
-                    logger.info(f"Inserted partial fee responsibility for application {application_id}")
+                    try:
+                        self.supabase.table("fee_responsibility").insert(data).execute()
+                        logger.info(f"Inserted partial fee responsibility for application {application_id}")
+                    except Exception as e:
+                        if "unique" in str(e).lower() or "duplicate" in str(e).lower():
+                            self.supabase.table("fee_responsibility").update(data).eq("application_id", application_id).execute()
+                        else:
+                            raise
         except Exception as e:
             logger.error(f"Failed to save partial fee data for application {application_id}: {str(e)}")
             raise ExternalServiceError("Database", "Failed to save fee responsibility information")
@@ -488,23 +545,32 @@ class EnrollmentRepository(BaseRepository):
             # Get next of kin data from separate table
             next_of_kin_result = self.supabase.table("next_of_kin").select("*").eq("application_id", application_id).execute()
 
-            # Transform normalized parent rows into the format frontend expects
+            # Extract normalized family data into denormalized format for UI
             family_data = {}
             if family_result.data:
-                for parent in family_result.data:
-                    relationship = parent.get("relationship", "").lower()
-                    if relationship == "father":
-                        family_data["father_surname"] = parent.get("surname")
-                        family_data["father_first_name"] = parent.get("first_name")
-                        family_data["father_id_number"] = parent.get("id_number")
-                        family_data["father_mobile"] = parent.get("mobile")
-                        family_data["father_email"] = parent.get("email")
-                    elif relationship == "mother":
-                        family_data["mother_surname"] = parent.get("surname")
-                        family_data["mother_first_name"] = parent.get("first_name")
-                        family_data["mother_id_number"] = parent.get("id_number")
-                        family_data["mother_mobile"] = parent.get("mobile")
-                        family_data["mother_email"] = parent.get("email")
+                for row in family_result.data:
+                    rel = row.get("relationship", "")
+                    if rel == "Father":
+                        family_data["father_surname"] = row.get("surname")
+                        family_data["father_first_name"] = row.get("first_name")
+                        family_data["father_id_number"] = row.get("id_number")
+                        family_data["father_mobile"] = row.get("mobile")
+                        family_data["father_email"] = row.get("email")
+                    elif rel == "Mother":
+                        family_data["mother_surname"] = row.get("surname")
+                        family_data["mother_first_name"] = row.get("first_name")
+                        family_data["mother_id_number"] = row.get("id_number")
+                        family_data["mother_mobile"] = row.get("mobile")
+                        family_data["mother_email"] = row.get("email")
+                        
+            # Add next of kin data from separate table if available, for the UI
+            nok = next_of_kin_result.data[0] if (next_of_kin_result.data and len(next_of_kin_result.data) > 0) else {}
+            if nok:
+                family_data["next_of_kin_surname"] = nok.get("surname")
+                family_data["next_of_kin_first_name"] = nok.get("first_name")
+                family_data["next_of_kin_relationship"] = nok.get("relationship")
+                family_data["next_of_kin_mobile"] = nok.get("mobile_number") or nok.get("mobile")
+                family_data["next_of_kin_email"] = nok.get("email_address") or nok.get("email")
 
             return {
                 "id": application_id,

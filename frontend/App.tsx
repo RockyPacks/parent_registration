@@ -48,17 +48,17 @@ const App: React.FC = () => {
     // Check if user is already authenticated on app load
     const initializeAuth = async () => {
       console.log("App.tsx: initializeAuth called");
-      
+
       // Handle PKCE code exchange from email confirmation
       const urlParams = new URLSearchParams(window.location.search);
       const code = urlParams.get('code');
-      
+
       if (code) {
         console.log("App.tsx: PKCE code detected in URL, exchanging for session");
         // Clean up URL (remove code parameter)
         window.history.replaceState({}, document.title, window.location.pathname);
       }
-      
+
       const { authService } = await import('./src/services/auth');
       console.log("App.tsx: authService loaded, checking authentication");
 
@@ -70,13 +70,13 @@ const App: React.FC = () => {
 
       authService.initAuthListener(async (user) => {
         console.log("App.tsx: Auth state changed in THIS TAB, user:", !!user, "hasInitialized:", hasInitialized, "isLoadingApplication:", isLoadingApplication);
-        
+
         // Skip if we're already loading an application (prevents duplicate calls)
         if (isLoadingApplication) {
           console.log("App.tsx: Skipping - already loading application");
           return;
         }
-        
+
         // On initial load, handle authentication once
         if (!hasInitialized) {
           console.log("App.tsx: Initial load handled by listener");
@@ -84,7 +84,7 @@ const App: React.FC = () => {
           setIsAuthenticated(!!user);
           setUserEmail(user?.email || null);
           setUserName(user?.full_name || null);
-          
+
           if (user) {
             currentUserEmailRef.current = user.email;
             isLoadingApplication = true;
@@ -102,7 +102,7 @@ const App: React.FC = () => {
         // Only process if user state actually changed
         const newUserEmail = user?.email || null;
         const previousUserEmail = currentUserEmailRef.current;
-        
+
         // Skip if it's the same user (duplicate event)
         if (newUserEmail === previousUserEmail) {
           console.log("App.tsx: Skipping duplicate auth event for same user");
@@ -172,7 +172,7 @@ const App: React.FC = () => {
 
             // Determine completed steps based on actual backend data
             const backendCompletedSteps: number[] = [];
-            
+
             // Helper to check if an object has meaningful data (not just empty {})
             const hasData = (obj: any): boolean => {
               if (!obj || typeof obj !== 'object') return false;
@@ -182,79 +182,85 @@ const App: React.FC = () => {
                 return val !== null && val !== undefined && val !== '';
               });
             };
-            
+
             if (appData) {
               console.log("App.tsx: Application data loaded successfully");
               console.log("App.tsx: Raw appData:", JSON.stringify(appData, null, 2));
-              
+
               // Check if step 1 data exists - must have actual student data with required fields
               const hasStudentData = appData.student?.surname && appData.student?.first_name;
               const hasFamilyData = hasData(appData.family) && (appData.family?.father_surname || appData.family?.mother_surname);
               const hasFeeData = appData.fee?.fee_person;
-              
+
               console.log("App.tsx: Step 1 check - hasStudentData:", hasStudentData, "hasFamilyData:", hasFamilyData, "hasFeeData:", hasFeeData);
-              
+
               if (hasStudentData && hasFamilyData && hasFeeData) {
                 backendCompletedSteps.push(1);
               }
-              
-              // Check if step 2 data exists (documents) - must have actual uploaded files
-              // Required documents: proof of address (1), ID documents (2), payslips (3), bank statement (1)
-              // Minimum total: 7 documents
-              const documentCount = Array.isArray(appData.documents) ? appData.documents.length : 0;
+
+              // Check if step 2 data exists (documents).
+              // uploaded_files uses a JSONB 'files' array (one row per application),
+              // so we must count actual files inside the JSONB array, not the number of rows.
+              const allUploadedFiles = Array.isArray(appData.documents)
+                ? appData.documents.flatMap((row: any) => (Array.isArray(row.files) ? row.files : []))
+                : [];
+              const documentCount = allUploadedFiles.length;
               const hasDocuments = documentCount > 0;
-              const hasAllRequiredDocuments = documentCount >= 7; // Adjust based on your requirements
-              
-              console.log("App.tsx: Step 2 check - hasDocuments:", hasDocuments, "count:", documentCount, "hasAllRequired:", hasAllRequiredDocuments);
-              
+              // Each category needs at least 1 file — step 2 is complete when all 4 categories have files
+              const uploadedDocTypes = new Set(allUploadedFiles.map((f: any) => f.document_type).filter(Boolean));
+              const requiredDocTypes = new Set(['proof_of_address', 'id_document', 'payslip', 'bank_statement']);
+              const hasAllRequiredDocuments = [...requiredDocTypes].every(t => uploadedDocTypes.has(t));
+
+              console.log("App.tsx: Step 2 check - fileCount:", documentCount, "uploadedTypes:", [...uploadedDocTypes], "allRequired:", hasAllRequiredDocuments);
+
               if (hasAllRequiredDocuments) {
                 backendCompletedSteps.push(2);
               } else if (hasDocuments && !hasAllRequiredDocuments) {
-                // Some documents uploaded but not all - mark as in-progress
+                // Some documents uploaded but not all categories covered - mark as in-progress
                 inProgressSteps.push(2);
-                console.log("App.tsx: Step 2 marked as IN-PROGRESS - have", documentCount, "docs, need 7+");
+                console.log("App.tsx: Step 2 marked as IN-PROGRESS - uploaded types:", [...uploadedDocTypes]);
               }
-              
+
               // Check if step 3 data exists (academic history) - must have actual records
               const hasAcademicHistory = Array.isArray(appData.academic_history) && appData.academic_history.length > 0;
               console.log("App.tsx: Step 3 check - hasAcademicHistory:", hasAcademicHistory, "count:", appData.academic_history?.length || 0);
-              
+
               if (hasAcademicHistory) {
                 backendCompletedSteps.push(3);
               }
-              
+
               // Check if step 4 data exists (fee agreement - financing selections) - must have actual selections
               const hasFinancingSelections = Array.isArray(appData.financing_selections) && appData.financing_selections.length > 0;
               console.log("App.tsx: Step 4 check - hasFinancingSelections:", hasFinancingSelections, "count:", appData.financing_selections?.length || 0);
-              
+
               if (hasFinancingSelections) {
                 backendCompletedSteps.push(4);
               }
-              
+
               // Check if step 5 data exists (declaration) - must be explicitly signed
               const hasDeclaration = appData.declaration?.signed === true;
               console.log("App.tsx: Step 5 check - hasDeclaration:", hasDeclaration, "signed:", appData.declaration?.signed);
-              
+
               if (hasDeclaration) {
                 backendCompletedSteps.push(5);
               }
-              
+
               // IMPORTANT: Step 6 is ONLY complete when:
               // 1. Application status is 'submitted' AND has submitted_at timestamp
               // 2. AND ALL prerequisite steps (1-5) are ACTUALLY complete with data
               // This prevents showing step 6 as complete when steps are missing
               const hasAllPrerequisites = hasStudentData && hasFamilyData && hasFeeData;
-              const allStepsComplete = backendCompletedSteps.includes(1) && 
-                                       backendCompletedSteps.includes(2) && 
-                                       backendCompletedSteps.includes(3) && 
-                                       backendCompletedSteps.includes(4) && 
-                                       backendCompletedSteps.includes(5);
+              const allStepsComplete = backendCompletedSteps.includes(1) &&
+                backendCompletedSteps.includes(2) &&
+                backendCompletedSteps.includes(3) &&
+                backendCompletedSteps.includes(4) &&
+                backendCompletedSteps.includes(5);
               const isSubmitted = (appData.status === 'submitted' || appData.status === 'completed') && appData.submitted_at;
-              
+
               console.log("App.tsx: Step 6 check - status:", appData.status, "submitted_at:", appData.submitted_at);
               console.log("App.tsx: Step 6 check - hasAllPrerequisites:", hasAllPrerequisites, "allStepsComplete:", allStepsComplete);
               console.log("App.tsx: Step 6 check - completed steps so far:", backendCompletedSteps);
-              
+
               if (isSubmitted && hasAllPrerequisites && allStepsComplete) {
                 console.log("App.tsx: ✓ Application is submitted with ALL steps complete - marking step 6 as complete");
                 backendCompletedSteps.push(6);
@@ -266,11 +272,11 @@ const App: React.FC = () => {
               }
 
               console.log("App.tsx: Backend completed steps:", backendCompletedSteps);
-              
+
               // IMPORTANT: Always use backend-determined steps, ignore any stale localStorage data
               // This ensures the UI accurately reflects the actual state of the application
               console.log("App.tsx: Using backend completed steps (ignoring any stale localStorage)");
-              
+
               // Transform backend data to frontend format
               const enrollmentData: Partial<EnrollmentData> = {};
 
@@ -336,24 +342,27 @@ const App: React.FC = () => {
 
               setEnrollmentData(enrollmentData);
               console.log("App.tsx: Enrollment data set successfully");
-              
+
               // Save loaded data to localStorage so forms can access it
-              if (enrollmentData.student) {
-                console.log("App.tsx: Saving student data to localStorage:", enrollmentData.student);
+              // Helper to check for actual data content
+              const hasActualData = (obj: any) => obj && Object.values(obj).some(val => val !== null && val !== undefined && val !== '');
+
+              if (hasActualData(enrollmentData.student)) {
+                console.log("App.tsx: Saving non-empty student data to localStorage:", JSON.stringify(enrollmentData.student));
                 storage.set(getUserKey(userEmail, 'studentData'), enrollmentData.student);
               } else {
-                console.log("App.tsx: NO student data from backend to save");
+                console.log("App.tsx: Backend student data is empty or missing, not overwriting localStorage");
               }
-              if (enrollmentData.medical) {
+              if (hasActualData(enrollmentData.medical)) {
                 storage.set(getUserKey(userEmail, 'medicalData'), enrollmentData.medical);
               }
-              if (enrollmentData.family) {
+              if (hasActualData(enrollmentData.family)) {
                 storage.set(getUserKey(userEmail, 'familyData'), enrollmentData.family);
               }
-              if (enrollmentData.fee) {
+              if (hasActualData(enrollmentData.fee)) {
                 storage.set(getUserKey(userEmail, 'feeData'), enrollmentData.fee);
               }
-              
+
               // Save next of kin data from dedicated next_of_kin table
               console.log("App.tsx: Backend next_of_kin data:", appData.next_of_kin);
               if (appData.next_of_kin && Object.keys(appData.next_of_kin).length > 0) {
@@ -371,13 +380,36 @@ const App: React.FC = () => {
                 storage.set(getUserKey(userEmail, 'nextOfKinData'), nextOfKinData);
                 console.log("App.tsx: Next of kin data saved to localStorage from next_of_kin table:", nextOfKinData);
               }
-              
+
+              // Save declaration data to localStorage (Step 5)
+              if (appData.declaration && (appData.declaration.signed || appData.declaration.id)) {
+                const declData = appData.declaration;
+                const declarationData = {
+                  application_id: initialAppId,
+                  agree_truth: declData.agree_truth || false,
+                  agree_policies: declData.agree_policies || false,
+                  agree_financial: declData.agree_financial || false,
+                  agree_verification: declData.agree_verification || false,
+                  agree_data_processing: declData.agree_data_processing || false,
+                  agree_audit_storage: declData.agree_audit_storage || false,
+                  agree_affordability_processing: declData.agree_affordability_processing || false,
+                  fullName: declData.full_name || '',
+                  city: declData.city || '',
+                  signed: declData.signed || false,
+                  status: declData.signed ? 'completed' : 'in_progress'
+                };
+                // Save to both: user-prefixed key (read by MainContent) and global key (read by DeclarationStep directly)
+                storage.set(getUserKey(userEmail, 'declarationData'), declarationData);
+                localStorage.setItem('declarationData', JSON.stringify(declarationData));
+                console.log("App.tsx: Declaration data saved to localStorage:", declarationData);
+              }
+
               // Save financing data to localStorage (Step 4)
               if (appData.financing_selections && appData.financing_selections.length > 0) {
                 // The plan_type from backend is now the user-friendly display name (e.g., "Pay Per Term")
                 // stored directly in fee_responsibility.selected_plan
                 const planType = appData.financing_selections[0].plan_type;
-                
+
                 // Check if it's already a display name or needs conversion
                 const knownDisplayNames = [
                   'Pay Monthly Debit',
@@ -388,9 +420,9 @@ const App: React.FC = () => {
                   'Sibling Benefit',
                   'Pay via EFT'
                 ];
-                
+
                 let planTitle = planType;
-                
+
                 // If it's in old format (code), convert to display name
                 if (!knownDisplayNames.includes(planType)) {
                   const planTypeToTitle: { [key: string]: string } = {
@@ -404,11 +436,11 @@ const App: React.FC = () => {
                   };
                   planTitle = planTypeToTitle[planType] || 'Pay Once Per Year';
                 }
-                
+
                 storage.set(getUserKey(userEmail, 'financingData'), { plan: planTitle });
                 console.log("App.tsx: Financing data saved to localStorage:", { plan: planTitle });
               }
-              
+
               // Save academic history data to localStorage (Step 3)
               if (appData.academic_history && appData.academic_history.length > 0) {
                 const academicData = appData.academic_history[0];
@@ -428,11 +460,11 @@ const App: React.FC = () => {
                 storage.set(getUserKey(userEmail, 'academicHistoryData'), academicHistoryData);
                 console.log("App.tsx: Academic history data saved to localStorage:", academicHistoryData);
               }
-              
+
               // Set completed steps based on backend data
               // CRITICAL: Clear any stale localStorage data and use ONLY backend data
               console.log("App.tsx: Clearing any stale completedSteps from localStorage");
-              
+
               // SAFETY CHECK: Remove step 6 from backendCompletedSteps if application is not actually submitted
               // This prevents any stale data or bugs from showing step 6 as complete prematurely
               const isActuallySubmitted = (appData.status === 'submitted' || appData.status === 'completed') && appData.submitted_at;
@@ -443,17 +475,17 @@ const App: React.FC = () => {
                   backendCompletedSteps.splice(index, 1);
                 }
               }
-              
+
               setCompletedSteps(backendCompletedSteps);
               setInProgressSteps(inProgressSteps);
               storage.set(userCompletedStepsKey, backendCompletedSteps);
               storage.set(getUserKey(userEmail, 'inProgressSteps'), inProgressSteps);
               console.log("App.tsx: Completed steps set from backend:", backendCompletedSteps);
               console.log("App.tsx: In-progress steps set from backend:", inProgressSteps);
-              
+
               // Determine the active step
               let targetStep = 1;
-              
+
               if (backendCompletedSteps.includes(6)) {
                 // Application submitted, stay on step 6 to view summary
                 targetStep = 6;
@@ -471,19 +503,15 @@ const App: React.FC = () => {
                 // New user with no data - start at step 1
                 targetStep = 1;
               }
-              
+
               console.log("App.tsx: Restoring state - step:", targetStep, "completed:", backendCompletedSteps, "view:", savedCurrentView);
-              
-              // IMPORTANT: Only set active step on initial load to prevent jumping while user is working
-              // After initial load, step changes are controlled by user navigation only
-              if (activeStep === 1 && !storage.get(userActiveStepKey, null)) {
-                // This is truly the initial load - no saved step exists
+
+              // IMPORTANT: Set active step on initial load/reload
+              if (activeStep === 1) {
                 setActiveStep(targetStep);
-                console.log("App.tsx: Initial load - setting active step to:", targetStep);
+                console.log("App.tsx: Initial load/reload - setting active step to:", targetStep);
               } else {
-                // User is already working or has a saved position - preserve their current step
-                // Backend completion status updates won't cause navigation jumps
-                console.log("App.tsx: Preserving user's current active step, not jumping");
+                console.log("App.tsx: Preserving user's current session active step:", activeStep);
               }
               setCurrentView(savedCurrentView);
             } else {
@@ -728,7 +756,7 @@ const App: React.FC = () => {
             </div>
           </div>
         )}
-        
+
         {showSignup ? (
           <SignupPage onSignupSuccess={handleSignupSuccess} onSwitchToLogin={() => setShowSignup(false)} />
         ) : (
@@ -772,24 +800,24 @@ const App: React.FC = () => {
           <main className="flex flex-col md:flex-row">
             <Sidebar steps={steps} activeStep={activeStep} onStepClick={handleStepClick} completedSteps={completedSteps} inProgressSteps={inProgressSteps} />
             <div className="flex-1 flex flex-col md:ml-[25%] bg-white border border-gray-200 shadow-sm md:rounded-lg">
-            <MainContent
-              activeStep={activeStep}
-              applicationId={applicationId}
-              isSubmitting={isSubmitting}
-              applicationInitialized={applicationInitialized}
-              onEnrollmentSubmit={handleEnrollmentSubmit}
-              onDocumentUploadComplete={handleDocumentUploadComplete}
-              onAcademicHistoryComplete={handleAcademicHistoryComplete}
-              onFeeAgreementComplete={handleFeeAgreementComplete}
-              onDeclarationComplete={handleDeclarationComplete}
-              onStepChange={(step) => {
-                console.log(`App.tsx: Step change requested from ${activeStep} to ${step}`);
-                setActiveStep(step);
-              }}
-              onStepComplete={handleStepComplete}
-              completedSteps={completedSteps}
-              userEmail={userEmail}
-            />
+              <MainContent
+                activeStep={activeStep}
+                applicationId={applicationId}
+                isSubmitting={isSubmitting}
+                applicationInitialized={applicationInitialized}
+                onEnrollmentSubmit={handleEnrollmentSubmit}
+                onDocumentUploadComplete={handleDocumentUploadComplete}
+                onAcademicHistoryComplete={handleAcademicHistoryComplete}
+                onFeeAgreementComplete={handleFeeAgreementComplete}
+                onDeclarationComplete={handleDeclarationComplete}
+                onStepChange={(step) => {
+                  console.log(`App.tsx: Step change requested from ${activeStep} to ${step}`);
+                  setActiveStep(step);
+                }}
+                onStepComplete={handleStepComplete}
+                completedSteps={completedSteps}
+                userEmail={userEmail}
+              />
             </div>
           </main>
         </div>
