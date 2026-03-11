@@ -162,6 +162,14 @@ class EnrollmentService:
                     logger.warning(f"Failed to save fee data: {str(e)}")
                     failed_sections.append("fee")
 
+            # Update parent status flags after family and fee data are saved
+            if ("family" in saved_sections or "family" in data.__dict__) and ("fee" in saved_sections or data.fee):
+                try:
+                    self.repository.update_parent_status_flags(application_id)
+                    logger.info(f"Updated parent status flags for application {application_id}")
+                except Exception as e:
+                    logger.warning(f"Failed to update parent status flags: {str(e)}")
+
             if data.next_of_kin:
                 try:
                     logger.info(f"=== NEXT OF KIN DATA RECEIVED IN AUTO-SAVE ===")
@@ -248,6 +256,10 @@ class EnrollmentService:
                 logger.info(f"DEBUG: Saving fee data with user_id={user_id}")
                 self.repository.save_fee_data(application_id, data.fee, user_id)
                 logger.info(f"DEBUG: Fee data saved successfully")
+                
+                # Update parent status flags after family and fee data are saved
+                self.repository.update_parent_status_flags(application_id)
+                logger.info(f"Updated parent status flags for application {application_id}")
             except Exception as e:
                 logger.error(f"FAILED TO SAVE FEE DATA: {str(e)}", exc_info=True)
                 raise

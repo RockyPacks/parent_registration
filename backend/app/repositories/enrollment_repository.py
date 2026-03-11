@@ -717,6 +717,68 @@ class EnrollmentRepository(BaseRepository):
             logger.error(f"Failed to get applications for user email {user_email}: {str(e)}")
             raise ExternalServiceError("Database", f"Failed to retrieve applications for email {user_email}")
 
+    def update_parent_status_flags(self, application_id: str) -> None:
+        """
+        Update parent status flags based on completeness and fee responsibility.
+        
+        Sets:
+        - is_complete: TRUE if parent has all required fields (surname, first_name, id_number, mobile, email)
+        - is_primary: TRUE for the parent responsible for fees
+        - verified_at: Timestamp when information was verified
+        
+        Args:
+            application_id: Application ID
+            
+        Raises:
+            ExternalServiceError: If database operation fails
+        """
+        try:
+            # Get all parents for this application
+            parents_result = self.supabase.table("parents").select("*").eq("application_id", application_id).execute()
+            parents = parents_result.data or []
+            
+            if not parents:
+                logger.info(f"No parents found for application {application_id}")
+                return
+            
+            # Get fee responsibility to determine primary parent
+            fee_result = self.supabase.table("fee_responsibility").select("relationship").eq("application_id", application_id).execute()
+            fee_payer_relationship = fee_result.data[0].get("relationship") if fee_result.data else None
+            logger.info(f"Fee payer relationship: {fee_payer_relationship}")
+            
+            # Update each parent record
+            for parent in parents:
+                parent_id = parent.get("id")
+                relationship = parent.get("relationship")
+                
+                # Check if parent has all required fields
+                required_fields = ["surname", "first_name", "id_number", "mobile", "email"]
+                is_complete = all(
+                    parent.get(field) and str(parent.get(field)).strip() != ""
+                    for field in required_fields
+                )
+                
+                # Determine if this is the primary parent
+                is_primary = (relationship == fee_payer_relationship) if fee_payer_relationship else False
+                
+                # Update the parent record with status flags
+                update_data = {
+                    "is_complete": is_complete,
+                    "is_primary": is_primary,
+                    "verified_at": datetime.now().isoformat()
+                }
+                
+                self.supabase.table("parents").update(update_data).eq("id", parent_id).execute()
+                logger.info(
+                    f"Updated parent {parent_id} ({relationship}) for application {application_id}: "
+                    f"is_complete={is_complete}, is_primary={is_primary}"
+                )
+                
+        except Exception as e:
+            logger.error(f"Failed to update parent status flags for application {application_id}: {str(e)}")
+            # Don't raise - this is not critical to the main flow
+            # Parent status flags are for tracking, not blocking functionality
+
 
 # Global instance
 enrollment_repository = EnrollmentRepository()
