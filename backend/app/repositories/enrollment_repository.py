@@ -742,24 +742,56 @@ class EnrollmentRepository(BaseRepository):
                 return
             
             # Get fee responsibility to determine primary parent
-            fee_result = self.supabase.table("fee_responsibility").select("relationship").eq("application_id", application_id).execute()
-            fee_payer_relationship = fee_result.data[0].get("relationship") if fee_result.data else None
+            fee_result = self.supabase.table("fee_responsibility").select("fee_person", "relationship").eq("application_id", application_id).execute()
+            fee_payer = fee_result.data[0] if fee_result.data else None
+            fee_payer_relationship = fee_payer.get("relationship") if fee_payer else None
             logger.info(f"Fee payer relationship: {fee_payer_relationship}")
+            
+            # Get all valid parents (not placeholders with 'Pending' values)
+            valid_parents = [
+                p for p in parents
+                if p.get("surname") and p.get("surname", "").strip().lower() != "pending" and
+                   p.get("first_name") and p.get("first_name", "").strip().lower() != "pending"
+            ]
+            
+            logger.info(f"Found {len(valid_parents)} valid parents (filtered out {len(parents) - len(valid_parents)} placeholders)")
             
             # Update each parent record
             for parent in parents:
                 parent_id = parent.get("id")
                 relationship = parent.get("relationship")
+                surname = parent.get("surname", "").strip()
+                first_name = parent.get("first_name", "").strip()
                 
-                # Check if parent has all required fields
+                # Skip placeholder records (where values are 'Pending' or empty)
+                is_placeholder = (
+                    surname.lower() == "pending" or first_name.lower() == "pending" or
+                    not surname or not first_name
+                )
+                
+                if is_placeholder:
+                    logger.info(f"Skipping placeholder parent {parent_id} ({relationship}) for application {application_id}")
+                    continue
+                
+                # Check if parent has all required fields (case insensitive for completeness)
                 required_fields = ["surname", "first_name", "id_number", "mobile", "email"]
                 is_complete = all(
                     parent.get(field) and str(parent.get(field)).strip() != ""
                     for field in required_fields
                 )
                 
-                # Determine if this is the primary parent
-                is_primary = (relationship == fee_payer_relationship) if fee_payer_relationship else False
+                # Determine if this is the primary parent (case-insensitive comparison)
+                is_primary = False
+                if fee_payer_relationship:
+                    # Normalize for case-insensitive comparison
+                    parent_relationship_lower = relationship.lower() if relationship else ""
+                    fee_relationship_lower = fee_payer_relationship.lower()
+                    is_primary = parent_relationship_lower == fee_relationship_lower
+                    logger.info(
+                        f"Comparing relationship: parent='{relationship}' (normalized: '{parent_relationship_lower}') "
+                        f"vs fee_payer='{fee_payer_relationship}' (normalized: '{fee_relationship_lower}') "
+                        f"-> is_primary={is_primary}"
+                    )
                 
                 # Update the parent record with status flags
                 update_data = {
