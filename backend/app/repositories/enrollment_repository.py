@@ -720,6 +720,7 @@ class EnrollmentRepository(BaseRepository):
     def update_parent_status_flags(self, application_id: str) -> None:
         """
         Update parent status flags based on completeness and fee responsibility.
+        Also deletes placeholder records with invalid data.
         
         Sets:
         - is_complete: TRUE if parent has all required fields (surname, first_name, id_number, mobile, email)
@@ -747,33 +748,43 @@ class EnrollmentRepository(BaseRepository):
             fee_payer_relationship = fee_payer.get("relationship") if fee_payer else None
             logger.info(f"Fee payer relationship: {fee_payer_relationship}")
             
-            # Get all valid parents (not placeholders with 'Pending' values)
-            valid_parents = [
-                p for p in parents
-                if p.get("surname") and p.get("surname", "").strip().lower() != "pending" and
-                   p.get("first_name") and p.get("first_name", "").strip().lower() != "pending"
-            ]
+            # First pass: DELETE placeholder records (those with 'Pending' or empty values)
+            for parent in parents:
+                parent_id = parent.get("id")
+                relationship = parent.get("relationship", "").lower()
+                surname = parent.get("surname", "").strip()
+                first_name = parent.get("first_name", "").strip()
+                
+                # Identify placeholders: 'Pending' values, generic 'parent' relationship, or empty values
+                is_placeholder = (
+                    surname.lower() == "pending" or first_name.lower() == "pending" or
+                    not surname or not first_name or
+                    relationship == "parent"  # Generic 'parent' relationship is invalid
+                )
+                
+                if is_placeholder:
+                    try:
+                        self.supabase.table("parents").delete().eq("id", parent_id).execute()
+                        logger.info(f"Deleted placeholder parent record {parent_id} ({relationship}) for application {application_id}")
+                    except Exception as e:
+                        logger.warning(f"Failed to delete placeholder parent {parent_id}: {str(e)}")
             
-            logger.info(f"Found {len(valid_parents)} valid parents (filtered out {len(parents) - len(valid_parents)} placeholders)")
+            # Refresh parent list after deletion
+            parents_result = self.supabase.table("parents").select("*").eq("application_id", application_id).execute()
+            parents = parents_result.data or []
             
-            # Update each parent record
+            if not parents:
+                logger.info(f"No valid parents remaining after cleanup for application {application_id}")
+                return
+            
+            # Second pass: Update status flags on remaining valid parents
             for parent in parents:
                 parent_id = parent.get("id")
                 relationship = parent.get("relationship")
                 surname = parent.get("surname", "").strip()
                 first_name = parent.get("first_name", "").strip()
                 
-                # Skip placeholder records (where values are 'Pending' or empty)
-                is_placeholder = (
-                    surname.lower() == "pending" or first_name.lower() == "pending" or
-                    not surname or not first_name
-                )
-                
-                if is_placeholder:
-                    logger.info(f"Skipping placeholder parent {parent_id} ({relationship}) for application {application_id}")
-                    continue
-                
-                # Check if parent has all required fields (case insensitive for completeness)
+                # Check if parent has all required fields
                 required_fields = ["surname", "first_name", "id_number", "mobile", "email"]
                 is_complete = all(
                     parent.get(field) and str(parent.get(field)).strip() != ""
@@ -810,6 +821,7 @@ class EnrollmentRepository(BaseRepository):
             logger.error(f"Failed to update parent status flags for application {application_id}: {str(e)}")
             # Don't raise - this is not critical to the main flow
             # Parent status flags are for tracking, not blocking functionality
+
 
 
 # Global instance
