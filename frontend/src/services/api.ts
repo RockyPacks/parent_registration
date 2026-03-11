@@ -481,9 +481,14 @@ class ApiService {
       
       if (snakeCaseData.student) {
         payload.student = snakeCaseData.student;
-        // Map dob to date_of_birth
-        if (snakeCaseData.student.date_of_birth) {
-          snakeCaseData.student.date_of_birth = new Date(snakeCaseData.student.date_of_birth).toISOString().split("T")[0];
+        // Map dob to date_of_birth for backend compatibility
+        if (payload.student.dob) {
+          payload.student.date_of_birth = new Date(payload.student.dob).toISOString().split("T")[0];
+          delete payload.student.dob;
+        }
+        // Ensure gender is lowercase
+        if (payload.student.gender) {
+          payload.student.gender = payload.student.gender.toLowerCase();
         }
       }
       
@@ -493,6 +498,24 @@ class ApiService {
       
       if (snakeCaseData.family) {
         payload.family = snakeCaseData.family;
+        // Handle empty strings for optional fields - convert to undefined
+        if (payload.family.mother_id_number === '') {
+          payload.family.mother_id_number = undefined;
+        }
+        if (payload.family.mother_mobile === '') {
+          payload.family.mother_mobile = undefined;
+        }
+        if (payload.family.mother_email === '') {
+          payload.family.mother_email = undefined;
+        }
+        // Next of kin fields - convert empty or placeholder strings to undefined
+        const nokFields = ['next_of_kin_surname', 'next_of_kin_first_name', 'next_of_kin_relationship', 'next_of_kin_mobile', 'next_of_kin_email'];
+        for (const field of nokFields) {
+          const value = payload.family[field];
+          if (!value || value === '' || String(value).toLowerCase() === 'none') {
+            payload.family[field] = undefined;
+          }
+        }
       }
       
       if (snakeCaseData.fee) {
