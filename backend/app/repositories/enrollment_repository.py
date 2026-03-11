@@ -281,6 +281,16 @@ class EnrollmentRepository(BaseRepository):
                 family_data.mother_mobile,
                 family_data.mother_email
             )
+            
+            # Save Next of Kin as Guardian if provided
+            upsert_parent(
+                "Guardian",
+                family_data.next_of_kin_surname,
+                family_data.next_of_kin_first_name,
+                family_data.next_of_kin_id_number,
+                family_data.next_of_kin_mobile,
+                family_data.next_of_kin_email
+            )
 
         except Exception as e:
             logger.error(f"Failed to save family data for application {application_id}: {str(e)}")
@@ -479,6 +489,26 @@ class EnrollmentRepository(BaseRepository):
                     if "surname" not in mother_data: mother_data["surname"] = ""
                     if "first_name" not in mother_data: mother_data["first_name"] = ""
                     self.supabase.table("parents").insert(mother_data).execute()
+            
+            # Guardian (Next of Kin)
+            guardian_data = {}
+            if family_data.next_of_kin_surname is not None: guardian_data["surname"] = family_data.next_of_kin_surname
+            if family_data.next_of_kin_first_name is not None: guardian_data["first_name"] = family_data.next_of_kin_first_name
+            if family_data.next_of_kin_id_number is not None: guardian_data["id_number"] = family_data.next_of_kin_id_number
+            if family_data.next_of_kin_mobile is not None: guardian_data["mobile"] = family_data.next_of_kin_mobile
+            if family_data.next_of_kin_email is not None: guardian_data["email"] = family_data.next_of_kin_email
+            
+            if guardian_data:
+                guardian_data["application_id"] = application_id
+                if user_id:
+                    guardian_data["user_id"] = user_id
+                guardian_data["relationship"] = "Guardian"
+                if "Guardian" in existing_parents:
+                    self.supabase.table("parents").update(guardian_data).eq("id", existing_parents["Guardian"]["id"]).execute()
+                else:
+                    if "surname" not in guardian_data: guardian_data["surname"] = ""
+                    if "first_name" not in guardian_data: guardian_data["first_name"] = ""
+                    self.supabase.table("parents").insert(guardian_data).execute()
                     
         except Exception as e:
             logger.error(f"Failed to save partial family data for application {application_id}: {str(e)}")

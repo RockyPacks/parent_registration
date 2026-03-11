@@ -131,6 +131,7 @@ class FamilyInfo(BaseModel):
 
     next_of_kin_surname: Optional[str] = Field(None, max_length=100, description="Next of kin's surname")
     next_of_kin_first_name: Optional[str] = Field(None, max_length=100, description="Next of kin's first name")
+    next_of_kin_id_number: Optional[str] = Field(None, pattern=r'^\d{13}$', description="Next of kin's ID number")
     next_of_kin_relationship: Optional[str] = Field(None, max_length=50, description="Next of kin's relationship")
     next_of_kin_mobile: Optional[str] = Field(None, pattern=r'^\+?[\d\s\-\(\)]+$', description="Next of kin's mobile number")
     next_of_kin_email: Optional[str] = Field(None, description="Next of kin's email address")
@@ -167,6 +168,7 @@ class FamilyInfoPartial(BaseModel):
 
     next_of_kin_surname: Optional[str] = Field(None, max_length=100, description="Next of kin's surname")
     next_of_kin_first_name: Optional[str] = Field(None, max_length=100, description="Next of kin's first name")
+    next_of_kin_id_number: Optional[str] = Field(None, pattern=r'^\d{13}$', description="Next of kin's ID number")
     next_of_kin_relationship: Optional[str] = Field(None, max_length=50, description="Next of kin's relationship")
     next_of_kin_mobile: Optional[str] = Field(None, pattern=r'^\+?[\d\s\-\(\)]+$', description="Next of kin's mobile number")
     next_of_kin_email: Optional[str] = Field(None, description="Next of kin's email address")
