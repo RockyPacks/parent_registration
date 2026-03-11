@@ -207,9 +207,12 @@ class DocumentService:
             if not file_data:
                 raise HTTPException(status_code=404, detail="File not found")
 
-            # Delete from storage
+            # Delete from storage - handle both snake_case and camelCase JSONB keys
             try:
-                supabase_service.storage.from_(file_data["bucket_name"]).remove([file_data["file_path"]])
+                bucket = file_data.get("bucket_name") or file_data.get("bucketName", "")
+                path = file_data.get("file_path") or file_data.get("filePath", "")
+                if bucket and path:
+                    supabase_service.storage.from_(bucket).remove([path])
             except Exception as e:
                 # Log but don't fail if storage deletion fails
                 logger.warning(f"Failed to delete from storage: {str(e)}")

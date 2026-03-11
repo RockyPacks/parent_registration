@@ -207,7 +207,8 @@ const App: React.FC = () => {
               const documentCount = allUploadedFiles.length;
               const hasDocuments = documentCount > 0;
               // Each category needs at least 1 file — step 2 is complete when all 4 categories have files
-              const uploadedDocTypes = new Set(allUploadedFiles.map((f: any) => f.document_type).filter(Boolean));
+              // Handle both snake_case (document_type) and camelCase (documentType) keys from JSONB
+              const uploadedDocTypes = new Set(allUploadedFiles.map((f: any) => f.document_type || f.documentType).filter(Boolean));
               const requiredDocTypes = new Set(['proof_of_address', 'id_document', 'payslip', 'bank_statement']);
               const hasAllRequiredDocuments = [...requiredDocTypes].every(t => uploadedDocTypes.has(t));
 

@@ -18,8 +18,11 @@ const DOCUMENT_TYPE_TO_BUCKET: Record<string, string> = {
   // Category buckets
   "proof_of_address": "proof_of_address",
   "id_documents": "id_documents",
+  "id_document": "id_documents",
   "payslips": "payslips",
+  "payslip": "payslips",
   "bank_statements": "bank_statements",
+  "bank_statement": "bank_statements",
 
   // Specific document type buckets
   "proof-of-address": "proof_of_address",
@@ -127,14 +130,14 @@ export const DocumentUploadCenter: React.FC<DocumentUploadCenterProps> = ({
       setCategories(initialCategories);
     }
   }, [applicationId, userId]);
-  
+
 
   // Update category statuses and files based on uploaded files
   useEffect(() => {
     const mapToUploadedFile = (apiFile: any): UploadedFile => ({
       id: apiFile.id,
       name: apiFile.filename,
-      size: apiFile.size,
+      size: apiFile.file_size || apiFile.size, // Use file_size from backend, fallback to size
       progress: 100, // uploaded files are complete
       timestamp: new Date(apiFile.created_at),
     });
@@ -142,7 +145,6 @@ export const DocumentUploadCenter: React.FC<DocumentUploadCenterProps> = ({
     setCategories(prev => {
       const updated = { ...prev };
       Object.keys(updated).forEach(categoryId => {
-        const category = updated[categoryId];
         const requirements = {
           proofOfAddress: 1,
           idDocuments: 2,
@@ -151,18 +153,28 @@ export const DocumentUploadCenter: React.FC<DocumentUploadCenterProps> = ({
         };
         const required = requirements[categoryId as keyof typeof requirements] || 1;
 
+        // More robust mapping that handles both singular and plural forms
         const mapping: Record<string, string[]> = {
-          'proofOfAddress': ['proof_of_address'],
-          'idDocuments': ['id_document'],
-          'payslips': ['payslip'],
-          'bankStatements': ['bank_statement']
+          'proofOfAddress': ['proof_of_address', 'proof_of_addresses'],
+          'idDocuments': ['id_document', 'id_documents', 'learner-birth-certificate', 'parent-guardian-id'],
+          'payslips': ['payslip', 'payslips', 'latest-payslip', 'previous-payslip', 'third-payslip'],
+          'bankStatements': ['bank_statement', 'bank_statements']
         };
         const types = mapping[categoryId] || [];
-        const categoryApiFiles = uploadedFiles.filter(file => types.includes(file.document_type));
+
+        // Filter uploaded files for this category
+        const categoryApiFiles = uploadedFiles.filter(file => {
+          const docType = file.document_type?.toLowerCase() || '';
+          return types.includes(docType);
+        });
+
         const categoryFiles = categoryApiFiles.map(mapToUploadedFile);
 
-        updated[categoryId].files = categoryFiles;
-        updated[categoryId].status = categoryFiles.length >= required ? CategoryStatus.Completed : categoryFiles.length > 0 ? CategoryStatus.InProgress : CategoryStatus.NotStarted;
+        updated[categoryId] = {
+          ...updated[categoryId],
+          files: categoryFiles,
+          status: categoryFiles.length >= required ? CategoryStatus.Completed : categoryFiles.length > 0 ? CategoryStatus.InProgress : CategoryStatus.NotStarted
+        };
       });
       return updated;
     });
@@ -176,18 +188,28 @@ export const DocumentUploadCenter: React.FC<DocumentUploadCenterProps> = ({
 
   const checkCompletionStatus = async () => {
     try {
-      // First attempt local check for immediate UI feedback
+      // Immediate UI feedback based on local state (categories already updated from uploadedFiles)
       const catList = Object.values(categories);
       const isLocalComplete = catList.length > 0 && catList.every((category: DocumentCategory) => category.status === CategoryStatus.Completed);
-      
-      // Still query backend
-      const complete = await isAllRequiredComplete();
-      
-      setIsComplete(isLocalComplete || complete);
+
+      // Update UI state immediately
+      if (isLocalComplete) {
+        setIsComplete(true);
+      } else {
+        // Still check backend summary if available
+        if (applicationId) {
+          try {
+            const summary = await apiService.getUploadSummary(applicationId);
+            setIsComplete(summary && summary.completed_categories >= 4);
+          } catch (e) {
+            setIsComplete(false); // Fallback to current local state
+          }
+        } else {
+          setIsComplete(false);
+        }
+      }
     } catch (error) {
-      const catList = Object.values(categories);
-      const isLocalComplete = catList.length > 0 && catList.every((category: DocumentCategory) => category.status === CategoryStatus.Completed);
-      setIsComplete(isLocalComplete);
+      console.warn("checkCompletionStatus local check failed:", error);
     }
   };
 
@@ -264,9 +286,9 @@ export const DocumentUploadCenter: React.FC<DocumentUploadCenterProps> = ({
   const getApiCategoryFromId = (categoryId: string): string => {
     const mapping: Record<string, string> = {
       'proofOfAddress': 'proof_of_address',
-      'idDocuments': 'id_documents',
-      'payslips': 'payslips',
-      'bankStatements': 'bank_statements'
+      'idDocuments': 'id_document',
+      'payslips': 'payslip',
+      'bankStatements': 'bank_statement'
     };
     return mapping[categoryId] || categoryId;
   };
@@ -362,7 +384,7 @@ export const DocumentUploadCenter: React.FC<DocumentUploadCenterProps> = ({
       const summary = await apiService.getUploadSummary(currentApplicationId);
       // Wait a tick for the categories checking loop above to also happen
       if (summary && summary.completed_categories >= 4) {
-          return true;
+        return true;
       }
       return false;
     } catch (error) {
@@ -418,14 +440,17 @@ export const DocumentUploadCenter: React.FC<DocumentUploadCenterProps> = ({
   // Helper function to get actual file count for a category
   const getCategoryFileCount = (categoryId: string) => {
     const mapping: Record<string, string[]> = {
-      'proofOfAddress': ['proof_of_address'],
-      'idDocuments': ['id_document'],
-      'payslips': ['payslip'],
-      'bankStatements': ['bank_statement']
+      'proofOfAddress': ['proof_of_address', 'proof_of_addresses'],
+      'idDocuments': ['id_document', 'id_documents', 'learner-birth-certificate', 'parent-guardian-id'],
+      'payslips': ['payslip', 'payslips', 'latest-payslip', 'previous-payslip', 'third-payslip'],
+      'bankStatements': ['bank_statement', 'bank_statements']
     };
 
     const types = mapping[categoryId] || [];
-    return uploadedFiles.filter(file => types.includes(file.document_type)).length;
+    return uploadedFiles.filter(file => {
+      const docType = file.document_type?.toLowerCase() || '';
+      return types.includes(docType);
+    }).length;
   };
 
   const getUpdatedStatus = (categoryId: string, fileCount: number): CategoryStatus => {
@@ -487,13 +512,12 @@ export const DocumentUploadCenter: React.FC<DocumentUploadCenterProps> = ({
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {categoryList.map((category) => (
               <div key={category.id} className="text-center">
-                <div className={`w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-2 ${
-                  category.status === CategoryStatus.Completed
-                    ? 'bg-green-100'
-                    : category.status === CategoryStatus.InProgress
+                <div className={`w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-2 ${category.status === CategoryStatus.Completed
+                  ? 'bg-green-100'
+                  : category.status === CategoryStatus.InProgress
                     ? 'bg-yellow-100'
                     : 'bg-gray-100'
-                }`}>
+                  }`}>
                   {category.status === CategoryStatus.Completed ? (
                     <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
@@ -509,18 +533,17 @@ export const DocumentUploadCenter: React.FC<DocumentUploadCenterProps> = ({
                   )}
                 </div>
                 <div className="text-xs font-medium text-gray-600">{category.title}</div>
-                <div className={`text-xs font-medium ${
-                  category.status === CategoryStatus.Completed
-                    ? 'text-green-600'
-                    : category.status === CategoryStatus.InProgress
+                <div className={`text-xs font-medium ${category.status === CategoryStatus.Completed
+                  ? 'text-green-600'
+                  : category.status === CategoryStatus.InProgress
                     ? 'text-yellow-600'
                     : 'text-red-600'
-                }`}>
+                  }`}>
                   {category.status === CategoryStatus.Completed
                     ? 'Completed'
                     : category.status === CategoryStatus.InProgress
-                    ? 'In Progress'
-                    : 'Required'}
+                      ? 'In Progress'
+                      : 'Required'}
                 </div>
               </div>
             ))}
@@ -551,184 +574,183 @@ export const DocumentUploadCenter: React.FC<DocumentUploadCenterProps> = ({
             </div>
           )}
 
-            <UploadCard
-              title="Proof of Address"
-              required
-              icon={<UploadCloudIcon />}
-              collapsible={true}
-              defaultOpen={false}
-              status={categories.proofOfAddress.status === CategoryStatus.Completed ? 'completed' :
-                      categories.proofOfAddress.status === CategoryStatus.InProgress ? 'in-progress' : 'not-started'}
-              currentCount={getCategoryFileCount('proofOfAddress')}
-              requiredCount={1}
-            >
-              <p className="text-sm text-gray-600 mb-4">{categories.proofOfAddress.description}</p>
+          <UploadCard
+            title="Proof of Address"
+            required
+            icon={<UploadCloudIcon />}
+            collapsible={true}
+            defaultOpen={false}
+            status={categories.proofOfAddress.status === CategoryStatus.Completed ? 'completed' :
+              categories.proofOfAddress.status === CategoryStatus.InProgress ? 'in-progress' : 'not-started'}
+            currentCount={getCategoryFileCount('proofOfAddress')}
+            requiredCount={1}
+          >
+            <p className="text-sm text-gray-600 mb-4">{categories.proofOfAddress.description}</p>
+            <div className="space-y-3">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Utility Bill/Municipal Account</label>
+                <FileUpload onFileUpload={(file) => handleFileUpload('proofOfAddress', file, 'proof_of_address')} variant="button" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Bank Statement</label>
+                <FileUpload onFileUpload={(file) => handleFileUpload('proofOfAddress', file, 'proof_of_address')} variant="button" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Lease Agreement</label>
+                <FileUpload onFileUpload={(file) => handleFileUpload('proofOfAddress', file, 'proof_of_address')} variant="button" />
+              </div>
+            </div>
+            {categories.proofOfAddress.files.map(file => (
+              <FileItem key={file.id} file={file} onDelete={() => handleFileDelete(file.id)} />
+            ))}
+          </UploadCard>
+
+          <UploadCard
+            title="Identity Documents"
+            required
+            icon={<UploadCloudIcon />}
+            collapsible={true}
+            defaultOpen={false}
+            status={categories.idDocuments.status === CategoryStatus.Completed ? 'completed' :
+              categories.idDocuments.status === CategoryStatus.InProgress ? 'in-progress' : 'not-started'}
+            currentCount={getCategoryFileCount('idDocuments')}
+            requiredCount={2}
+          >
+            <div className="space-y-3">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Parent/Guardian ID Copy</label>
+                <FileUpload onFileUpload={(file) => handleFileUpload('idDocuments', file, 'id_document')} variant="button" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Learner Birth Certificate</label>
+                <FileUpload onFileUpload={(file) => handleFileUpload('idDocuments', file, 'id_document')} variant="button" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Spouse ID (if applicable)</label>
+                <FileUpload onFileUpload={(file) => handleFileUpload('idDocuments', file, 'id_document')} variant="button" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Optional document</label>
+                <FileUpload onFileUpload={(file) => handleFileUpload('idDocuments', file, 'id_document')} variant="button" />
+              </div>
+            </div>
+            {categories.idDocuments.files.map(file => (
+              <FileItem key={file.id} file={file} onDelete={() => handleFileDelete(file.id)} />
+            ))}
+          </UploadCard>
+
+          <UploadCard
+            title="Payslip Documents"
+            required
+            icon={<UploadCloudIcon />}
+            collapsible={true}
+            defaultOpen={false}
+            status={categories.payslips.status === CategoryStatus.Completed ? 'completed' :
+              categories.payslips.status === CategoryStatus.InProgress ? 'in-progress' : 'not-started'}
+            currentCount={getCategoryFileCount('payslips')}
+            requiredCount={3}
+          >
+            <p className="text-sm text-gray-600 mb-4">{categories.payslips.description}</p>
+            <div className="space-y-3">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Latest Payslip (Current Month)</label>
+                <FileUpload onFileUpload={(file) => handleFileUpload('payslips', file, 'payslip')} variant="button" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Previous Month Payslip</label>
+                <FileUpload onFileUpload={(file) => handleFileUpload('payslips', file, 'payslip')} variant="button" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Third Month Payslip</label>
+                <FileUpload onFileUpload={(file) => handleFileUpload('payslips', file, 'payslip')} variant="button" />
+              </div>
+            </div>
+            {categories.payslips.files.map(file => (
+              <FileItem key={file.id} file={file} onDelete={() => handleFileDelete(file.id)} />
+            ))}
+          </UploadCard>
+
+          <UploadCard
+            title="Bank Statements"
+            required
+            icon={<UploadCloudIcon />}
+            collapsible={true}
+            defaultOpen={false}
+            status={categories.bankStatements.status === CategoryStatus.Completed ? 'completed' :
+              categories.bankStatements.status === CategoryStatus.InProgress ? 'in-progress' : 'not-started'}
+            currentCount={getCategoryFileCount('bankStatements')}
+            requiredCount={1}
+          >
+            <p className="text-sm text-gray-600 mb-4">{categories.bankStatements.description}</p>
+            <div className="space-y-3">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">3 Months Bank Statements</label>
+                <FileUpload onFileUpload={(file) => handleFileUpload('bankStatements', file, 'bank_statement')} variant="button" />
+              </div>
+            </div>
+            <div className="mt-4 bg-blue-50 text-blue-800 text-sm p-3 rounded-md border border-blue-200">
+              Bank statements help us assess your financial stability and determine appropriate payment plans.
+            </div>
+            {categories.bankStatements.files.map(file => (
+              <FileItem key={file.id} file={file} onDelete={() => handleFileDelete(file.id)} />
+            ))}
+          </UploadCard>
+
+          {uploadState.error && (
+            <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-md mb-4 sm:mb-6">
+              <p className="text-sm">{uploadState.error}</p>
+            </div>
+          )}
+
+          <UploadSummary categories={categoryList} uploadedFiles={uploadedFiles} />
+
+          {/* Uploaded Files Section */}
+          {uploadedFiles.length > 0 && (
+            <div className="bg-white/60 backdrop-blur-sm rounded-2xl p-6 border border-white/40 shadow-sm">
+              <h2 className="text-xl font-semibold text-gray-800 mb-4">Uploaded Documents</h2>
               <div className="space-y-3">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Utility Bill/Municipal Account</label>
-                  <FileUpload onFileUpload={(file) => handleFileUpload('proofOfAddress', file, 'proof_of_address')} variant="button" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Bank Statement</label>
-                  <FileUpload onFileUpload={(file) => handleFileUpload('proofOfAddress', file, 'proof_of_address')} variant="button" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Lease Agreement</label>
-                  <FileUpload onFileUpload={(file) => handleFileUpload('proofOfAddress', file, 'proof_of_address')} variant="button" />
-                </div>
-              </div>
-              {categories.proofOfAddress.files.map(file => (
-                <FileItem key={file.id} file={file} onDelete={() => handleFileDelete(file.id)} />
-              ))}
-            </UploadCard>
-
-            <UploadCard
-              title="Identity Documents"
-              required
-              icon={<UploadCloudIcon />}
-              collapsible={true}
-              defaultOpen={false}
-              status={categories.idDocuments.status === CategoryStatus.Completed ? 'completed' :
-                      categories.idDocuments.status === CategoryStatus.InProgress ? 'in-progress' : 'not-started'}
-              currentCount={getCategoryFileCount('idDocuments')}
-              requiredCount={2}
-            >
-              <div className="space-y-3">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Parent/Guardian ID Copy</label>
-                  <FileUpload onFileUpload={(file) => handleFileUpload('idDocuments', file, 'id_document')} variant="button" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Learner Birth Certificate</label>
-                  <FileUpload onFileUpload={(file) => handleFileUpload('idDocuments', file, 'id_document')} variant="button" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Spouse ID (if applicable)</label>
-                  <FileUpload onFileUpload={(file) => handleFileUpload('idDocuments', file, 'id_document')} variant="button" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Optional document</label>
-                  <FileUpload onFileUpload={(file) => handleFileUpload('idDocuments', file, 'id_document')} variant="button" />
-                </div>
-              </div>
-              {categories.idDocuments.files.map(file => (
-                <FileItem key={file.id} file={file} onDelete={() => handleFileDelete(file.id)} />
-              ))}
-            </UploadCard>
-
-            <UploadCard
-              title="Payslip Documents"
-              required
-              icon={<UploadCloudIcon />}
-              collapsible={true}
-              defaultOpen={false}
-              status={categories.payslips.status === CategoryStatus.Completed ? 'completed' :
-                      categories.payslips.status === CategoryStatus.InProgress ? 'in-progress' : 'not-started'}
-              currentCount={getCategoryFileCount('payslips')}
-              requiredCount={3}
-            >
-              <p className="text-sm text-gray-600 mb-4">{categories.payslips.description}</p>
-              <div className="space-y-3">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Latest Payslip (Current Month)</label>
-                  <FileUpload onFileUpload={(file) => handleFileUpload('payslips', file, 'payslip')} variant="button" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Previous Month Payslip</label>
-                  <FileUpload onFileUpload={(file) => handleFileUpload('payslips', file, 'payslip')} variant="button" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Third Month Payslip</label>
-                  <FileUpload onFileUpload={(file) => handleFileUpload('payslips', file, 'payslip')} variant="button" />
-                </div>
-              </div>
-              {categories.payslips.files.map(file => (
-                <FileItem key={file.id} file={file} onDelete={() => handleFileDelete(file.id)} />
-              ))}
-            </UploadCard>
-
-            <UploadCard
-              title="Bank Statements"
-              required
-              icon={<UploadCloudIcon />}
-              collapsible={true}
-              defaultOpen={false}
-              status={categories.bankStatements.status === CategoryStatus.Completed ? 'completed' :
-                      categories.bankStatements.status === CategoryStatus.InProgress ? 'in-progress' : 'not-started'}
-              currentCount={getCategoryFileCount('bankStatements')}
-              requiredCount={1}
-            >
-              <p className="text-sm text-gray-600 mb-4">{categories.bankStatements.description}</p>
-              <div className="space-y-3">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">3 Months Bank Statements</label>
-                  <FileUpload onFileUpload={(file) => handleFileUpload('bankStatements', file, 'bank_statement')} variant="button" />
-                </div>
-              </div>
-              <div className="mt-4 bg-blue-50 text-blue-800 text-sm p-3 rounded-md border border-blue-200">
-                Bank statements help us assess your financial stability and determine appropriate payment plans.
-              </div>
-              {categories.bankStatements.files.map(file => (
-                <FileItem key={file.id} file={file} onDelete={() => handleFileDelete(file.id)} />
-              ))}
-            </UploadCard>
-
-            {uploadState.error && (
-              <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-md mb-4 sm:mb-6">
-                <p className="text-sm">{uploadState.error}</p>
-              </div>
-            )}
-
-            <UploadSummary categories={categoryList} uploadedFiles={uploadedFiles} />
-
-            {/* Uploaded Files Section */}
-            {uploadedFiles.length > 0 && (
-              <div className="bg-white/60 backdrop-blur-sm rounded-2xl p-6 border border-white/40 shadow-sm">
-                <h2 className="text-xl font-semibold text-gray-800 mb-4">Uploaded Documents</h2>
-                <div className="space-y-3">
-                  {uploadedFiles.map((file, index) => (
-                    <div key={index} className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 bg-white/50 rounded-xl border border-white/30 gap-2">
-                      <div className="flex items-center space-x-3 flex-1">
-                        <div className="bg-gradient-to-r from-green-500 to-teal-600 rounded-full p-2">
-                          <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                          </svg>
-                        </div>
-                        <div className="text-sm">
-                          <p className="font-medium text-gray-800">{file.filename}</p>
-                          <p className="text-gray-600">{file.document_type} • {(file.size / 1024).toFixed(1)} KB</p>
-                        </div>
+                {uploadedFiles.map((file, index) => (
+                  <div key={index} className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 bg-white/50 rounded-xl border border-white/30 gap-2">
+                    <div className="flex items-center space-x-3 flex-1">
+                      <div className="bg-gradient-to-r from-green-500 to-teal-600 rounded-full p-2">
+                        <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
                       </div>
-                      <div className="flex items-center gap-2 w-full sm:w-auto">
-                        <button
-                          onClick={() => handleFileDelete(file.id)}
-                          disabled={deletingFileIds.has(file.id)}
-                          className={`px-4 py-2 text-white text-sm rounded-lg transition-all duration-200 flex-1 sm:flex-none text-center shadow-sm ${
-                            deletingFileIds.has(file.id)
-                              ? 'bg-gray-400 cursor-not-allowed'
-                              : 'bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700'
-                          }`}
-                        >
-                          {deletingFileIds.has(file.id) ? 'Deleting...' : 'Delete'}
-                        </button>
+                      <div className="text-sm">
+                        <p className="font-medium text-gray-800">{file.filename}</p>
+                        <p className="text-gray-600">{file.document_type} • {((file.file_size || file.size) / 1024).toFixed(1)} KB</p>
                       </div>
                     </div>
-                  ))}
-                </div>
+                    <div className="flex items-center gap-2 w-full sm:w-auto">
+                      <button
+                        onClick={() => handleFileDelete(file.id)}
+                        disabled={deletingFileIds.has(file.id)}
+                        className={`px-4 py-2 text-white text-sm rounded-lg transition-all duration-200 flex-1 sm:flex-none text-center shadow-sm ${deletingFileIds.has(file.id)
+                          ? 'bg-gray-400 cursor-not-allowed'
+                          : 'bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700'
+                          }`}
+                      >
+                        {deletingFileIds.has(file.id) ? 'Deleting...' : 'Delete'}
+                      </button>
+                    </div>
+                  </div>
+                ))}
               </div>
-            )}
+            </div>
+          )}
 
-            <SecurityInfo />
+          <SecurityInfo />
 
-            <div className="mt-8">
-              <div className="mb-6">
-                <button
-                  onClick={async () => {
-                    if (!applicationId) {
-                      setErrorMessage('No application ID available. Please complete the enrollment form first.');
-                      setTimeout(() => setErrorMessage(null), 5000);
-                      return;
-                    }
+          <div className="mt-8">
+            <div className="mb-6">
+              <button
+                onClick={async () => {
+                  if (!applicationId) {
+                    setErrorMessage('No application ID available. Please complete the enrollment form first.');
+                    setTimeout(() => setErrorMessage(null), 5000);
+                    return;
+                  }
 
                   try {
                     const currentApplicationId = applicationId;
@@ -749,62 +771,61 @@ export const DocumentUploadCenter: React.FC<DocumentUploadCenterProps> = ({
                     setErrorMessage(errorMsg);
                     setTimeout(() => setErrorMessage(null), 5000);
                   }
-                  }}
-                  disabled={!isComplete}
-                  className={`w-full py-3 px-6 rounded-lg font-medium shadow-sm transition-all duration-200 ${
-                    isComplete
-                      ? 'bg-gradient-to-r from-green-500 to-teal-500 text-white hover:from-green-600 hover:to-teal-600'
-                      : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                  }`}
-                >
-                  Complete Document Upload
-                </button>
-                <p className="text-sm text-gray-600 mt-2 text-center">
-                  Note: Only submitted applications are saved permanently. You can update this application anytime before submitting.
-                </p>
-                {!isComplete && (
-                  <p className="text-sm text-gray-500 mt-2 text-center">
-                    Please upload all required documents before completing this section.
-                  </p>
-                )}
-              </div>
-              <ActionButtons
-                disabled={!isComplete}
-                onContinue={async () => {
-                  const currentApplicationId = applicationId;
-                  if (!currentApplicationId) {
-                    setErrorMessage('No application ID available. Please complete step 1 first.');
-                    setTimeout(() => setErrorMessage(null), 5000);
-                    return;
-                  }
-
-                  try {
-                    await apiService.completeDocumentUpload(currentApplicationId);
-                    setSuccessMessage('Document upload completed successfully!');
-                    setTimeout(() => setSuccessMessage(null), 3000);
-                    // Refresh completion status after successful backend completion
-                    await checkCompletionStatus();
-                    onDocumentUploadComplete && onDocumentUploadComplete();
-                    } catch (error: any) {
-                      const errorMsg = 'Failed to complete document upload: ' + (error.message || 'Network error');
-                      setErrorMessage(errorMsg);
-                      setTimeout(() => setErrorMessage(null), 5000);
-                      // Still proceed to next step even if backend fails
-                      onDocumentUploadComplete && onDocumentUploadComplete();
-                    }
                 }}
-              />
-              <Footer
-                onBack={onBack}
-                onSave={() => {}}
-                onNext={onDocumentUploadComplete}
-                showBack={true}
-                showSave={false}
-                showNext={true}
-                nextLabel="Next: Academic History"
-              />
+                disabled={!isComplete}
+                className={`w-full py-3 px-6 rounded-lg font-medium shadow-sm transition-all duration-200 ${isComplete
+                  ? 'bg-gradient-to-r from-green-500 to-teal-500 text-white hover:from-green-600 hover:to-teal-600'
+                  : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                  }`}
+              >
+                Complete Document Upload
+              </button>
+              <p className="text-sm text-gray-600 mt-2 text-center">
+                Note: Only submitted applications are saved permanently. You can update this application anytime before submitting.
+              </p>
+              {!isComplete && (
+                <p className="text-sm text-gray-500 mt-2 text-center">
+                  Please upload all required documents before completing this section.
+                </p>
+              )}
             </div>
+            <ActionButtons
+              disabled={!isComplete}
+              onContinue={async () => {
+                const currentApplicationId = applicationId;
+                if (!currentApplicationId) {
+                  setErrorMessage('No application ID available. Please complete step 1 first.');
+                  setTimeout(() => setErrorMessage(null), 5000);
+                  return;
+                }
+
+                try {
+                  await apiService.completeDocumentUpload(currentApplicationId);
+                  setSuccessMessage('Document upload completed successfully!');
+                  setTimeout(() => setSuccessMessage(null), 3000);
+                  // Refresh completion status after successful backend completion
+                  await checkCompletionStatus();
+                  onDocumentUploadComplete && onDocumentUploadComplete();
+                } catch (error: any) {
+                  const errorMsg = 'Failed to complete document upload: ' + (error.message || 'Network error');
+                  setErrorMessage(errorMsg);
+                  setTimeout(() => setErrorMessage(null), 5000);
+                  // Still proceed to next step even if backend fails
+                  onDocumentUploadComplete && onDocumentUploadComplete();
+                }
+              }}
+            />
+            <Footer
+              onBack={onBack}
+              onSave={() => { }}
+              onNext={onDocumentUploadComplete}
+              showBack={true}
+              showSave={false}
+              showNext={true}
+              nextLabel="Next: Academic History"
+            />
           </div>
+        </div>
       </div>
     </div>
   );

@@ -166,7 +166,7 @@ class DocumentRepository(BaseRepository):
 
             summary = []
             for doc_type in doc_types:
-                type_docs = [f for f in all_files if f.get("document_type") == doc_type]
+                type_docs = [f for f in all_files if (f.get("document_type") or f.get("documentType")) == doc_type]
                 required_count = requirements.get(doc_type, 1)
                 summary.append({
                     "document_type": doc_type,
@@ -174,8 +174,8 @@ class DocumentRepository(BaseRepository):
                     "required_count": required_count,
                     "completed": len(type_docs) >= required_count,
                     "files": [{
-                        "file_url": f.get("download_url"),
-                        "filename": f.get("original_filename") or f.get("filename") or f"{doc_type}.pdf"
+                        "file_url": f.get("download_url") or f.get("downloadUrl"),
+                        "filename": f.get("original_filename") or f.get("originalFilename") or f.get("filename") or f"{doc_type}.pdf"
                     } for f in type_docs]
                 })
 
@@ -208,12 +208,14 @@ class DocumentRepository(BaseRepository):
                 {
                     "id": f.get("id", ""),
                     "filename": f.get("filename", ""),
-                    "original_filename": f.get("original_filename", ""),
-                    "file_size": f.get("file_size", 0),
-                    "content_type": f.get("content_type", "application/octet-stream"),
-                    "document_type": f.get("document_type", "unknown"),
-                    "download_url": f.get("download_url", ""),
-                    "created_at": f.get("created_at", "")
+                    "original_filename": f.get("original_filename") or f.get("originalFilename", ""),
+                    "file_size": f.get("file_size") or f.get("fileSize", 0),
+                    "content_type": f.get("content_type") or f.get("contentType", "application/octet-stream"),
+                    "document_type": f.get("document_type") or f.get("documentType", "unknown"),
+                    "bucket_name": f.get("bucket_name") or f.get("bucketName", ""),
+                    "download_url": f.get("download_url") or f.get("downloadUrl", ""),
+                    "file_path": f.get("file_path") or f.get("filePath", ""),
+                    "created_at": f.get("created_at") or f.get("uploadedAt", "")
                 }
                 for f in files_data
             ]
@@ -301,7 +303,7 @@ class DocumentRepository(BaseRepository):
 
             doc_types = set()
             for f in files_data:
-                doc_type = f.get("document_type")
+                doc_type = f.get("document_type") or f.get("documentType")
                 if doc_type:
                     doc_types.add(doc_type)
 

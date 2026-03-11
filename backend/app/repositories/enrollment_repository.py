@@ -349,9 +349,27 @@ class EnrollmentRepository(BaseRepository):
                 # Try update first, if no rows affected, insert new
                 result = self.supabase.table("students").update(data).eq("application_id", application_id).execute()
                 if not result.data:
-                    # No existing record, insert instead
+                    # No existing record - need to INSERT.
+                    # The students table has NOT NULL + CHECK constraints on required fields.
+                    # Only attempt INSERT if all required fields are present with valid values.
+                    required_fields = ["surname", "first_name", "date_of_birth", "gender", "home_language", "id_number"]
+                    has_all_required = all(
+                        field in data and data[field] is not None and str(data[field]).strip() != ""
+                        for field in required_fields
+                    )
+                    
+                    if not has_all_required:
+                        missing = [f for f in required_fields if f not in data or not data.get(f)]
+                        logger.info(
+                            f"Skipping student INSERT for application {application_id} - "
+                            f"missing required fields: {missing}. "
+                            f"Will retry on next auto-save when all fields are filled."
+                        )
+                        return
+                    
                     try:
                         self.supabase.table("students").insert(data).execute()
+                        logger.info(f"Inserted new student record for application {application_id}")
                     except Exception as e:
                         error_str = str(e).lower()
                         if "unique" in error_str or "duplicate" in error_str or "409" in error_str:
@@ -624,7 +642,7 @@ class EnrollmentRepository(BaseRepository):
         """
         try:
             # Get all uploaded files for this application
-            files_result = self.supabase.table("uploaded_files").select("*").eq("application_id", application_id).execute()
+            files_result = self.supabase.table("uploaded_files").select("files").eq("application_id", application_id).execute()
             
             if not files_result.data:
                 return {
@@ -633,10 +651,15 @@ class EnrollmentRepository(BaseRepository):
                     "total_files": 0
                 }
             
+            # The uploaded_files table uses a JSONB 'files' array (one row per application)
+            # Extract individual files from the JSONB array
+            all_files = files_result.data[0].get("files") or []
+            
             # Extract unique document types from uploaded files
+            # Handle both snake_case and camelCase JSONB keys
             doc_types = set()
-            for file_data in files_result.data:
-                doc_type = file_data.get("document_type")
+            for file_data in all_files:
+                doc_type = file_data.get("document_type") or file_data.get("documentType")
                 if doc_type:
                     doc_types.add(doc_type)
             
@@ -649,7 +672,7 @@ class EnrollmentRepository(BaseRepository):
             return {
                 "completed_categories": completed_count,
                 "uploaded_types": sorted(list(doc_types)),
-                "total_files": len(files_result.data)
+                "total_files": len(all_files)
             }
         except Exception as e:
             logger.error(f"Failed to get upload summary for {application_id}: {str(e)}")
