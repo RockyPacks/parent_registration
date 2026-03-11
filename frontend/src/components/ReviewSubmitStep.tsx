@@ -187,6 +187,23 @@ export const ReviewSubmitStep: React.FC<ReviewSubmitStepProps> = ({ currentData,
       return;
     }
     
+    // Validate that at least one parent information is complete
+    if (summaryData?.guardian) {
+      const fatherComplete = summaryData.guardian.fatherName && summaryData.guardian.fatherEmail && summaryData.guardian.fatherPhone;
+      const motherComplete = summaryData.guardian.motherName && summaryData.guardian.motherEmail && summaryData.guardian.motherPhone;
+      const nokComplete = summaryData.guardian.nextOfKinName && summaryData.guardian.nextOfKinEmail && summaryData.guardian.nextOfKinPhone;
+      
+      if (!fatherComplete && !motherComplete) {
+        setError('Please provide complete information for at least one parent (Father or Mother).');
+        return;
+      }
+      
+      if (!nokComplete) {
+        setError('Please provide complete information for the Next of Kin (emergency contact).');
+        return;
+      }
+    }
+    
     console.log('ReviewSubmitStep: User clicked Submit Application button');
     setIsSubmitting(true);
     setError(null);

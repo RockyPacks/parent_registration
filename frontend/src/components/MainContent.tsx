@@ -431,13 +431,11 @@ const MainContent: React.FC<MainContentProps> = (props) => {
     setIsSubmitting(true);
     try {
       const { apiService } = await import('../services/api');
-      await apiService.submitApplication(applicationId);
-      console.log('MainContent: Application submitted successfully to backend');
-
-      const data = {
+      
+      // Prepare full application data including parent/family information
+      const fullData = {
         student: studentData,
         family: familyData, // familyData now includes nextOfKin
-        nextOfKin: nextOfKinData,
         medical: medicalData,
         fee: feeData,
         academicHistory: academicHistoryData,
@@ -446,15 +444,22 @@ const MainContent: React.FC<MainContentProps> = (props) => {
         declaration: declarationData,
         documents: documentsData,
       };
-      setFullApplicationData(data);
+      
+      console.log('MainContent: Submitting application with full data including parent info');
+      await apiService.submitApplication(applicationId, fullData);
+      console.log('MainContent: Application submitted successfully to backend');
+
+      setFullApplicationData(fullData);
 
       addToast('Application submitted successfully!', 'success');
 
       // ONLY mark step 6 as complete after successful backend submission
       console.log('MainContent: Marking step 6 as complete');
       onStepComplete && onStepComplete(6);
-    } catch (error) {
-      addToast('Failed to submit application. Please try again.', 'error');
+    } catch (error: any) {
+      const errorMsg = error?.message || 'Failed to submit application. Please try again.';
+      addToast(errorMsg, 'error');
+      console.error('MainContent: Application submission failed:', error);
     } finally {
       setIsSubmitting(false);
     }

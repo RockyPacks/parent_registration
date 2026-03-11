@@ -266,7 +266,18 @@ class ApiService {
   }
 
   async getUploadedFiles(applicationId: string): Promise<{ files: any[] }> {
-    return this.request<{ files: any[] }>(`/documents/${applicationId}/files`);
+    console.log(`ApiService: Fetching uploaded files for application: ${applicationId}`);
+    try {
+      const result = await this.request<{ files: any[] }>(`/documents/${applicationId}/files`);
+      console.log(`ApiService: Successfully fetched ${result.files?.length || 0} files for application: ${applicationId}`);
+      if (result.files && result.files.length > 0) {
+        console.log('ApiService: Sample file data:', result.files[0]);
+      }
+      return result;
+    } catch (error) {
+      console.error(`ApiService: Failed to fetch uploaded files for application ${applicationId}:`, error);
+      throw error;
+    }
   }
 
   async deleteFile(applicationId: string, fileId: string): Promise<{ message: string }> {
@@ -461,10 +472,45 @@ class ApiService {
     }
   }
 
-  async submitApplication(applicationId: string): Promise<{ message: string; application_id: string }> {
+  async submitApplication(applicationId: string, fullData?: any): Promise<{ message: string; application_id: string }> {
+    const payload: any = { application_id: applicationId };
+    
+    // Include full application data if provided
+    if (fullData) {
+      const snakeCaseData = toSnakeCase(fullData);
+      
+      if (snakeCaseData.student) {
+        payload.student = snakeCaseData.student;
+        // Map dob to date_of_birth
+        if (snakeCaseData.student.date_of_birth) {
+          snakeCaseData.student.date_of_birth = new Date(snakeCaseData.student.date_of_birth).toISOString().split("T")[0];
+        }
+      }
+      
+      if (snakeCaseData.medical) {
+        payload.medical = snakeCaseData.medical;
+      }
+      
+      if (snakeCaseData.family) {
+        payload.family = snakeCaseData.family;
+      }
+      
+      if (snakeCaseData.fee) {
+        payload.fee = snakeCaseData.fee;
+      }
+      
+      if (fullData.academicHistory) {
+        payload.academic_history = fullData.academicHistory;
+      }
+      
+      if (fullData.declaration) {
+        payload.declaration = fullData.declaration;
+      }
+    }
+    
     return this.request<{ message: string; application_id: string }>('/enrollment/submit-application', {
       method: 'POST',
-      body: JSON.stringify({ application_id: applicationId }),
+      body: JSON.stringify(payload),
     });
   }
 
