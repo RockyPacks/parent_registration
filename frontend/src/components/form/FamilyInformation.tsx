@@ -99,11 +99,15 @@ const FamilyInformation: React.FC<FamilyInformationProps> = ({ initialFamilyData
   });
 
   useEffect(() => {
-    if (onFamilyDataChange) {
+    // Only propagate changes if we have data or if fully initialized from props
+    // This protects against empty state overwriting valid localStorage/backend data
+    const hasData = familyFormData.fatherSurname || familyFormData.motherSurname;
+    
+    if (onFamilyDataChange && (hasData || isInitialized)) {
       onFamilyDataChange(familyFormData);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [familyFormData]);
+  }, [familyFormData, isInitialized]);
 
   useEffect(() => {
     if (onNextOfKinDataChange) {

@@ -7,7 +7,8 @@ interface Step5DeclarationStepProps {
   onStepChange?: (step: number) => void;
   onStepComplete?: (stepNumber: number) => void;
   onDeclarationComplete?: () => void;
-  onDataChange?: (data: any) => void; // Add this prop
+  onDataChange?: (data: any) => void; 
+  initialData?: any;
 }
 
 const Step5DeclarationStep: React.FC<Step5DeclarationStepProps> = ({
@@ -15,7 +16,8 @@ const Step5DeclarationStep: React.FC<Step5DeclarationStepProps> = ({
   onStepChange,
   onStepComplete,
   onDeclarationComplete,
-  onDataChange // Destructure onDataChange prop
+  onDataChange,
+  initialData
 }) => {
   return (
     <div className="flex-1 bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 min-h-screen">
@@ -59,6 +61,7 @@ const Step5DeclarationStep: React.FC<Step5DeclarationStepProps> = ({
           onStepChange={onStepChange}
           onStepComplete={onStepComplete}
           onDataChange={onDataChange}
+          initialData={initialData}
         />
       </div>
 

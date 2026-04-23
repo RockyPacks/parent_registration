@@ -29,24 +29,28 @@ const MedicalInformation: React.FC<MedicalInformationProps> = ({ initialData, on
   const [isInitialized, setIsInitialized] = useState(false);
 
   // Update form data when initialData changes (e.g., after data is loaded from localStorage/backend)
-  // Only run once when component first receives data to prevent infinite loops
   useEffect(() => {
-    if (!isInitialized && initialData && Object.keys(initialData).length > 0) {
+    if (initialData && Object.keys(initialData).length > 0) {
       setFormData(prev => ({
         ...prev,
         ...initialData
       }));
-      setIsInitialized(true);
+      if (!isInitialized) {
+        setIsInitialized(true);
+      }
     }
-  }, [initialData, isInitialized]);
+  }, [initialData]);
 
   useEffect(() => {
-    if (onDataChange) {
+    // Only propagate changes if we have data or if fully initialized from props
+    const hasData = formData.medicalAidName || formData.memberNumber || (formData.conditions && formData.conditions.length > 0);
+    
+    if (onDataChange && (hasData || isInitialized)) {
       // Send to parent component which will handle localStorage via MainContent
       onDataChange(formData);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [formData]);
+  }, [formData, isInitialized]);
 
   const validateField = (field: string, value: string) => {
     let error = '';

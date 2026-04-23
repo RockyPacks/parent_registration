@@ -10,7 +10,7 @@ import { EnrollmentData } from './src/services/api';
 import { storage } from './src/utils/storage';
 
 interface ApplicationSummary {
-  application_id: string;
+  applicationId: string;
   // Add other relevant properties if known
 }
 
@@ -33,6 +33,7 @@ const App: React.FC = () => {
   const [authInitialized, setAuthInitialized] = useState(false);
   const [applicationInitialized, setApplicationInitialized] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [applicationStatus, setApplicationStatus] = useState<string | null>(null);
 
 
   const steps = [
@@ -89,7 +90,7 @@ const App: React.FC = () => {
             currentUserEmailRef.current = user.email;
             isLoadingApplication = true;
             try {
-              await loadUserApplication(user.email);
+              await loadUserApplication(user.email, user.user_metadata);
             } finally {
               isLoadingApplication = false;
             }
@@ -119,7 +120,7 @@ const App: React.FC = () => {
           currentUserEmailRef.current = newUserEmail;
           isLoadingApplication = true;
           try {
-            await loadUserApplication(newUserEmail!);
+            await loadUserApplication(newUserEmail!, user.user_metadata);
           } finally {
             isLoadingApplication = false;
           }
@@ -135,7 +136,9 @@ const App: React.FC = () => {
       // The listener will fire immediately with the current session
     };
 
-    const loadUserApplication = async (userEmail: string) => {
+    const loadUserApplication = async (userEmail: string, userMetadata: any = {}) => {
+      setApplicationInitialized(false);
+      const currentInProgressSteps: number[] = [];
       try {
         if (!userEmail) {
           console.log("App.tsx: No user email provided, skipping application load.");
@@ -151,11 +154,12 @@ const App: React.FC = () => {
         console.log("App.tsx: Fetching application details from backend for user:", userEmail);
         const { apiService } = await import('./src/services/api');
         const appDataResponse = await apiService.initiateApplication();
-        const initialAppId = appDataResponse.application_id;
+        const initialAppId = appDataResponse.applicationId;
 
         if (initialAppId) {
           console.log("App.tsx: Application ID from backend:", initialAppId);
           setApplicationId(initialAppId);
+          setApplicationStatus(appDataResponse.status);
 
           // Restore other user-specific state
           const userActiveStepKey = getUserKey(userEmail, 'activeStep');
@@ -188,9 +192,9 @@ const App: React.FC = () => {
               console.log("App.tsx: Raw appData:", JSON.stringify(appData, null, 2));
 
               // Check if step 1 data exists - must have actual student data with required fields
-              const hasStudentData = appData.student?.surname && appData.student?.first_name;
-              const hasFamilyData = hasData(appData.family) && (appData.family?.father_surname || appData.family?.mother_surname);
-              const hasFeeData = appData.fee?.fee_person;
+              const hasStudentData = appData.student?.surname && appData.student?.firstName;
+              const hasFamilyData = hasData(appData.family) && (appData.family?.fatherSurname || appData.family?.motherSurname);
+              const hasFeeData = appData.fee?.feePerson;
 
               console.log("App.tsx: Step 1 check - hasStudentData:", hasStudentData, "hasFamilyData:", hasFamilyData, "hasFeeData:", hasFeeData);
 
@@ -205,10 +209,7 @@ const App: React.FC = () => {
                 ? appData.documents.flatMap((row: any) => (Array.isArray(row.files) ? row.files : []))
                 : [];
               const documentCount = allUploadedFiles.length;
-              const hasDocuments = documentCount > 0;
-              // Each category needs at least 1 file — step 2 is complete when all 4 categories have files
-              // Handle both snake_case (document_type) and camelCase (documentType) keys from JSONB
-              const uploadedDocTypes = new Set(allUploadedFiles.map((f: any) => f.document_type || f.documentType).filter(Boolean));
+              const uploadedDocTypes = new Set(allUploadedFiles.map((f: any) => f.documentType).filter(Boolean));
               const requiredDocTypes = new Set(['proof_of_address', 'id_document', 'payslip', 'bank_statement']);
               const hasAllRequiredDocuments = [...requiredDocTypes].every(t => uploadedDocTypes.has(t));
 
@@ -216,23 +217,24 @@ const App: React.FC = () => {
 
               if (hasAllRequiredDocuments) {
                 backendCompletedSteps.push(2);
-              } else if (hasDocuments && !hasAllRequiredDocuments) {
+              } else if (documentCount > 0 && !hasAllRequiredDocuments) {
                 // Some documents uploaded but not all categories covered - mark as in-progress
-                inProgressSteps.push(2);
+                currentInProgressSteps.push(2);
                 console.log("App.tsx: Step 2 marked as IN-PROGRESS - uploaded types:", [...uploadedDocTypes]);
               }
 
               // Check if step 3 data exists (academic history) - must have actual records
-              const hasAcademicHistory = Array.isArray(appData.academic_history) && appData.academic_history.length > 0;
-              console.log("App.tsx: Step 3 check - hasAcademicHistory:", hasAcademicHistory, "count:", appData.academic_history?.length || 0);
+              const hasAcademicHistory = Array.isArray(appData.academicHistory) && appData.academicHistory.length > 0;
+              console.log("App.tsx: Step 3 check - hasAcademicHistory:", hasAcademicHistory, "count:", appData.academicHistory?.length || 0);
 
               if (hasAcademicHistory) {
                 backendCompletedSteps.push(3);
               }
 
-              // Check if step 4 data exists (fee agreement - financing selections) - must have actual selections
-              const hasFinancingSelections = Array.isArray(appData.financing_selections) && appData.financing_selections.length > 0;
-              console.log("App.tsx: Step 4 check - hasFinancingSelections:", hasFinancingSelections, "count:", appData.financing_selections?.length || 0);
+              // Check if step 4 data exists (fee agreement - plan stored in fee.selectedPlan OR financingSelections)
+              const hasFinancingSelections = (Array.isArray(appData.financingSelections) && appData.financingSelections.length > 0) ||
+                !!(appData.fee?.selectedPlan);
+              console.log("App.tsx: Step 4 check - hasFinancingSelections:", hasFinancingSelections, "fee.selectedPlan:", appData.fee?.selectedPlan, "count:", appData.financingSelections?.length || 0);
 
               if (hasFinancingSelections) {
                 backendCompletedSteps.push(4);
@@ -247,7 +249,7 @@ const App: React.FC = () => {
               }
 
               // IMPORTANT: Step 6 is ONLY complete when:
-              // 1. Application status is 'submitted' AND has submitted_at timestamp
+              // 1. Application status is 'submitted' AND has submittedAt timestamp
               // 2. AND ALL prerequisite steps (1-5) are ACTUALLY complete with data
               // This prevents showing step 6 as complete when steps are missing
               const hasAllPrerequisites = hasStudentData && hasFamilyData && hasFeeData;
@@ -256,9 +258,9 @@ const App: React.FC = () => {
                 backendCompletedSteps.includes(3) &&
                 backendCompletedSteps.includes(4) &&
                 backendCompletedSteps.includes(5);
-              const isSubmitted = (appData.status === 'submitted' || appData.status === 'completed') && appData.submitted_at;
+              const isSubmitted = (appData.status === 'submitted' || appData.status === 'completed') && appData.submittedAt;
 
-              console.log("App.tsx: Step 6 check - status:", appData.status, "submitted_at:", appData.submitted_at);
+              console.log("App.tsx: Step 6 check - status:", appData.status, "submittedAt:", appData.submittedAt);
               console.log("App.tsx: Step 6 check - hasAllPrerequisites:", hasAllPrerequisites, "allStepsComplete:", allStepsComplete);
               console.log("App.tsx: Step 6 check - completed steps so far:", backendCompletedSteps);
 
@@ -282,62 +284,67 @@ const App: React.FC = () => {
               const enrollmentData: Partial<EnrollmentData> = {};
 
               if (appData.student) {
+                // Pre-fill from user metadata if student record is empty
+                const fullMetadataName = userMetadata?.full_name || '';
+                const [metaFirst = '', ...metaLastArr] = fullMetadataName.split(' ');
+                const metaLast = metaLastArr.join(' ');
+
                 enrollmentData.student = {
-                  surname: appData.student.surname || '',
-                  firstName: appData.student.first_name || '',
-                  middleName: appData.student.middle_name || '',
-                  preferredName: appData.student.preferred_name || '',
-                  email: appData.student.email || '',
+                  surname: appData.student.surname || metaLast || '',
+                  firstName: appData.student.firstName || metaFirst || '',
+                  middleName: appData.student.middleName || '',
+                  preferredName: appData.student.preferredName || '',
+                  email: appData.student.email || userEmail || '',
                   phone: appData.student.phone || '',
-                  dob: appData.student.date_of_birth || '',
+                  dob: appData.student.dateOfBirth || '',
                   gender: appData.student.gender || '',
-                  homeLanguage: appData.student.home_language || '',
-                  idNumber: appData.student.id_number || '',
-                  previousGrade: appData.student.previous_grade || '',
-                  gradeAppliedFor: appData.student.grade_applied_for || '',
-                  previousSchool: appData.student.previous_school || ''
+                  homeLanguage: appData.student.homeLanguage || '',
+                  idNumber: appData.student.idNumber || '',
+                  previousGrade: appData.student.previousGrade || '',
+                  gradeAppliedFor: appData.student.gradeAppliedFor || '',
+                  previousSchool: appData.student.previousSchool || ''
                 };
               }
 
               if (appData.medical) {
                 enrollmentData.medical = {
-                  medicalAidName: appData.medical.medical_aid_name || '',
-                  memberNumber: appData.medical.member_number || '',
-                  conditions: appData.medical.conditions || [],
+                  medicalAidName: appData.medical.medicalAidName || '',
+                  memberNumber: appData.medical.memberNumber || '',
+                  conditions: Array.isArray(appData.medical.conditions) ? appData.medical.conditions : [],
                   allergies: appData.medical.allergies || ''
                 };
               }
 
               if (appData.family) {
                 enrollmentData.family = {
-                  fatherSurname: appData.family.father_surname || '',
-                  fatherFirstName: appData.family.father_first_name || '',
-                  fatherIdNumber: appData.family.father_id_number || '',
-                  fatherMobile: appData.family.father_mobile || '',
-                  fatherEmail: appData.family.father_email || '',
-                  motherSurname: appData.family.mother_surname || '',
-                  motherFirstName: appData.family.mother_first_name || '',
-                  motherIdNumber: appData.family.mother_id_number || '',
-                  motherMobile: appData.family.mother_mobile || '',
-                  motherEmail: appData.family.mother_email || '',
-                  nextOfKinSurname: appData.family.next_of_kin_surname || '',
-                  nextOfKinFirstName: appData.family.next_of_kin_first_name || '',
-                  nextOfKinRelationship: appData.family.next_of_kin_relationship || '',
-                  nextOfKinMobile: appData.family.next_of_kin_mobile || '',
-                  nextOfKinEmail: appData.family.next_of_kin_email || '',
-                  nextOfKinIdNumber: appData.family.next_of_kin_id_number || '' // Added missing nextOfKinIdNumber
+                  fatherSurname: appData.family.fatherSurname || '',
+                  fatherFirstName: appData.family.fatherFirstName || '',
+                  fatherIdNumber: appData.family.fatherIdNumber || '',
+                  fatherMobile: appData.family.fatherMobile || '',
+                  fatherEmail: appData.family.fatherEmail || '',
+                  motherSurname: appData.family.motherSurname || '',
+                  motherFirstName: appData.family.motherFirstName || '',
+                  motherIdNumber: appData.family.motherIdNumber || '',
+                  motherMobile: appData.family.motherMobile || '',
+                  motherEmail: appData.family.motherEmail || '',
+                  nextOfKinSurname: appData.family.nextOfKinSurname || '',
+                  nextOfKinFirstName: appData.family.nextOfKinFirstName || '',
+                  nextOfKinRelationship: appData.family.nextOfKinRelationship || '',
+                  nextOfKinMobile: appData.family.nextOfKinMobile || '',
+                  nextOfKinEmail: appData.family.nextOfKinEmail || '',
+                  nextOfKinIdNumber: appData.family.nextOfKinIdNumber || ''
                 };
               }
 
               if (appData.fee) {
                 enrollmentData.fee = {
-                  feePerson: appData.fee.fee_person || '',
+                  feePerson: appData.fee.feePerson || '',
                   relationship: appData.fee.relationship || '',
-                  feeTermsAccepted: appData.fee.fee_terms_accepted || false,
-                  bankName: appData.fee.bank_name || '',
-                  branchCode: appData.fee.branch_code || '',
-                  accountNumber: appData.fee.account_number || '',
-                  accountType: appData.fee.account_type || ''
+                  feeTermsAccepted: appData.fee.feeTermsAccepted || false,
+                  bankName: appData.fee.bankName || '',
+                  branchCode: appData.fee.branchCode || '',
+                  accountNumber: appData.fee.accountNumber || '',
+                  accountType: appData.fee.accountType || ''
                 };
               }
 
@@ -348,7 +355,7 @@ const App: React.FC = () => {
               // Helper to check for actual data content
               const hasActualData = (obj: any) => obj && Object.values(obj).some(val => val !== null && val !== undefined && val !== '');
 
-              if (hasActualData(enrollmentData.student)) {
+              if (appData.student?.surname || appData.student?.firstName) {
                 console.log("App.tsx: Saving non-empty student data to localStorage:", JSON.stringify(enrollmentData.student));
                 storage.set(getUserKey(userEmail, 'studentData'), enrollmentData.student);
               } else {
@@ -364,37 +371,21 @@ const App: React.FC = () => {
                 storage.set(getUserKey(userEmail, 'feeData'), enrollmentData.fee);
               }
 
-              // Save next of kin data from dedicated next_of_kin table
-              console.log("App.tsx: Backend next_of_kin data:", appData.next_of_kin);
-              if (appData.next_of_kin && Object.keys(appData.next_of_kin).length > 0) {
-                const nextOfKinData = {
-                  nextOfKinSurname: appData.next_of_kin.surname || '',
-                  nextOfKinFirstName: appData.next_of_kin.first_name || '',
-                  nextOfKinRelationship: appData.next_of_kin.relationship || '',
-                  nextOfKinMobile: appData.next_of_kin.mobile_number || '',
-                  nextOfKinEmail: appData.next_of_kin.email_address || '',
-                  nextOfKinIdNumber: appData.next_of_kin.id_number || '',
-                  nextOfKinPhone: appData.next_of_kin.phone_number || '',
-                  nextOfKinAlternateMobile: appData.next_of_kin.alternate_mobile || '',
-                  nextOfKinPhysicalAddress: appData.next_of_kin.physical_address || ''
-                };
-                storage.set(getUserKey(userEmail, 'nextOfKinData'), nextOfKinData);
-                console.log("App.tsx: Next of kin data saved to localStorage from next_of_kin table:", nextOfKinData);
-              }
+              // nextOfKin fields are already saved as part of familyData above (appData.family.nextOfKinXxx)
 
               // Save declaration data to localStorage (Step 5)
               if (appData.declaration && (appData.declaration.signed || appData.declaration.id)) {
                 const declData = appData.declaration;
                 const declarationData = {
                   application_id: initialAppId,
-                  agree_truth: declData.agree_truth || false,
-                  agree_policies: declData.agree_policies || false,
-                  agree_financial: declData.agree_financial || false,
-                  agree_verification: declData.agree_verification || false,
-                  agree_data_processing: declData.agree_data_processing || false,
-                  agree_audit_storage: declData.agree_audit_storage || false,
-                  agree_affordability_processing: declData.agree_affordability_processing || false,
-                  fullName: declData.full_name || '',
+                  agree_truth: declData.agreeTruth || false,
+                  agree_policies: declData.agreePolicies || false,
+                  agree_financial: declData.agreeFinancial || false,
+                  agree_verification: declData.agreeVerification || false,
+                  agree_data_processing: declData.agreeDataProcessing || false,
+                  agree_audit_storage: declData.agreeAuditStorage || false,
+                  agree_affordability_processing: declData.agreeAffordabilityProcessing || false,
+                  fullName: declData.fullName || '',
                   city: declData.city || '',
                   signed: declData.signed || false,
                   status: declData.signed ? 'completed' : 'in_progress'
@@ -406,10 +397,12 @@ const App: React.FC = () => {
               }
 
               // Save financing data to localStorage (Step 4)
-              if (appData.financing_selections && appData.financing_selections.length > 0) {
-                // The plan_type from backend is now the user-friendly display name (e.g., "Pay Per Term")
-                // stored directly in fee_responsibility.selected_plan
-                const planType = appData.financing_selections[0].plan_type;
+              // Backend stores plan in fee.selectedPlan (fee_responsibility table), not in financingSelections
+              const rawPlanType = (appData.financingSelections && appData.financingSelections.length > 0)
+                ? appData.financingSelections[0].planType
+                : appData.fee?.selectedPlan;
+              if (rawPlanType) {
+                const planType = rawPlanType;
 
                 // Check if it's already a display name or needs conversion
                 const knownDisplayNames = [
@@ -443,20 +436,20 @@ const App: React.FC = () => {
               }
 
               // Save academic history data to localStorage (Step 3)
-              if (appData.academic_history && appData.academic_history.length > 0) {
-                const academicData = appData.academic_history[0];
+              if (appData.academicHistory && appData.academicHistory.length > 0) {
+                const academicData = appData.academicHistory[0];
                 const academicHistoryData = {
-                  schoolName: academicData.school_name || '',
-                  schoolType: academicData.school_type || '',
-                  lastGradeCompleted: academicData.last_grade_completed || '',
-                  academicYearCompleted: academicData.academic_year_completed || '',
-                  reasonForLeaving: academicData.reason_for_leaving || '',
-                  principalName: academicData.principal_name || '',
-                  schoolPhoneNumber: academicData.school_phone_number || '',
-                  schoolEmail: academicData.school_email || '',
-                  schoolAddress: academicData.school_address || '',
-                  reportCardUrl: academicData.report_card_url || '',
-                  additionalNotes: academicData.additional_notes || ''
+                  schoolName: academicData.schoolName || '',
+                  schoolType: academicData.schoolType || '',
+                  lastGradeCompleted: academicData.lastGradeCompleted || '',
+                  academicYearCompleted: academicData.academicYearCompleted || '',
+                  reasonForLeaving: academicData.reasonForLeaving || '',
+                  principalName: academicData.principalName || '',
+                  schoolPhoneNumber: academicData.schoolPhoneNumber || '',
+                  schoolEmail: academicData.schoolEmail || '',
+                  schoolAddress: academicData.schoolAddress || '',
+                  reportCardUrl: academicData.reportCardUrl || '',
+                  additionalNotes: academicData.additionalNotes || ''
                 };
                 storage.set(getUserKey(userEmail, 'academicHistoryData'), academicHistoryData);
                 console.log("App.tsx: Academic history data saved to localStorage:", academicHistoryData);
@@ -468,7 +461,7 @@ const App: React.FC = () => {
 
               // SAFETY CHECK: Remove step 6 from backendCompletedSteps if application is not actually submitted
               // This prevents any stale data or bugs from showing step 6 as complete prematurely
-              const isActuallySubmitted = (appData.status === 'submitted' || appData.status === 'completed') && appData.submitted_at;
+              const isActuallySubmitted = (appData.status === 'submitted' || appData.status === 'completed') && appData.submittedAt;
               if (!isActuallySubmitted && backendCompletedSteps.includes(6)) {
                 console.warn("App.tsx: WARNING - Step 6 found in completed steps but application not submitted! Removing step 6.");
                 const index = backendCompletedSteps.indexOf(6);
@@ -478,11 +471,12 @@ const App: React.FC = () => {
               }
 
               setCompletedSteps(backendCompletedSteps);
-              setInProgressSteps(inProgressSteps);
+              setInProgressSteps(currentInProgressSteps);
+              setApplicationStatus(appData.status);
               storage.set(userCompletedStepsKey, backendCompletedSteps);
-              storage.set(getUserKey(userEmail, 'inProgressSteps'), inProgressSteps);
+              storage.set(getUserKey(userEmail, 'inProgressSteps'), currentInProgressSteps);
               console.log("App.tsx: Completed steps set from backend:", backendCompletedSteps);
-              console.log("App.tsx: In-progress steps set from backend:", inProgressSteps);
+              console.log("App.tsx: In-progress steps set from backend:", currentInProgressSteps);
 
               // Determine the active step
               let targetStep = 1;
@@ -804,6 +798,7 @@ const App: React.FC = () => {
               <MainContent
                 activeStep={activeStep}
                 applicationId={applicationId}
+                applicationStatus={applicationStatus}
                 isSubmitting={isSubmitting}
                 applicationInitialized={applicationInitialized}
                 onEnrollmentSubmit={handleEnrollmentSubmit}

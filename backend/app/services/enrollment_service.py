@@ -13,7 +13,8 @@ from app.api.v1.schemas.enrollment import (
     UploadSummaryResponse, SubmitApplicationRequest,
     SubmitApplicationResponse, ApplicationStatus, AcademicHistorySchema,
     ApplicationSummary, AcademicHistoryCreate, NextOfKinCreate,
-    StudentInfoPartial, MedicalInfoPartial, FamilyInfoPartial, FeeResponsibilityInfoPartial
+    StudentInfoPartial, MedicalInfoPartial, FamilyInfoPartial, FeeResponsibilityInfoPartial,
+    DeclarationSubmitRequest
 )
 
 logger = logging.getLogger(__name__)
@@ -432,10 +433,10 @@ class EnrollmentService:
             logger.error(f"Error retrieving declaration: {str(e)}")
             raise HTTPException(status_code=500, detail="Failed to retrieve declaration")
 
-    def submit_declaration(self, data: Dict[str, Any], user_id: str) -> Dict[str, Any]:
+    def submit_declaration(self, data: DeclarationSubmitRequest, user_id: str) -> Dict[str, Any]:
         """Submit declaration data"""
         try:
-            application_id = data.get('application_id')
+            application_id = data.application_id
 
             # Verify user owns this application
             if application_id:
@@ -447,20 +448,8 @@ class EnrollmentService:
             if not application_id:
                 application_id = self.repository.create_application(user_id)
 
-            # Save declaration data to declarations table
-            declaration_data = {
-                'agree_truth': data.get('agree_truth', False),
-                'agree_policies': data.get('agree_policies', False),
-                'agree_financial': data.get('agree_financial', False),
-                'agree_verification': data.get('agree_verification', False),
-                'agree_data_processing': data.get('agree_data_processing', False),
-                'agree_audit_storage': data.get('agree_audit_storage', False),
-                'agree_affordability_processing': data.get('agree_affordability_processing', False),
-                'full_name': data.get('fullName', ''),
-                'city': data.get('city', ''),
-                'status': data.get('status', 'completed'),
-                'signed': data.get('signed', False)
-            }
+            # Map declaration data using model_dump (Pydantic aliases handle the mapping)
+            declaration_data = data.model_dump(exclude={'application_id'})
 
             declaration_repository.save_declaration(application_id, declaration_data)
 

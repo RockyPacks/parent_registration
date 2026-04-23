@@ -6,25 +6,25 @@ import Footer from '../Footer';
 import { useToast } from '../../hooks/useToast';
 
 interface ConfirmationChecks {
-  agree_truth: boolean;
-  agree_policies: boolean;
-  agree_financial: boolean;
-  agree_verification: boolean;
-  agree_data_processing: boolean;
-  agree_audit_storage: boolean;
-  agree_affordability_processing: boolean;
+  agreeTruth: boolean;
+  agreePolicies: boolean;
+  agreeFinancial: boolean;
+  agreeVerification: boolean;
+  agreeDataProcessing: boolean;
+  agreeAuditStorage: boolean;
+  agreeAffordabilityProcessing: boolean;
 }
 
 
 
 const CONFIRMATIONS = [
-  { id: 'agree_truth', label: 'I confirm that all information provided in this application is true and correct.' },
-  { id: 'agree_policies', label: 'I agree to abide by the school\'s rules, policies, and code of conduct.' },
-  { id: 'agree_financial', label: 'I acknowledge responsibility for all school fees as per the agreement.' },
-  { id: 'agree_verification', label: 'I consent to the school verifying my information where required.' },
-  { id: 'agree_data_processing', label: 'I consent to the storage and processing of my personal information.' },
-  { id: 'agree_audit_storage', label: 'I consent to storing my information for the school audit processes.' },
-  { id: 'agree_affordability_processing', label: 'I consent to the school processing my information for affordability check.' },
+  { id: 'agreeTruth', label: 'I confirm that all information provided in this application is true and correct.' },
+  { id: 'agreePolicies', label: 'I agree to abide by the school\'s rules, policies, and code of conduct.' },
+  { id: 'agreeFinancial', label: 'I acknowledge responsibility for all school fees as per the agreement.' },
+  { id: 'agreeVerification', label: 'I consent to the school verifying my information where required.' },
+  { id: 'agreeDataProcessing', label: 'I consent to the storage and processing of my personal information.' },
+  { id: 'agreeAuditStorage', label: 'I consent to storing my information for the school audit processes.' },
+  { id: 'agreeAffordabilityProcessing', label: 'I consent to the school processing my information for affordability check.' },
 ] as const;
 
 type ConfirmationKeys = typeof CONFIRMATIONS[number]['id'];
@@ -36,21 +36,36 @@ interface DeclarationStepProps {
   onStepComplete?: (step: number) => void;
   // The 'onDeclarationComplete' prop is passed but not used, we'll use onStepChange/onStepComplete instead.
   onDeclarationComplete?: () => void;
+  initialData?: any;
 }
 
-const DeclarationStep: React.FC<DeclarationStepProps> = ({ applicationId, onDataChange, onStepChange, onStepComplete }) => {
-  const [confirmations, setConfirmations] = useState<ConfirmationChecks>({
-    agree_truth: false,
-    agree_policies: false,
-    agree_financial: false,
-    agree_verification: false,
-    agree_data_processing: false,
-    agree_audit_storage: false,
-    agree_affordability_processing: false,
+const DeclarationStep: React.FC<DeclarationStepProps> = ({ applicationId, onDataChange, onStepChange, onStepComplete, initialData }) => {
+  const [confirmations, setConfirmations] = useState<ConfirmationChecks>(() => {
+    if (initialData && Object.keys(initialData).length > 0) {
+      return {
+        agreeTruth: initialData.agreeTruth || false,
+        agreePolicies: initialData.agreePolicies || false,
+        agreeFinancial: initialData.agreeFinancial || false,
+        agreeVerification: initialData.agreeVerification || false,
+        agreeDataProcessing: initialData.agreeDataProcessing || false,
+        agreeAuditStorage: initialData.agreeAuditStorage || false,
+        agreeAffordabilityProcessing: initialData.agreeAffordabilityProcessing || false,
+      };
+    }
+    return {
+      agreeTruth: false,
+      agreePolicies: false,
+      agreeFinancial: false,
+      agreeVerification: false,
+      agreeDataProcessing: false,
+      agreeAuditStorage: false,
+      agreeAffordabilityProcessing: false,
+    };
   });
-  const [fullName, setFullName] = useState('');
-  const [city, setCity] = useState('');
+  const [fullName, setFullName] = useState(initialData?.fullName || '');
+  const [city, setCity] = useState(initialData?.city || '');
   const [dataLoadedFromBackend, setDataLoadedFromBackend] = useState(false);
+  const [dataInitialized, setDataInitialized] = useState(!!initialData && Object.keys(initialData).length > 0);
   const [isContinueDisabled, setIsContinueDisabled] = useState(true);
   const [touched, setTouched] = useState<{ [key: string]: boolean }>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -72,16 +87,16 @@ const DeclarationStep: React.FC<DeclarationStepProps> = ({ applicationId, onData
           console.log('Loaded declaration data:', backendData);
           
           setConfirmations({
-            agree_truth: backendData.agree_truth || false,
-            agree_policies: backendData.agree_policies || false,
-            agree_financial: backendData.agree_financial || false,
-            agree_verification: backendData.agree_verification || false,
-            agree_data_processing: backendData.agree_data_processing || false,
-            agree_audit_storage: backendData.agree_audit_storage || false,
-            agree_affordability_processing: backendData.agree_affordability_processing || false,
+            agreeTruth: backendData.agreeTruth || false,
+            agreePolicies: backendData.agreePolicies || false,
+            agreeFinancial: backendData.agreeFinancial || false,
+            agreeVerification: backendData.agreeVerification || false,
+            agreeDataProcessing: backendData.agreeDataProcessing || false,
+            agreeAuditStorage: backendData.agreeAuditStorage || false,
+            agreeAffordabilityProcessing: backendData.agreeAffordabilityProcessing || false,
           });
           
-          setFullName(backendData.full_name || '');
+          setFullName(backendData.fullName || '');
           setCity(backendData.city || '');
           setDataLoadedFromBackend(true);
         }
@@ -134,21 +149,27 @@ const DeclarationStep: React.FC<DeclarationStepProps> = ({ applicationId, onData
     // Save to localStorage whenever form data changes
     const declarationData = {
       application_id: applicationId,
-      agree_truth: confirmations.agree_truth,
-      agree_policies: confirmations.agree_policies,
-      agree_financial: confirmations.agree_financial,
-      agree_verification: confirmations.agree_verification,
-      agree_data_processing: confirmations.agree_data_processing,
-      agree_audit_storage: confirmations.agree_audit_storage,
-      agree_affordability_processing: confirmations.agree_affordability_processing,
+      agreeTruth: confirmations.agreeTruth,
+      agreePolicies: confirmations.agreePolicies,
+      agreeFinancial: confirmations.agreeFinancial,
+      agreeVerification: confirmations.agreeVerification,
+      agreeDataProcessing: confirmations.agreeDataProcessing,
+      agreeAuditStorage: confirmations.agreeAuditStorage,
+      agreeAffordabilityProcessing: confirmations.agreeAffordabilityProcessing,
       fullName,
       city,
       status: isValid ? 'completed' : 'in_progress', // Set status to 'completed' only if valid
       signed: isValid // Explicitly set signed status for PDF rendering
     };
+    
     localStorage.setItem('declarationData', JSON.stringify(declarationData));
-    onDataChange && onDataChange(declarationData); // Call onDataChange
-  }, [confirmations, fullName, city, applicationId]);
+    
+    // Only propagate changes if we have meaningful data or if we've been initialized
+    const hasData = fullName || Object.values(confirmations).some(Boolean);
+    if (onDataChange && (hasData || dataInitialized || dataLoadedFromBackend)) {
+      onDataChange(declarationData);
+    }
+  }, [confirmations, fullName, city, applicationId, dataInitialized, dataLoadedFromBackend, onDataChange]);
 
   const validateDeclaration = () => {
     const errors: {[key: string]: string} = {};
@@ -173,13 +194,13 @@ const DeclarationStep: React.FC<DeclarationStepProps> = ({ applicationId, onData
       try {
         const declarationData = {
           application_id: applicationId,
-          agree_truth: confirmations.agree_truth,
-          agree_policies: confirmations.agree_policies,
-          agree_financial: confirmations.agree_financial,
-          agree_verification: confirmations.agree_verification,
-          agree_data_processing: confirmations.agree_data_processing,
-          agree_audit_storage: confirmations.agree_audit_storage,
-          agree_affordability_processing: confirmations.agree_affordability_processing,
+          agreeTruth: confirmations.agreeTruth,
+          agreePolicies: confirmations.agreePolicies,
+          agreeFinancial: confirmations.agreeFinancial,
+          agreeVerification: confirmations.agreeVerification,
+          agreeDataProcessing: confirmations.agreeDataProcessing,
+          agreeAuditStorage: confirmations.agreeAuditStorage,
+          agreeAffordabilityProcessing: confirmations.agreeAffordabilityProcessing,
           fullName,
           city,
           status: 'in_progress'
@@ -189,7 +210,7 @@ const DeclarationStep: React.FC<DeclarationStepProps> = ({ applicationId, onData
         localStorage.setItem('declarationData', JSON.stringify(declarationData));
 
         const responseData = await apiService.submitDeclaration(declarationData);
-        if (responseData.application_id) {
+        if (responseData.applicationId) {
             // The parent component is responsible for managing the application ID state
         }
         addToast('Your progress has been saved!', 'success');
@@ -212,13 +233,13 @@ const DeclarationStep: React.FC<DeclarationStepProps> = ({ applicationId, onData
       
       const declarationData = {
         application_id: applicationId,
-        agree_truth: confirmations.agree_truth,
-        agree_policies: confirmations.agree_policies,
-        agree_financial: confirmations.agree_financial,
-        agree_verification: confirmations.agree_verification,
-        agree_data_processing: confirmations.agree_data_processing,
-        agree_audit_storage: confirmations.agree_audit_storage,
-        agree_affordability_processing: confirmations.agree_affordability_processing,
+        agreeTruth: confirmations.agreeTruth,
+        agreePolicies: confirmations.agreePolicies,
+        agreeFinancial: confirmations.agreeFinancial,
+        agreeVerification: confirmations.agreeVerification,
+        agreeDataProcessing: confirmations.agreeDataProcessing,
+        agreeAuditStorage: confirmations.agreeAuditStorage,
+        agreeAffordabilityProcessing: confirmations.agreeAffordabilityProcessing,
         fullName,
         city,
         status: 'completed',

@@ -1,367 +1,381 @@
-import React, { useRef } from 'react';
-import { useReactToPrint } from 'react-to-print';
+import React, { useRef, useState } from 'react';
 import type { SummaryData } from '../types';
-import knitIcon from 'assets/knit-icon.png';
+import knitIcon from '../../assets/knit-icon.png';
+import html2canvas from 'html2canvas';
+import { jsPDF } from 'jspdf';
 
 interface ApplicationFormProps {
   summaryData: SummaryData;
-  applicationId?: string | null; // Add applicationId prop
+  applicationId?: string | null;
+  showPrintButton?: boolean;
 }
 
-const InfoItem: React.FC<{ label: string; value?: string }> = ({ label, value }) => (
-  <div style={{ marginBottom: '0.75rem', pageBreakInside: 'avoid' }}>
-    <p style={{ fontSize: '0.75rem', color: '#6b7280', margin: 0, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>{label}</p>
-    <p style={{
-      fontSize: '0.9rem',
-      fontWeight: 500,
-      color: '#111827',
-      borderBottom: '1px solid #e5e7eb',
-      paddingBottom: '0.25rem',
-      paddingTop: '0.25rem',
-      marginTop: '0.15rem',
-      minHeight: '1.5rem'
-    }}>
-      {value || 'Not provided'}
-    </p>
+export interface ApplicationFormHandle {
+  downloadPDF: () => void;
+}
+
+const OfficialHeader: React.FC<{ title: string }> = ({ title }) => (
+  <div style={{
+    border: '2px solid #000',
+    backgroundColor: '#f1f5f9',
+    padding: '4px 10px',
+    marginBottom: '10px',
+    marginTop: '20px',
+    pageBreakInside: 'avoid'
+  }}>
+    <h2 style={{
+      fontSize: '12px',
+      fontWeight: 800,
+      color: '#000',
+      textTransform: 'uppercase',
+      margin: 0,
+      textAlign: 'center'
+    }}>{title}</h2>
   </div>
 );
 
-const ApplicationForm: React.FC<ApplicationFormProps> = ({ summaryData, applicationId }) => {
+const FieldRow: React.FC<{ label: string; value?: string | number; fullWidth?: boolean }> = ({ label, value, fullWidth = false }) => (
+  <div style={{
+    display: 'flex',
+    borderBottom: '1px solid #000',
+    fontSize: '11px',
+    minHeight: '26px',
+    alignItems: 'stretch',
+    gridColumn: fullWidth ? 'span 2' : 'span 1'
+  }}>
+    <div style={{
+      width: '140px',
+      backgroundColor: '#f8fafc',
+      padding: '4px 8px',
+      fontWeight: 700,
+      borderRight: '1px solid #000',
+      color: '#334155',
+      display: 'flex',
+      alignItems: 'center'
+    }}>
+      {label}
+    </div>
+    <div style={{
+      flex: 1,
+      padding: '4px 10px',
+      color: '#000',
+      fontWeight: 500,
+      display: 'flex',
+      alignItems: 'center'
+    }}>
+      {value || '-'}
+    </div>
+  </div>
+);
+
+const ApplicationForm = React.forwardRef<ApplicationFormHandle, ApplicationFormProps>(({ summaryData, applicationId, showPrintButton = true }, ref) => {
   const componentRef = useRef<HTMLDivElement>(null);
+  const [isGenerating, setIsGenerating] = useState(false);
 
-  const handlePrint = useReactToPrint({
-    contentRef: componentRef,
-    documentTitle: 'Enrollment_Application',
-    pageStyle: `
-      @page { 
-        size: A4; 
-        margin: 1.5cm 2cm; 
-      }
-      @media print {
-        body { 
-          -webkit-print-color-adjust: exact;
-          print-color-adjust: exact;
-        }
-        * {
-          box-sizing: border-box;
-        }
-        .page-break {
-          page-break-before: always;
-        }
-        .avoid-break {
-          page-break-inside: avoid;
-        }
-      }
-    `
-  });
+  React.useImperativeHandle(ref, () => ({
+    downloadPDF: handleDownloadPDF
+  }));
 
-  if (!summaryData) return <div>Loading...</div>;
+  const handleDownloadPDF = async () => {
+    if (!componentRef.current) return;
+    
+    setIsGenerating(true);
+
+    try {
+      const element = componentRef.current;
+      
+      // CREATE AN ISOLATED IFRAME
+      // This is the most robust way to fix the "oklch" error. 
+      // We render the form in a clean document that doesn't have Tailwind 4's problematic styles.
+      const iframe = document.createElement('iframe');
+      iframe.style.position = 'absolute';
+      iframe.style.width = '210mm'; // A4 width
+      iframe.style.height = '1000px'; // Temporary height
+      iframe.style.top = '-9999px';
+      iframe.style.left = '-9999px';
+      document.body.appendChild(iframe);
+
+      const frameDoc = iframe.contentDocument || iframe.contentWindow?.document;
+      if (!frameDoc) throw new Error('Could not create isolation frame');
+
+      // Inject the form HTML into the iframe
+      // We use inline styles which are already present in our components
+      frameDoc.write(`
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <style>
+              body { margin: 0; padding: 0; background: white; -webkit-print-color-adjust: exact; }
+              * { box-sizing: border-box; font-family: "Times New Roman", Times, serif; }
+              /* This ensures we don't have any oklch fallout in the frame */
+              * { color: black !important; border-color: black !important; }
+            </style>
+          </head>
+          <body>
+            <div id="capture-root">${element.innerHTML}</div>
+          </body>
+        </html>
+      `);
+      frameDoc.close();
+
+      // Wait for images (like the logo) to load
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      const captureNode = frameDoc.getElementById('capture-root');
+      if (!captureNode) throw new Error('Capture node not found in iframe');
+
+      const canvas = await html2canvas(captureNode, {
+        scale: 3,
+        useCORS: true,
+        logging: false,
+        backgroundColor: '#ffffff'
+      });
+      
+      // Clean up the iframe
+      document.body.removeChild(iframe);
+
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'a4'
+      });
+      
+      const imgProps = pdf.getImageProperties(imgData);
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+      
+      let heightLeft = pdfHeight;
+      let position = 0;
+      const pageHeight = pdf.internal.pageSize.getHeight();
+      
+      pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, pdfHeight);
+      heightLeft -= pageHeight;
+      
+      while (heightLeft >= 0) {
+        pdf.addPage();
+        position = heightLeft - pdfHeight;
+        pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, pdfHeight);
+        heightLeft -= pageHeight;
+      }
+      
+      pdf.save(`Official_Admission_Form_${applicationId?.replace(/\//g, '_') || 'New'}.pdf`);
+    } catch (error) {
+      console.error('PDF Generation Error:', error);
+      alert('PDF download failed. Please try again or use the browser print option.');
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  if (!summaryData) return <div style={{ padding: '20px', textAlign: 'center' }}>Loading application data...</div>;
 
   const { 
-    student, 
-    guardian, 
-    documents = [], // Provide default empty array
-    academicHistory = [], // Provide default empty array
-    subjects = { core: [], electives: [] }, // Provide default object with empty arrays
-    financing = { plan: 'Not provided' }, // Provide default for financing to ensure it's never undefined
-    fee = {}, // Provide default for fee to ensure it's never undefined
-    declaration = { signed: false } // Provide safe default for declaration
+    student = { name: '', email: '', phone: '' }, 
+    guardian = {}, 
+    medical = {},
+    documents = [], 
+    academicHistory = [], 
+    subjects = { core: [], electives: [] }, 
+    financing = { plan: '' }, 
+    fee = {}, 
+    declaration = { signed: false } 
   } = summaryData;
 
-  const sectionStyle: React.CSSProperties = {
-    marginTop: '1.75rem',
-    marginBottom: '1.25rem',
-    pageBreakInside: 'avoid'
-  };
-
-  const headerStyle: React.CSSProperties = {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    borderBottom: '3px solid #3b82f6',
-    paddingBottom: '1rem',
-    marginBottom: '2rem',
-    pageBreakAfter: 'avoid'
-  };
-
-  const pageStyle: React.CSSProperties = {
-    maxWidth: '210mm',
-    margin: 'auto',
-    fontFamily: "'Segoe UI', 'Helvetica Neue', Arial, sans-serif",
-    color: '#111827',
-    backgroundColor: '#ffffff',
-    fontSize: '10pt',
-    lineHeight: '1.5'
-  };
-
-  const titleStyle: React.CSSProperties = {
-    fontSize: '1.5rem',
-    fontWeight: 'bold',
-    color: '#1e40af',
-    margin: 0,
-    lineHeight: '1.2'
-  };
-
-  const subtitleStyle: React.CSSProperties = {
-    color: '#6b7280',
-    fontSize: '0.75rem',
-    margin: '0.25rem 0 0 0',
-    fontWeight: 500
-  };
-
-  const sectionTitleStyle: React.CSSProperties = {
-    fontSize: '1rem',
-    fontWeight: 700,
-    color: '#1e40af',
-    backgroundColor: '#eff6ff',
-    padding: '0.5rem 0.75rem',
-    marginBottom: '1rem',
-    marginTop: '0',
-    borderLeft: '4px solid #3b82f6',
-    textTransform: 'uppercase',
-    letterSpacing: '0.5px'
-  };
-
   return (
-    <div>
-      <button
-        onClick={handlePrint}
-        style={{
-          padding: '0.5rem 1rem',
-          backgroundColor: '#3b82f6',
-          color: '#fff',
-          border: 'none',
-          borderRadius: '4px',
-          cursor: 'pointer',
-          marginBottom: '1rem'
-        }}
-      >
-        Print / Export PDF
-      </button>
-
-      <div ref={componentRef} style={pageStyle}>
-        {/* Header */}
-        <header style={headerStyle} className="avoid-break">
-          <img src={knitIcon} alt="School Logo" style={{ height: '55px', objectFit: 'contain' }} />
-          <div style={{ textAlign: 'right', flex: 1, marginLeft: '2rem' }}>
-            <h1 style={titleStyle} className="header-title">Student Enrollment Application</h1>
-            <p style={subtitleStyle} className="header-subtitle">Private & Confidential Document</p>
-            {applicationId && (
-              <p style={{ fontSize: '0.75rem', color: '#3b82f6', margin: '0.5rem 0 0 0', fontWeight: 600 }}>
-                Application Reference: <span style={{ fontWeight: 'bold', color: '#111827', letterSpacing: '0.5px' }}>{applicationId}</span>
-              </p>
+    <div style={{ position: 'relative' }}>
+      {showPrintButton && (
+        <div style={{ marginBottom: '20px', textAlign: 'center' }}>
+          <button
+            onClick={handleDownloadPDF}
+            disabled={isGenerating}
+            style={{
+              padding: '12px 24px',
+              backgroundColor: isGenerating ? '#94a3b8' : '#000',
+              color: 'white',
+              border: 'none',
+              borderRadius: '2px',
+              fontWeight: 700,
+              fontSize: '14px',
+              textTransform: 'uppercase',
+              letterSpacing: '0.05em',
+              cursor: isGenerating ? 'not-allowed' : 'pointer',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '10px',
+              boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+              transition: 'all 0.2s'
+            }}
+          >
+            {isGenerating ? (
+              <>
+                <svg className="animate-spin" width="18" height="18" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                Processing...
+              </>
+            ) : (
+              <>
+                <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                </svg>
+                Download Official PDF Form
+              </>
             )}
-            <p style={{ fontSize: '0.7rem', color: '#9ca3af', margin: '0.25rem 0 0 0' }}>
-              Submitted: {new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
-            </p>
+          </button>
+        </div>
+      )}
+
+      {/* Hidden container for PDF capture to ensure consistent styling */}
+      <div style={{ overflow: 'hidden', height: 0, position: 'absolute' }}>
+           <div id="pdf-capture-node"></div>
+      </div>
+
+      <div ref={componentRef} style={{
+        backgroundColor: 'white',
+        color: '#000',
+        fontFamily: "'Times New Roman', Times, serif",
+        width: '210mm', // Fixed A4 width
+        padding: '15mm',
+        margin: '0 auto',
+        border: '1px solid #e2e8f0',
+        boxSizing: 'border-box'
+      }}>
+        {/* Official Header */}
+        <div style={{ textAlign: 'center', borderBottom: '2px solid #000', paddingBottom: '15px', marginBottom: '15px' }}>
+          <img src={knitIcon} alt="Logo" style={{ height: '50px', marginBottom: '10px' }} />
+          <h1 style={{ fontSize: '18px', fontWeight: 900, margin: '0 0 5px 0', textTransform: 'uppercase' }}>Department of Basic Education</h1>
+          <h2 style={{ fontSize: '16px', fontWeight: 700, margin: '0 0 5px 0', textTransform: 'uppercase' }}>Knit Academy Admissions</h2>
+          <h3 style={{ fontSize: '14px', fontWeight: 600, margin: 0, textTransform: 'uppercase', fontStyle: 'italic', borderBottom: '1px solid #000', display: 'inline-block', paddingBottom: '2px' }}>
+            Official School Admission Application Form
+          </h3>
+        </div>
+
+        {/* Ref Info Table */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px', fontSize: '12px' }}>
+          <div style={{ border: '1px solid #000', padding: '8px 15px' }}>
+            <strong>APPLICATION CYCLE:</strong> 2025/2026 Academic Year
           </div>
-        </header>
-
-        {/* Student Information */}
-        <section style={sectionStyle} className="avoid-break">
-          <h2 style={sectionTitleStyle}>Student Information</h2>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.5rem 2rem' }}>
-            <InfoItem label="Full Name" value={student.name} />
-            <InfoItem label="ID Number" value={student.idNumber} />
-            <InfoItem label="Date of Birth" value={student.dob} />
-            <InfoItem label="Gender" value={student.gender} />
-            <InfoItem label="Home Language" value={student.homeLanguage} />
-            <InfoItem label="Previous Grade" value={student.previousGrade} />
-            <InfoItem label="Grade Applied For" value={student.gradeAppliedFor} />
-            <InfoItem label="Previous School" value={student.previousSchool} />
-            <InfoItem label="Email Address" value={student.email} />
-            <InfoItem label="Phone Number" value={student.phone} />
+          <div style={{ border: '1px solid #000', padding: '8px 15px' }}>
+            <strong>REFERENCE NO:</strong> {applicationId || 'NEW/ADM/2025'}
           </div>
-        </section>
+        </div>
 
-        {/* Guardian Information */}
-        <section style={sectionStyle} className="avoid-break">
-          <h2 style={sectionTitleStyle}>Guardian Information</h2>
-          {guardian.fatherName && (
-            <div style={{ marginBottom: '1.5rem' }}>
-              <h3 style={{ fontSize: '0.9rem', fontWeight: 600, color: '#374151', marginBottom: '0.75rem', borderBottom: '1px solid #e5e7eb', paddingBottom: '0.25rem' }}>Father / Guardian</h3>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.5rem 2rem' }}>
-                <InfoItem label="Full Name" value={guardian.fatherName} />
-                <InfoItem label="ID Number" value={guardian.fatherIdNumber} />
-                <InfoItem label="Email Address" value={guardian.fatherEmail} />
-                <InfoItem label="Phone Number" value={guardian.fatherPhone} />
-              </div>
-            </div>
-          )}
-          {guardian.motherName && (
-            <div style={{ marginBottom: '1.5rem' }}>
-              <h3 style={{ fontSize: '0.9rem', fontWeight: 600, color: '#374151', marginBottom: '0.75rem', borderBottom: '1px solid #e5e7eb', paddingBottom: '0.25rem' }}>Mother / Guardian</h3>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.5rem 2rem' }}>
-                <InfoItem label="Full Name" value={guardian.motherName} />
-                <InfoItem label="ID Number" value={guardian.motherIdNumber} />
-                <InfoItem label="Email Address" value={guardian.motherEmail} />
-                <InfoItem label="Phone Number" value={guardian.motherPhone} />
-              </div>
-            </div>
-          )}
-          {guardian.nextOfKinName && (
-            <div style={{ marginBottom: '1rem' }}>
-              <h3 style={{ fontSize: '0.9rem', fontWeight: 600, color: '#374151', marginBottom: '0.75rem', borderBottom: '1px solid #e5e7eb', paddingBottom: '0.25rem' }}>Emergency Contact / Next of Kin</h3>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.5rem 2rem' }}>
-                <InfoItem label="Full Name" value={guardian.nextOfKinName} />
-                <InfoItem label="Relationship" value={guardian.nextOfKinRelationship} />
-                <InfoItem label="Email Address" value={guardian.nextOfKinEmail} />
-                <InfoItem label="Phone Number" value={guardian.nextOfKinPhone} />
-                <InfoItem label="ID Number" value={guardian.nextOfKinIdNumber} />
-              </div>
-            </div>
-          )}
-        </section>
+        {/* Part A: Personal Info */}
+        <OfficialHeader title="Part A: Particulars of Student" />
+        <div style={{ border: '1px solid #000', borderBottom: 'none', display: 'grid', gridTemplateColumns: '1fr 1fr' }}>
+          <FieldRow label="Full Name(s)" value={student.name} fullWidth={true} />
+          <FieldRow label="Identity Number" value={student.idNumber} />
+          <FieldRow label="Date of Birth" value={student.dob} />
+          <FieldRow label="Gender" value={student.gender} />
+          <FieldRow label="Home Language" value={student.homeLanguage} />
+          <FieldRow label="Grade Applying For" value={student.gradeAppliedFor} />
+          <FieldRow label="Grade Last Comp." value={student.previousGrade} />
+          <FieldRow label="Previous School" value={student.previousSchool} fullWidth={true} />
+          <FieldRow label="Email Address" value={student.email} />
+          <FieldRow label="Phone Number" value={student.phone} />
+        </div>
 
-        {/* Page Break before Academic History */}
-        <div className="page-break"></div>
+        {/* Part B: Parents/Guardians */}
+        <OfficialHeader title="Part B: Parents / Legal Guardians / Next of Kin" />
+        <div style={{ border: '1px solid #000', borderBottom: 'none' }}>
+           <div style={{ backgroundColor: '#f1f5f9', fontSize: '10px', fontWeight: 800, padding: '4px 8px', borderBottom: '1px solid #000' }}>SECTION 1: FATHER / LEGAL GUARDIAN</div>
+           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr' }}>
+             <FieldRow label="Full Name" value={guardian.fatherName} />
+             <FieldRow label="Identity Number" value={guardian.fatherIdNumber} />
+             <FieldRow label="Contact Number" value={guardian.fatherPhone} />
+             <FieldRow label="Email Account" value={guardian.fatherEmail} />
+           </div>
 
-        {/* Academic History */}
-        <section style={sectionStyle} className="avoid-break">
-          <h2 style={sectionTitleStyle}>Academic History</h2>
-          {academicHistory && academicHistory.length > 0 ? (
-          academicHistory.map((history, idx) => (
-            <div key={idx} style={{ marginBottom: '1rem' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.5rem 2rem' }}>
-                <InfoItem label="Previous School" value={history.schoolName} />
-                <InfoItem label="School Type" value={history.schoolType} />
-                <InfoItem label="Last Grade Completed" value={history.lastGradeCompleted} />
-                <InfoItem label="Academic Year Completed" value={history.academicYearCompleted} />
-                <InfoItem label="Principal's Name" value={history.principalName} />
-                <InfoItem label="School Phone Number" value={history.schoolPhoneNumber} />
-                <InfoItem label="School Email" value={history.schoolEmail} />
-                <InfoItem label="School Address" value={history.schoolAddress} />
-              </div>
-              {history.reasonForLeaving && (
-                <div style={{ marginTop: '0.75rem' }}>
-                  <InfoItem label="Reason for Leaving" value={history.reasonForLeaving} />
-                </div>
-              )}
-              {history.additionalNotes && (
-                <div style={{ marginTop: '0.75rem' }}>
-                  <InfoItem label="Additional Notes" value={history.additionalNotes} />
-                </div>
-              )}
-            </div>
-          ))
-        ) : (
-          <p style={{ fontStyle: 'italic', color: '#9ca3af', fontSize: '0.9rem' }}>No academic history provided</p>
-        )}
-        </section>
+           <div style={{ backgroundColor: '#f1f5f9', fontSize: '10px', fontWeight: 800, padding: '4px 8px', borderBottom: '1px solid #000', borderTop: '1px solid #000' }}>SECTION 2: MOTHER / LEGAL GUARDIAN</div>
+           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr' }}>
+             <FieldRow label="Full Name" value={guardian.motherName} />
+             <FieldRow label="Identity Number" value={guardian.motherIdNumber} />
+             <FieldRow label="Contact Number" value={guardian.motherPhone} />
+             <FieldRow label="Email Account" value={guardian.motherEmail} />
+           </div>
 
-        {/* Subjects */}
-        {(subjects?.core?.length > 0 || subjects?.electives?.length > 0) && (
-          <section style={sectionStyle} className="avoid-break">
-            <h2 style={sectionTitleStyle}>Subject Selection</h2>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '1rem 2rem' }}>
-              {subjects.core && subjects.core.length > 0 && (
-                <div>
-                  <h3 style={{ fontSize: '0.85rem', fontWeight: 600, color: '#374151', marginBottom: '0.5rem' }}>Core Subjects</h3>
-                  <ul style={{ listStyleType: 'disc', listStylePosition: 'inside', margin: 0, paddingLeft: '0.5rem', fontSize: '0.85rem', lineHeight: '1.8' }}>
-                    {subjects.core.map(sub => <li key={sub}>{sub}</li>)}
-                  </ul>
-                </div>
-              )}
-              {subjects.electives && subjects.electives.length > 0 && (
-                <div>
-                  <h3 style={{ fontSize: '0.85rem', fontWeight: 600, color: '#374151', marginBottom: '0.5rem' }}>Elective Subjects</h3>
-                  <ul style={{ listStyleType: 'disc', listStylePosition: 'inside', margin: 0, paddingLeft: '0.5rem', fontSize: '0.85rem', lineHeight: '1.8' }}>
-                    {subjects.electives.map(sub => <li key={sub}>{sub}</li>)}
-                  </ul>
-                </div>
-              )}
-            </div>
-          </section>
-        )}
+           <div style={{ backgroundColor: '#f1f5f9', fontSize: '10px', fontWeight: 800, padding: '4px 8px', borderBottom: '1px solid #000', borderTop: '1px solid #000' }}>SECTION 3: EMERGENCY CONTACT</div>
+           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr' }}>
+             <FieldRow label="Full Name" value={guardian.nextOfKinName} />
+             <FieldRow label="Relationship" value={guardian.nextOfKinRelationship} />
+             <FieldRow label="Mobile Number" value={guardian.nextOfKinPhone} />
+             <FieldRow label="E-mail" value={guardian.nextOfKinEmail} />
+           </div>
+        </div>
 
-        {/* Financing */}
-        <section style={sectionStyle} className="avoid-break">
-          <h2 style={sectionTitleStyle}>Financing & Fee Information</h2>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.5rem 2rem' }}>
-            <InfoItem label="Payment Plan" value={financing.plan || 'Not provided'} />
-            <InfoItem label="Fee Responsible Person" value={fee?.feePerson || 'Not specified'} />
-            <InfoItem label="Relationship to Student" value={fee?.relationship || 'Not specified'} />
-            <InfoItem label="Terms & Conditions Accepted" value={fee?.feeTermsAccepted ? 'Yes' : 'No'} />
+        {/* Part C: Medical */}
+        <OfficialHeader title="Part C: Medical History and Allergies" />
+        <div style={{ border: '1px solid #000', borderBottom: 'none', display: 'grid', gridTemplateColumns: '1fr 1fr' }}>
+          <FieldRow label="Medical Aid" value={medical.medicalAidName} />
+          <FieldRow label="Member No." value={medical.memberNumber} />
+          <FieldRow label="Main Member" value={medical.mainMemberName} />
+          <FieldRow label="Doctor Name" value={medical.doctorName} />
+          <div style={{ gridColumn: 'span 2', padding: '10px', fontSize: '11px', borderBottom: '1px solid #000' }}>
+            <strong>Chronic Conditions:</strong> {medical.conditions && medical.conditions.length > 0 ? medical.conditions.join(', ') : 'None Reported'}
           </div>
-        </section>
+          <div style={{ gridColumn: 'span 2', padding: '10px', fontSize: '11px', borderBottom: '1px solid #000' }}>
+            <strong>Severe Allergies:</strong> {medical.allergies || 'None Reported'}
+          </div>
+        </div>
 
-        {/* Uploaded Documents */}
-        <section style={sectionStyle} className="avoid-break">
-          <h2 style={sectionTitleStyle}>Uploaded Documents</h2>
-          {documents.length ? (
-            <>
-              <div style={{
-                padding: '0.75rem',
-                marginBottom: '1rem',
-                backgroundColor: '#f0fdf4',
-                border: '2px solid #86efac',
-                borderRadius: '6px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.5rem'
-              }}>
-                <span style={{ fontSize: '1.2rem' }}>✓</span>
-                <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#166534' }}>
-                  All required documents have been submitted successfully
-                </span>
-              </div>
-              <ul style={{ listStyleType: 'none', padding: 0, margin: 0 }}>
-                {documents.map(doc => (
-                  <li key={doc.id} style={{ 
-                    padding: '0.5rem', 
-                    marginBottom: '0.25rem', 
-                    backgroundColor: '#f9fafb', 
-                    border: '1px solid #e5e7eb',
-                    borderRadius: '4px',
-                    fontSize: '0.85rem',
-                    display: 'flex',
-                    justifyContent: 'space-between'
-                  }}>
-                    <span>{doc.title}</span>
-                    <span style={{ fontWeight: 600, color: '#059669' }}>{doc.status}</span>
-                  </li>
-                ))}
-              </ul>
-            </>
-          ) : (
-            <p style={{ fontStyle: 'italic', color: '#9ca3af', fontSize: '0.9rem' }}>No documents uploaded</p>
-          )}
-        </section>
+        {/* Part D: Subjects */}
+        <OfficialHeader title="Part D: Subject Choices and Academic History" />
+        <div style={{ border: '1px solid #000', padding: '10px', fontSize: '11px' }}>
+           <p style={{ margin: '0 0 10px 0' }}><strong>Subjects Selection:</strong></p>
+           <div style={{ display: 'flex', gap: '30px' }}>
+             <div><strong>Core:</strong> {subjects.core?.join(', ') || 'Standard Govt Curriculum'}</div>
+             <div><strong>Electives:</strong> {subjects.electives?.join(', ') || 'N/A'}</div>
+           </div>
+        </div>
+
+        {/* Part E: Fees */}
+        <OfficialHeader title="Part E: Fee Responsibility" />
+        <div style={{ border: '1px solid #000', borderBottom: 'none', display: 'grid', gridTemplateColumns: '1fr 1fr' }}>
+          <FieldRow label="Payment Schedule" value={financing.plan} />
+          <FieldRow label="Payer Name" value={fee.feePerson} />
+          <FieldRow label="Relationship" value={fee.relationship} />
+          <FieldRow label="Bank" value={fee.bankName} />
+        </div>
 
         {/* Declaration */}
-        <section style={sectionStyle} className="avoid-break">
-          <h2 style={sectionTitleStyle}>Declaration</h2>
-          <div style={{ 
-            padding: '1rem', 
-            backgroundColor: declaration.signed ? '#f0fdf4' : '#fef2f2', 
-            border: `2px solid ${declaration.signed ? '#86efac' : '#fca5a5'}`,
-            borderRadius: '6px',
-            fontSize: '0.85rem',
-            lineHeight: '1.6'
-          }}>
-            <p style={{ margin: 0, fontWeight: 600, color: declaration.signed ? '#166534' : '#991b1b' }}>
-              {declaration.signed 
-                ? '✓ I confirm that all information provided in this application is true, accurate, and complete to the best of my knowledge.' 
-                : '✗ Declaration not signed (error in form progression).'}
-            </p>
+        <OfficialHeader title="Part F: Declaration and Agreement" />
+        <div style={{ border: '1px solid #000', padding: '15px', fontSize: '11px', backgroundColor: '#fcfcfc' }}>
+          <p style={{ textAlign: 'justify', lineHeight: '1.4' }}>
+            I/We, the undersigned, hereby declare that the particulars furnished in this application form are true and correct. I/We understand that the school policy regarding admissions, discipline, and fees will apply. I/We undertake to adhere to all rules and regulations of the Department of Education and the School Governing Body.
+          </p>
+          
+          <div style={{ marginTop: '40px', display: 'flex', justifyContent: 'space-between' }}>
+            <div style={{ width: '45%' }}>
+              <div style={{ borderBottom: '1px solid #000', height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <span style={{ fontFamily: 'cursive', fontSize: '16px' }}>{declaration.fullName || student.name}</span>
+              </div>
+              <p style={{ textAlign: 'center', fontSize: '9px', fontWeight: 600, marginTop: '4px' }}>ELECTRONIC SIGNATURE OF PARENT / GUARDIAN</p>
+            </div>
+            <div style={{ width: '30%' }}>
+              <div style={{ borderBottom: '1px solid #000', height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                {new Date().toLocaleDateString('en-ZA')}
+              </div>
+              <p style={{ textAlign: 'center', fontSize: '9px', fontWeight: 600, marginTop: '4px' }}>DATE OF SUBMISSION</p>
+            </div>
           </div>
-        </section>
+        </div>
 
-        {/* Footer */}
-        <footer style={{ 
-          textAlign: 'center', 
-          fontSize: '0.7rem', 
-          color: '#9ca3af', 
-          marginTop: '2.5rem', 
-          paddingTop: '1rem', 
-          borderTop: '2px solid #e5e7eb'
-        }}>
-          <p style={{ margin: 0, fontWeight: 600 }}>This document is confidential and intended for the exclusive use of KNIT admissions office.</p>
-          <p style={{ margin: '0.25rem 0 0 0' }}>© {new Date().getFullYear()} KNIT School. All rights reserved.</p>
-        </footer>
+        {/* Admissions Stamp Placeholder */}
+        <div style={{ marginTop: '30px', display: 'flex', justifyContent: 'flex-end' }}>
+          <div style={{ width: '150px', height: '100px', border: '2px solid #ccc', borderStyle: 'dashed', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#ccc', fontSize: '10px', textAlign: 'center', transform: 'rotate(-5deg)' }}>
+            OFFICIAL ADMISSIONS STAMP<br/>(FOR OFFICE USE)
+          </div>
+        </div>
+
+        {/* Footer info */}
+        <div style={{ marginTop: '20px', borderTop: '1px solid #eee', pt: '5px', fontSize: '8px', color: '#666', textAlign: 'center' }}>
+          Form ADM-2025 • Issued by Knit Academy in accordance with the South African Schools Act (Act No. 84 of 1996)
+        </div>
       </div>
     </div>
   );
-};
+});
 
 export default ApplicationForm;

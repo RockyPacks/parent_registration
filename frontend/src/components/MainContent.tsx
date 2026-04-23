@@ -5,6 +5,7 @@ import debounce from 'lodash.debounce';
 import { storage } from '../utils/storage';  // Import storage utils
 import ErrorBoundary from './ErrorBoundary';  // Import ErrorBoundary
 import Footer from './Footer';
+import { toCamelCase } from '../services/api';
 
 const Step1StudentGuardian = React.lazy(() => import('./form/Step1StudentGuardian'));
 const Step2DocumentUploadCenter = React.lazy(() => import('./form/Step2DocumentUploadCenter'));
@@ -16,6 +17,7 @@ const Step6ReviewSubmitStep = React.lazy(() => import('./form/Step6ReviewSubmitS
 interface MainContentProps {
   activeStep: number;
   applicationId?: string | null;
+  applicationStatus?: string | null;
   isSubmitting?: boolean;
   applicationInitialized?: boolean;
   onEnrollmentSubmit?: (data: any) => void;
@@ -33,6 +35,7 @@ const MainContent: React.FC<MainContentProps> = (props) => {
   const {
     activeStep,
     applicationId,
+    applicationStatus,
     isSubmitting: isSubmittingProp,
     applicationInitialized = false,
     onEnrollmentSubmit,
@@ -67,7 +70,9 @@ const MainContent: React.FC<MainContentProps> = (props) => {
     // IMPORTANT: Always navigate to step 3 (Academic History), never skip ahead
     console.log('MainContent: Explicitly navigating to step 3 (Academic History)');
     onStepChange && onStepChange(3);
-  }, [onStepComplete, onStepChange, localCompletedSteps]); const [academicHistoryData, setAcademicHistoryData] = useState<any>({});
+  }, [onStepComplete, onStepChange, localCompletedSteps]);
+
+  const [academicHistoryData, setAcademicHistoryData] = useState<any>({});
   const [subjectsData, setSubjectsData] = useState<any>({});
   const [financingData, setFinancingData] = useState<any>({});
   const [declarationData, setDeclarationData] = useState<any>({});
@@ -101,19 +106,29 @@ const MainContent: React.FC<MainContentProps> = (props) => {
 
   // Load all data from storage on initial mount
   useEffect(() => {
-    console.log("MainContent: Initializing and loading all data from storage.");
-    setStudentData(storage.get(getUserKey('studentData'), {}) || {});
-    setMedicalData(storage.get(getUserKey('medicalData'), {}) || {});
-    setFamilyData(storage.get(getUserKey('familyData'), {}) || {}); // Ensure default is an empty object
-    setFeeData(storage.get(getUserKey('feeData'), {}) || {});
+    console.log(`MainContent: Loading data from storage (initialized: ${applicationInitialized}, userEmail: ${userEmail})`);
+    
+    // Helper to get and convert data
+    const getStoredData = (key: string) => {
+      const rawData = storage.get(getUserKey(key), {});
+      // Ensure all data from storage is converted to camelCase to match frontend state
+      return toCamelCase(rawData);
+    };
+
+    setStudentData(getStoredData('studentData'));
+    setMedicalData(getStoredData('medicalData'));
+    setFamilyData(getStoredData('familyData'));
+    setFeeData(getStoredData('feeData'));
+    
     // Try user-specific key first, then fall back to global uploadedFiles key
     const userDocs = storage.get(getUserKey('documentsData'), null);
     const globalDocs = localStorage.getItem('uploadedFiles');
     setDocumentsData(userDocs || (globalDocs ? JSON.parse(globalDocs) : []));
-    setAcademicHistoryData(storage.get(getUserKey('academicHistoryData'), {}) || {});
-    setFinancingData(storage.get(getUserKey('financingData'), { plan: 'Pay Once Per Year' }) || { plan: 'Pay Once Per Year' }); // Ensure financingData has a default plan
-    setDeclarationData(storage.get(getUserKey('declarationData'), {}) || {}); // Start with empty object, not { signed: false }
-    setNextOfKinData(storage.get(getUserKey('nextOfKinData'), {}) || {});
+    
+    setAcademicHistoryData(getStoredData('academicHistoryData'));
+    setFinancingData(storage.get(getUserKey('financingData'), { plan: 'Pay Once Per Year' }) || { plan: 'Pay Once Per Year' });
+    setDeclarationData(getStoredData('declarationData'));
+    setNextOfKinData(getStoredData('nextOfKinData'));
     setDataLoaded(true);
   }, [getUserKey, applicationInitialized]);
 
@@ -428,6 +443,26 @@ const MainContent: React.FC<MainContentProps> = (props) => {
     }
 
     console.log('MainContent: Starting final application submission...');
+    
+    // CRITICAL: Validate required fields before final submission to avoid 422 errors
+    if (!isStudentInfoCompleted) {
+      console.error('MainContent: Submission blocked - Student info incomplete');
+      addToast('Please complete all required Student Information fields before submitting.', 'error');
+      return;
+    }
+    
+    if (!isFamilyInfoCompleted) {
+      console.error('MainContent: Submission blocked - Family info incomplete');
+      addToast('Please provide at least one parent\'s full information before submitting.', 'error');
+      return;
+    }
+
+    if (!isFeeResponsibilityCompleted) {
+      console.error('MainContent: Submission blocked - Fee info incomplete');
+      addToast('Please complete the Fee Responsibility section before submitting.', 'error');
+      return;
+    }
+
     setIsSubmitting(true);
     try {
       const { apiService } = await import('../services/api');
@@ -512,7 +547,7 @@ const MainContent: React.FC<MainContentProps> = (props) => {
         return;
       }
 
-      let currentApplicationId = applicationId || localStorage.getItem(getUserKey('application_id'));
+      let currentApplicationId = applicationId || localStorage.getItem(getUserKey('applicationId'));
 
       if (!currentApplicationId || currentApplicationId === "unknown") { // Check for "unknown"
         const { apiService } = await import('../services/api');
@@ -520,8 +555,8 @@ const MainContent: React.FC<MainContentProps> = (props) => {
           method: 'POST',
           body: JSON.stringify({})
         });
-        currentApplicationId = (createResponse as any).application_id;
-        localStorage.setItem(getUserKey('application_id'), currentApplicationId); // Use user-specific key
+        currentApplicationId = (createResponse as any).applicationId;
+        localStorage.setItem(getUserKey('applicationId'), currentApplicationId); // Use user-specific key
         console.log('Created new application ID:', currentApplicationId);
       } else {
         console.log('Using existing application ID:', currentApplicationId);
@@ -530,20 +565,20 @@ const MainContent: React.FC<MainContentProps> = (props) => {
       const { apiService } = await import('../services/api');
       console.log('Calling submitEnrollment API...');
       const result = await apiService.submitEnrollment({
-        application_id: currentApplicationId,
+        applicationId: currentApplicationId,
         student: combinedData.student,
         medical: combinedData.medical,
         family: combinedData.family,
         fee: combinedData.fee,
-        next_of_kin: nextOfKinData
-      });
+        nextOfKin: nextOfKinData
+      } as any);
       console.log('submitEnrollment result:', result);
 
       // Update applicationId if changed
-      if (result.application_id && result.application_id !== currentApplicationId) {
-        console.log('Updating application ID:', result.application_id);
-        localStorage.setItem(getUserKey('application_id'), result.application_id); // Use user-specific key
-        currentApplicationId = result.application_id;
+      if (result.applicationId && result.applicationId !== currentApplicationId) {
+        console.log('Updating application ID:', result.applicationId);
+        localStorage.setItem(getUserKey('applicationId'), result.applicationId); // Use user-specific key
+        currentApplicationId = result.applicationId;
       }
 
       // Update local states
@@ -585,6 +620,19 @@ const MainContent: React.FC<MainContentProps> = (props) => {
       }
     }
   }, [isStudentInfoCompleted, isFamilyInfoCompleted, isFeeResponsibilityCompleted, activeStep, dataLoaded, applicationInitialized, completedSteps, onStepComplete]);
+
+  // Show global loading state while application data is being synchronized
+  if (!applicationInitialized) {
+    return (
+      <div className="flex-1 flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600 font-medium">Synchronizing application data...</p>
+          <p className="text-xs text-gray-400 mt-2">Connecting to secure enrollment server</p>
+        </div>
+      </div>
+    );
+  }
 
   if (activeStep === 1) {
     return (
@@ -760,17 +808,21 @@ const MainContent: React.FC<MainContentProps> = (props) => {
               onStepComplete && onStepComplete(step);
             }}
             onDataChange={handleDeclarationDataChange}
+            initialData={declarationData}
           />
         </Suspense>
       </ErrorBoundary>
     );
   } else if (activeStep === 6) {
+    const isAlreadySubmitted = applicationStatus === 'submitted' || applicationStatus === 'completed';
+    
     return (
       <ErrorBoundary>
         <Suspense fallback={<div>Loading Step 6...</div>}>
           <Step6ReviewSubmitStep
             activeStep={activeStep}
             applicationId={applicationId}
+            isSubmitted={isAlreadySubmitted}
             studentData={studentData}
             familyData={familyData}
             medicalData={medicalData}

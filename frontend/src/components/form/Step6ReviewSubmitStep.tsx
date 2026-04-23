@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ReviewSubmitStep } from '../ReviewSubmitStep';
 import CheckIcon from '../icons/CheckIcon'; // Corrected: CheckIcon is a default export
-import ApplicationForm from '../ApplicationForm'; // Import ApplicationForm
+import ApplicationForm, { ApplicationFormHandle } from '../ApplicationForm'; // Import ApplicationForm
 import ConfirmationPage from '../ConfirmationPage'; // Import new ConfirmationPage
 import { SummaryData } from '../../types'; // Import SummaryData type
 import { useReactToPrint } from 'react-to-print'; // Re-import useReactToPrint for this component
@@ -20,6 +20,7 @@ interface Step6ReviewSubmitStepProps {
   financingData: any;
   declarationData: any;
   documentsData: any[];
+  isSubmitted?: boolean;
   onSubmit: () => void;
   nextOfKinData: any;
   onStepChange: (step: number) => void; 
@@ -36,252 +37,11 @@ interface ApplicationSubmittedCardProps {
 }
 
 const ApplicationSubmittedCard: React.FC<ApplicationSubmittedCardProps> = ({ summaryData, applicationId }) => {
-  const componentRef = React.useRef<HTMLDivElement>(null);
-  const handlePrint = useReactToPrint({
-    contentRef: componentRef,
-    documentTitle: 'Enrollment_Application_Summary',
-    pageStyle: `
-      @page { size: A4; margin: 2cm; }
-      @media print {
-        body { -webkit-print-color-adjust: exact; }
-        div { page-break-inside: avoid; }
-        /* Mobile-friendly adjustments for print */
-        @media (max-width: 768px) {
-          @page { margin: 1cm; }
-          .page-content {
-            padding: 1cm;
-          }
-          .header-title {
-            font-size: 1.2rem;
-          }
-          .header-subtitle {
-            font-size: 0.7rem;
-          }
-          .section-title {
-            font-size: 1rem;
-          }
-          .info-item p {
-            font-size: 0.8rem;
-          }
-        }
-      }
-    `
-  });
+  const applicationFormHandleRef = React.useRef<ApplicationFormHandle>(null);
 
-  const handleDirectDownload = async () => {
-    try {
-      console.log('ApplicationSubmittedCard: Starting PDF download');
-      const element = componentRef.current;
-      if (!element) {
-        console.error('ApplicationSubmittedCard: Element ref not found');
-        alert('Unable to locate application data. Please refresh the page and try again.');
-        return;
-      }
-
-      // Create a clean, printable clone of the element
-      const printWindow = window.open('', '', 'height=600,width=800');
-      if (!printWindow) {
-        alert('Please disable your popup blocker and try again.');
-        return;
-      }
-
-      // Get the HTML content and clean it for printing
-      const element_html = element.innerHTML;
-      
-      // Create print-friendly HTML
-      const printHTML = `
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Application_${applicationId}.pdf</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            color: #1f2937;
-            background: #ffffff;
-            padding: 20px;
-            line-height: 1.6;
-        }
-        
-        .container {
-            max-width: 900px;
-            margin: 0 auto;
-            background: #ffffff;
-        }
-        
-        .header {
-            border-bottom: 3px solid #2563eb;
-            padding-bottom: 20px;
-            margin-bottom: 30px;
-            text-align: center;
-        }
-        
-        .header h1 {
-            color: #1e40af;
-            font-size: 28px;
-            font-weight: 700;
-            margin-bottom: 10px;
-        }
-        
-        .app-id {
-            font-size: 14px;
-            color: #666;
-            font-weight: 600;
-            letter-spacing: 0.5px;
-        }
-        
-        .section {
-            margin-bottom: 30px;
-            page-break-inside: avoid;
-        }
-        
-        .section-title {
-            background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%);
-            color: white;
-            padding: 12px 16px;
-            font-size: 16px;
-            font-weight: 700;
-            margin-bottom: 16px;
-            border-radius: 4px;
-        }
-        
-        .section-content {
-            padding: 0 16px;
-        }
-        
-        .info-row {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 24px;
-            margin-bottom: 16px;
-            page-break-inside: avoid;
-        }
-        
-        .info-item {
-            padding: 12px;
-            background: #f9fafb;
-            border-radius: 4px;
-            border-left: 3px solid #2563eb;
-        }
-        
-        .info-label {
-            font-size: 12px;
-            font-weight: 600;
-            color: #6b7280;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            margin-bottom: 4px;
-        }
-        
-        .info-value {
-            font-size: 14px;
-            font-weight: 600;
-            color: #1f2937;
-            word-break: break-word;
-        }
-        
-        .info-value.empty {
-            color: #9ca3af;
-            font-style: italic;
-        }
-        
-        .divider {
-            border-top: 1px solid #e5e7eb;
-            margin: 24px 0;
-            page-break-after: avoid;
-        }
-        
-        .footer {
-            text-align: center;
-            padding-top: 20px;
-            border-top: 1px solid #e5e7eb;
-            color: #6b7280;
-            font-size: 12px;
-            margin-top: 40px;
-        }
-        
-        .badge {
-            display: inline-block;
-            padding: 4px 12px;
-            background: #dbeafe;
-            color: #1e40af;
-            border-radius: 20px;
-            font-size: 12px;
-            font-weight: 600;
-        }
-        
-        @media print {
-            body {
-                padding: 0;
-            }
-            .container {
-                max-width: 100%;
-            }
-            .no-print {
-                display: none;
-            }
-            * {
-                -webkit-print-color-adjust: exact;
-                print-color-adjust: exact;
-            }
-        }
-        
-        @page {
-            margin: 10mm;
-            size: A4;
-        }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <div class="header">
-            <h1>Enrollment Application</h1>
-            <div class="app-id">Application ID: <strong>${applicationId}</strong></div>
-            <div style="margin-top: 8px; color: #999; font-size: 12px;">
-                Generated on ${new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
-            </div>
-        </div>
-        
-        ${element_html}
-        
-        <div class="divider"></div>
-        <div class="footer">
-            <p>This is an official enrollment application. Please keep a copy for your records.</p>
-            <p style="margin-top: 10px; color: #d1d5db;">© 2025 Enrollment System. All rights reserved.</p>
-        </div>
-    </div>
-    
-    <script>
-        window.onload = function() {
-            // Give a moment for styles to load, then print
-            setTimeout(() => {
-                window.print();
-                // Close after print dialog is shown
-                setTimeout(() => {
-                    window.close();
-                }, 1000);
-            }, 500);
-        };
-    </script>
-</body>
-</html>
-      `;
-
-      printWindow.document.write(printHTML);
-      printWindow.document.close();
-      
-      console.log('ApplicationSubmittedCard: Print window opened successfully');
-    } catch (error) {
-      console.error('ApplicationSubmittedCard: Download failed:', error);
-      alert('An error occurred while preparing your PDF. Please try using your browser\'s Print function (Ctrl+P / Cmd+P) instead.');
+  const handleDownload = () => {
+    if (applicationFormHandleRef.current) {
+      applicationFormHandleRef.current.downloadPDF();
     }
   };
 
@@ -299,18 +59,18 @@ const ApplicationSubmittedCard: React.FC<ApplicationSubmittedCardProps> = ({ sum
       </p>
 
       {/* Application Summary */}
-      <div className="mt-8 w-full border rounded-lg p-4" ref={componentRef} style={{ backgroundColor: 'white', pageBreakInside: 'avoid' }}>
-        <div className="text-right font-bold text-lg mb-4">
-          Application ID: {applicationId}
-        </div>
-        {/* Render ApplicationForm without ref, as it's a standard functional component */}
-        <ApplicationForm summaryData={summaryData} applicationId={applicationId} />
+      <div className="mt-8 w-full border rounded-lg p-4" style={{ backgroundColor: 'white', pageBreakInside: 'avoid' }}>
+        <ApplicationForm 
+          ref={applicationFormHandleRef}
+          summaryData={summaryData} 
+          applicationId={applicationId} 
+          showPrintButton={false}
+        />
       </div>
 
-      {/* Buttons */}
       <div className="mt-8 flex space-x-4">
         <button
-          onClick={handleDirectDownload}
+          onClick={handleDownload}
           className="px-4 py-2 sm:px-6 sm:py-3 bg-blue-600 text-white rounded-md shadow-md hover:bg-blue-700 transition-colors"
         >
           Download Application
@@ -346,6 +106,7 @@ const Step6ReviewSubmitStep: React.FC<Step6ReviewSubmitStepProps> = ({
   returnStep,
   setIsEditing,
   setReturnStep,
+  isSubmitted = false,
 }) => {
   const [currentData, setCurrentData] = useState<SummaryData>(() => ({
     personalInfo: { // Required by SummaryData
@@ -399,8 +160,8 @@ const Step6ReviewSubmitStep: React.FC<Step6ReviewSubmitStepProps> = ({
     declaration: declarationData,
     documents: documentsData || [], // Ensure documents is an array of DocumentCategory
   }));
-  const [showConfirmationCard, setShowConfirmationCard] = useState(false);
-  const [generatedApplicationId, setGeneratedApplicationId] = useState(''); // Renamed to avoid conflict with prop
+  const [showConfirmationCard, setShowConfirmationCard] = useState(isSubmitted);
+  const [generatedApplicationId, setGeneratedApplicationId] = useState(applicationId || ''); 
 
   // Generate a random-like application ID for demonstration
   const generateApplicationId = () => {

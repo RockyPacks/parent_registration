@@ -1,7 +1,7 @@
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api/v1';
 
 // Utility function to convert object keys from camelCase to snake_case recursively
-function toSnakeCase(obj: any): any {
+export function toSnakeCase(obj: any): any {
   if (obj === null || typeof obj !== 'object') return obj;
   if (Array.isArray(obj)) return obj.map(toSnakeCase);
 
@@ -14,6 +14,21 @@ function toSnakeCase(obj: any): any {
   for (const key in obj) {
     const snakeKey = key.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
     result[snakeKey] = toSnakeCase(obj[key]);
+  }
+  return result;
+}
+
+// Utility function to convert object keys from snake_case to camelCase recursively
+export function toCamelCase(obj: any): any {
+  if (obj === null || typeof obj !== 'object') return obj;
+  if (Array.isArray(obj)) return obj.map(toCamelCase);
+
+  const result: any = {};
+  for (const key in obj) {
+    const camelKey = key.replace(/([-_][a-z])/g, group =>
+      group.toUpperCase().replace('-', '').replace('_', '')
+    );
+    result[camelKey] = toCamelCase(obj[key]);
   }
   return result;
 }
@@ -50,13 +65,13 @@ export interface DocumentStatus {
 export interface SchoolFees {
   id: string;
   grade: string;
-  annual_fee: number;
-  term_fee: number;
-  registration_fee: number;
-  re_registration_fee: number;
-  sport_fee: number;
-  created_at: string;
-  updated_at: string;
+  annualFee: number;
+  termFee: number;
+  registrationFee: number;
+  reRegistrationFee: number;
+  sportFee: number;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface EnrollmentData {
@@ -132,30 +147,33 @@ class ApiService {
     return session;
   }
 
-  async request<T>(endpoint: string, options?: RequestInit): Promise<T> {
+  async request<T>(endpoint: string, options?: RequestInit & { authenticated?: boolean }): Promise<T> {
+    const { authenticated = true, ...fetchOptions } = options || {};
     const url = `${API_BASE_URL}${endpoint}`;
 
     console.log('API request - URL:', url);
     console.log('API request - Method:', options?.method || 'GET');
     console.log('API request - Body:', options?.body);
 
-    const session = await this.getCachedSession();
-
     const headers: HeadersInit = {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${session.access_token}`,
     };
 
+    if (authenticated) {
+      const session = await this.getCachedSession();
+      headers['Authorization'] = `Bearer ${session.access_token}`;
+    }
+
     // Merge with any additional headers from options
-    if (options?.headers) {
-      Object.assign(headers, options.headers);
+    if (fetchOptions?.headers) {
+      Object.assign(headers, fetchOptions.headers);
     }
 
     try {
       console.log('Fetching URL:', url);
       const response = await fetch(url, {
         headers,
-        ...options,
+        ...fetchOptions,
       });
 
       console.log('API response - Status:', response.status, response.statusText);
@@ -183,7 +201,7 @@ class ApiService {
 
       const data = await response.json();
       console.log('API response - Data:', data);
-      return data;
+      return toCamelCase(data);
     } catch (error) {
       console.error('API request error:', error);
       throw error;
@@ -442,8 +460,9 @@ class ApiService {
   }
 
   async submitAcademicHistory(data: any): Promise<{ message: string; application_id: string }> {
-    // Extract application_id from the payload (it's already snake_case)
-    const { application_id, ...formData } = data;
+    // Extract application_id from the payload (handle both snake_case and camelCase)
+    const application_id = data.application_id || data.applicationId;
+    const { application_id: _1, applicationId: _2, ...formData } = data;
 
     // Convert the form data to snake_case for the backend (already mostly snake_case, but ensure consistency)
     const snakeCaseData = toSnakeCase(formData);
@@ -498,19 +517,14 @@ class ApiService {
       
       if (snakeCaseData.family) {
         payload.family = snakeCaseData.family;
-        // Handle empty strings for optional fields - convert to undefined
-        if (payload.family.mother_id_number === '') {
-          payload.family.mother_id_number = undefined;
-        }
-        if (payload.family.mother_mobile === '') {
-          payload.family.mother_mobile = undefined;
-        }
-        if (payload.family.mother_email === '') {
-          payload.family.mother_email = undefined;
-        }
-        // Next of kin fields - convert empty or placeholder strings to undefined
-        const nokFields = ['next_of_kin_surname', 'next_of_kin_first_name', 'next_of_kin_relationship', 'next_of_kin_mobile', 'next_of_kin_email'];
-        for (const field of nokFields) {
+        // Convert empty strings to undefined for all optional pattern-validated fields
+        const patternFields = [
+          'father_id_number', 'father_mobile',
+          'mother_id_number', 'mother_mobile', 'mother_email',
+          'next_of_kin_surname', 'next_of_kin_first_name', 'next_of_kin_relationship',
+          'next_of_kin_mobile', 'next_of_kin_email', 'next_of_kin_id_number'
+        ];
+        for (const field of patternFields) {
           const value = payload.family[field];
           if (!value || value === '' || String(value).toLowerCase() === 'none') {
             payload.family[field] = undefined;
@@ -522,12 +536,12 @@ class ApiService {
         payload.fee = snakeCaseData.fee;
       }
       
-      if (fullData.academicHistory) {
-        payload.academic_history = fullData.academicHistory;
+      if (snakeCaseData.academicHistory) {
+        payload.academic_history = snakeCaseData.academicHistory;
       }
       
-      if (fullData.declaration) {
-        payload.declaration = fullData.declaration;
+      if (snakeCaseData.declaration) {
+        payload.declaration = snakeCaseData.declaration;
       }
     }
     
@@ -552,6 +566,16 @@ class ApiService {
    */
   async getAllSchoolFees(): Promise<SchoolFees[]> {
     return this.request<SchoolFees[]>('/fees/all');
+  }
+
+  /**
+   * Get list of all schools (public endpoint)
+   * @returns List of schools with id and schoolName
+   */
+  async getSchools(): Promise<{ data: Array<{ id: number, schoolName: string }>, count: number }> {
+    return this.request<{ data: Array<{ id: number, schoolName: string }>, count: number }>('/schools', {
+      authenticated: false
+    });
   }
 }
 
