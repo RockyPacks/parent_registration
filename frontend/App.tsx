@@ -378,22 +378,23 @@ const App: React.FC = () => {
                 const declData = appData.declaration;
                 const declarationData = {
                   application_id: initialAppId,
-                  agree_truth: declData.agreeTruth || false,
-                  agree_policies: declData.agreePolicies || false,
-                  agree_financial: declData.agreeFinancial || false,
-                  agree_verification: declData.agreeVerification || false,
-                  agree_data_processing: declData.agreeDataProcessing || false,
-                  agree_audit_storage: declData.agreeAuditStorage || false,
-                  agree_affordability_processing: declData.agreeAffordabilityProcessing || false,
+                  agreeTruth: declData.agreeTruth || declData.agree_truth || false,
+                  agreePolicies: declData.agreePolicies || declData.agree_policies || true,
+                  agreeFinancial: declData.agreeFinancial || declData.agree_financial || true,
+                  agreeVerification: declData.agreeVerification || declData.agree_verification || true,
+                  agreeDataProcessing: declData.agreeDataProcessing || declData.agree_data_processing || true,
+                  agreeAuditStorage: declData.agreeAuditStorage || declData.agree_audit_storage || true,
+                  agreeAffordabilityProcessing: declData.agreeAffordabilityProcessing || declData.agree_affordability_processing || true,
                   fullName: declData.fullName || '',
                   city: declData.city || '',
+                  signatureImage: declData.signatureImage || declData.signature || '', // Include signature from backend
+                  signature: declData.signatureImage || declData.signature || '', // Also save as 'signature' for compatibility
                   signed: declData.signed || false,
                   status: declData.signed ? 'completed' : 'in_progress'
                 };
-                // Save to both: user-prefixed key (read by MainContent) and global key (read by DeclarationStep directly)
+                // Save to user-prefixed key (read by MainContent)
                 storage.set(getUserKey(userEmail, 'declarationData'), declarationData);
-                localStorage.setItem('declarationData', JSON.stringify(declarationData));
-                console.log("App.tsx: Declaration data saved to localStorage:", declarationData);
+                console.log("App.tsx: Declaration data saved to localStorage - signature present:", !!declarationData.signatureImage, 'length:', declarationData.signatureImage?.length || 0);
               }
 
               // Save financing data to localStorage (Step 4)

@@ -453,9 +453,10 @@ class ApiService {
   }
 
   async submitDeclaration(data: any): Promise<{ message: string; application_id: string }> {
+    const snakeCaseData = toSnakeCase(data);
     return this.request('/enrollment/declaration', {
       method: 'POST',
-      body: JSON.stringify(data),
+      body: JSON.stringify(snakeCaseData),
     });
   }
 

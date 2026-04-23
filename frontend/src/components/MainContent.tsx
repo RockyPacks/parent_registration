@@ -127,7 +127,11 @@ const MainContent: React.FC<MainContentProps> = (props) => {
     
     setAcademicHistoryData(getStoredData('academicHistoryData'));
     setFinancingData(storage.get(getUserKey('financingData'), { plan: 'Pay Once Per Year' }) || { plan: 'Pay Once Per Year' });
-    setDeclarationData(getStoredData('declarationData'));
+    
+    const declData = getStoredData('declarationData');
+    console.log('MainContent: Loaded declarationData from storage - signature present:', !!declData.signatureImage, 'length:', declData.signatureImage?.length || 0);
+    setDeclarationData(declData);
+    
     setNextOfKinData(getStoredData('nextOfKinData'));
     setDataLoaded(true);
   }, [getUserKey, applicationInitialized]);
@@ -429,9 +433,11 @@ const MainContent: React.FC<MainContentProps> = (props) => {
   }, [getUserKey]);
 
   const handleDeclarationDataChange = useCallback((data: any) => {
+    console.log('MainContent: handleDeclarationDataChange received - signature present:', !!data.signatureImage, 'length:', data.signatureImage?.length || 0);
     setDeclarationData(prevData => {
       const newData = { ...prevData, ...data };
       storage.set(getUserKey('declarationData'), newData);
+      console.log('MainContent: Saved declarationData to storage - signature present:', !!newData.signatureImage);
       return newData;
     });
   }, [getUserKey]);
