@@ -44,12 +44,14 @@ class DeclarationRepository(BaseRepository):
             # Convert camelCase field names to snake_case for database
             if "fullName" in data:
                 data["full_name"] = data.pop("fullName")
+            if "signatureImage" in data:
+                data["signature_image"] = data.pop("signatureImage")
             
             # Allowed fields in declarations table
             allowed_fields = {
                 'application_id', 'agree_truth', 'agree_policies', 'agree_financial',
                 'agree_verification', 'agree_data_processing', 'agree_audit_storage',
-                'agree_affordability_processing', 'full_name', 'city',
+                'agree_affordability_processing', 'full_name', 'city', 'signature_image',
                 'date_signed', 'status', 'signed', 'created_at', 'updated_at'
             }
 

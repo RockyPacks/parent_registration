@@ -346,18 +346,22 @@ const ApplicationForm = React.forwardRef<ApplicationFormHandle, ApplicationFormP
             I/We, the undersigned, hereby declare that the particulars furnished in this application form are true and correct. I/We understand that the school policy regarding admissions, discipline, and fees will apply. I/We undertake to adhere to all rules and regulations of the Department of Education and the School Governing Body.
           </p>
           
-          <div style={{ marginTop: '40px', display: 'flex', justifyContent: 'space-between' }}>
+          <div style={{ marginTop: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
             <div style={{ width: '45%' }}>
-              <div style={{ borderBottom: '1px solid #000', height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <span style={{ fontFamily: 'cursive', fontSize: '16px' }}>{declaration.fullName || student.name}</span>
+              <div style={{ borderBottom: '1px solid #000', height: '60px', display: 'flex', alignItems: 'flex-end', justifyContent: 'center', pb: '5px' }}>
+                {declaration.signature ? (
+                  <img src={declaration.signature} alt="Signature" style={{ maxHeight: '55px', maxWidth: '100%', objectFit: 'contain' }} />
+                ) : (
+                  <span style={{ fontFamily: 'cursive', fontSize: '16px' }}>{declaration.fullName || student.name}</span>
+                )}
               </div>
-              <p style={{ textAlign: 'center', fontSize: '9px', fontWeight: 600, marginTop: '4px' }}>ELECTRONIC SIGNATURE OF PARENT / GUARDIAN</p>
+              <p style={{ textAlign: 'center', fontSize: '9px', fontWeight: 600, marginTop: '4px' }}>OFFICIAL SIGNATURE OF PARENT / GUARDIAN</p>
             </div>
             <div style={{ width: '30%' }}>
-              <div style={{ borderBottom: '1px solid #000', height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <div style={{ borderBottom: '1px solid #000', height: '60px', display: 'flex', alignItems: 'flex-end', justifyContent: 'center', pb: '5px' }}>
                 {new Date().toLocaleDateString('en-ZA')}
               </div>
-              <p style={{ textAlign: 'center', fontSize: '9px', fontWeight: 600, marginTop: '4px' }}>DATE OF SUBMISSION</p>
+              <p style={{ textAlign: 'center', fontSize: '9px', fontWeight: 600, marginTop: '4px' }}>DATE OF SIGNING</p>
             </div>
           </div>
         </div>

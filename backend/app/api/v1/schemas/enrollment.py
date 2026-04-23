@@ -320,6 +320,7 @@ class DeclarationInfo(BaseModel):
     agree_affordability_processing: bool = Field(default=False, validation_alias=AliasChoices('agree_affordability_processing', 'agreeAffordabilityProcessing'), description="Consent to affordability processing")
     full_name: str = Field(..., validation_alias=AliasChoices('full_name', 'fullName'), min_length=1, max_length=150, description="Full name for digital signature")
     city: Optional[str] = Field(None, max_length=100, description="City for signature")
+    signature_image: Optional[str] = Field(None, validation_alias=AliasChoices('signature_image', 'signatureImage'), description="Digital signature image as data URL")
     date_signed: Optional[str] = Field(None, validation_alias=AliasChoices('date_signed', 'dateSigned'), description="Date of signature")
     status: str = Field(default="in_progress", max_length=20, description="Declaration status")
 
