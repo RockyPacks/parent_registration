@@ -74,18 +74,18 @@ const AcademicHistoryForm: React.FC<AcademicHistoryFormProps> = ({ applicationId
           console.log('Loaded academic history data:', data);
           
           setFormData({
-            schoolName: data.school_name || '',
-            schoolType: data.school_type || '',
-            lastGradeCompleted: data.last_grade_completed || '',
-            academicYearCompleted: data.academic_year_completed || '',
-            reasonForLeaving: data.reason_for_leaving || '',
-            principalName: data.principal_name || '',
-            schoolPhoneNumber: data.school_phone_number || '',
-            schoolEmail: data.school_email || '',
-            schoolAddress: data.school_address || '',
+            schoolName: data.schoolName || '',
+            schoolType: data.schoolType || '',
+            lastGradeCompleted: data.lastGradeCompleted || '',
+            academicYearCompleted: data.academicYearCompleted || '',
+            reasonForLeaving: data.reasonForLeaving || '',
+            principalName: data.principalName || '',
+            schoolPhoneNumber: data.schoolPhoneNumber || '',
+            schoolEmail: data.schoolEmail || '',
+            schoolAddress: data.schoolAddress || '',
             reportCard: null, // File object can't be restored, but URL is kept
-            reportCardUrl: data.report_card_url || '',
-            additionalNotes: data.additional_notes || ''
+            reportCardUrl: data.reportCardUrl || '',
+            additionalNotes: data.additionalNotes || ''
           });
           
           setDataLoadedFromBackend(true);
@@ -243,8 +243,13 @@ const AcademicHistoryForm: React.FC<AcademicHistoryFormProps> = ({ applicationId
 
   // Call onDataChange whenever formData changes to pass data to parent
   React.useEffect(() => {
-    onDataChange && onDataChange(formData);
-  }, [formData, onDataChange]);
+    // Only propagate changes if we have meaningful data or if we've been initialized
+    const hasData = formData.schoolName || formData.lastGradeCompleted || formData.reportCardUrl;
+    
+    if (onDataChange && (hasData || dataInitialized || dataLoadedFromBackend)) {
+      onDataChange(formData);
+    }
+  }, [formData, onDataChange, dataInitialized, dataLoadedFromBackend]);
 
   const handleSubmit = async (e?: React.FormEvent | React.MouseEvent) => {
     console.log('handleSubmit called with event:', e);
@@ -313,7 +318,7 @@ const AcademicHistoryForm: React.FC<AcademicHistoryFormProps> = ({ applicationId
 
       // Build payload - simple and clean
       const payload = {
-        application_id: applicationId,
+        applicationId: applicationId,
         school_name: formData.schoolName.trim(),
         school_type: formData.schoolType.trim(),
         last_grade_completed: formData.lastGradeCompleted.trim(),

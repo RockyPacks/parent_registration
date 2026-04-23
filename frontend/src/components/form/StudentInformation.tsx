@@ -53,14 +53,13 @@ const StudentInformation: React.FC<StudentInformationProps> = ({ initialData, on
   const [isInitialized, setIsInitialized] = useState(false);
 
   // Update form data when initialData changes (e.g., after data is loaded from localStorage/backend)
-  // Only run once when component first receives data to prevent infinite loops
   useEffect(() => {
     // Check if initialData has meaningful content (not just empty object)
     const hasMeaningfulData = initialData && Object.keys(initialData).length > 0 && 
       (initialData.surname || initialData.firstName || initialData.email);
     
-    if (!isInitialized && hasMeaningfulData) {
-      console.log('StudentInformation: Initializing with data:', initialData);
+    if (hasMeaningfulData) {
+      console.log('StudentInformation: Updating with new data:', initialData);
       setFormData(prev => {
         const updatedData = {
           ...prev,
@@ -78,12 +77,18 @@ const StudentInformation: React.FC<StudentInformationProps> = ({ initialData, on
         }
         return updatedData;
       });
-      setIsInitialized(true);
+      if (!isInitialized) {
+        setIsInitialized(true);
+      }
     }
-  }, [initialData, isInitialized]);
+  }, [initialData]);
 
   useEffect(() => {
-    if (onDataChange) {
+    // Only propagate changes to parent if we have actual data or if we've been initialized
+    // This prevents empty initial state from overwriting valid data in MainContent/storage
+    const hasData = formData.surname || formData.firstName || formData.email || formData.idNumber;
+    
+    if (onDataChange && (hasData || isInitialized)) {
       // Format data before sending to parent
       const dataToSave = { ...formData };
       if (dataToSave.dob instanceof Date) {
@@ -98,7 +103,7 @@ const StudentInformation: React.FC<StudentInformationProps> = ({ initialData, on
       onDataChange(dataToSave);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [formData]);
+  }, [formData, isInitialized]);
 
   const validateField = (field: string, value: string | Date | null) => {
     let error = '';

@@ -11,9 +11,9 @@ interface FinancingOptionsProps {
 const FinancingOptions: React.FC<FinancingOptionsProps> = ({ selectedPlan, onSelectPlan, fees }) => {
   // Calculate financing options dynamically based on actual fees
   const financingOptionsData = useMemo(() => {
-    const annualFee = fees.annual_fee;
-    const termFee = fees.term_fee;
-    const regFee = fees.registration_fee;
+    const annualFee = fees.annualFee;
+    const termFee = fees.termFee;
+    const regFee = fees.registrationFee;
     
     const formatCurrency = (amount: number) => 
       new Intl.NumberFormat('en-ZA', { style: 'currency', currency: 'ZAR', maximumFractionDigits: 0 }).format(amount);

@@ -1,12 +1,4 @@
-"""
-Pydantic schemas for enrollment-related API operations.
-
-This module defines all data models used for enrollment processes,
-including student information, medical details, family information,
-and fee responsibility data.
-"""
-
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, field_validator, ConfigDict, AliasPath, AliasChoices
 from typing import Dict, Any, Optional, List
 from datetime import datetime
 from enum import Enum
@@ -30,20 +22,29 @@ class StudentInfo(BaseModel):
     Contains all required and optional student details for enrollment.
     """
     surname: str = Field(..., min_length=1, max_length=100, description="Student's surname")
-    first_name: str = Field(..., min_length=1, max_length=100, description="Student's first name")
-    middle_name: Optional[str] = Field(None, max_length=100, description="Student's middle name")
-    preferred_name: Optional[str] = Field(None, max_length=100, description="Student's preferred name")
+    first_name: str = Field(..., validation_alias=AliasChoices('first_name', 'firstName'), min_length=1, max_length=100, description="Student's first name")
+    middle_name: Optional[str] = Field(None, validation_alias=AliasChoices('middle_name', 'middleName'), max_length=100, description="Student's middle name")
+    preferred_name: Optional[str] = Field(None, validation_alias=AliasChoices('preferred_name', 'preferredName'), max_length=100, description="Student's preferred name")
     email: Optional[str] = Field(None, max_length=255, description="Student's email address")
     phone: Optional[str] = Field(None, max_length=20, description="Student's phone number")
-    date_of_birth: str = Field(..., pattern=r'^\d{4}-\d{2}-\d{2}$', description="Date of birth in YYYY-MM-DD format")
+    date_of_birth: str = Field(..., validation_alias=AliasChoices('date_of_birth', 'dob'), pattern=r'^\d{4}-\d{2}-\d{2}$', description="Date of birth in YYYY-MM-DD format")
     gender: str = Field(..., pattern=r'^(male|female|other)$', description="Student's gender")
-    home_language: str = Field(..., min_length=1, max_length=50, description="Student's home language")
-    id_number: str = Field(..., pattern=r'^\d{13}$', description="13-digit South African ID number")
-    previous_grade: str = Field(..., min_length=1, max_length=20, description="Previous grade completed")
-    grade_applied_for: str = Field(..., min_length=1, max_length=20, description="Grade applying for")
-    previous_school: str = Field(..., min_length=1, max_length=100, description="Previous school attended")
+    home_language: str = Field(..., validation_alias=AliasChoices('home_language', 'homeLanguage'), min_length=1, max_length=50, description="Student's home language")
+    id_number: str = Field(..., validation_alias=AliasChoices('id_number', 'idNumber'), pattern=r'^\d{13}$', description="13-digit South African ID number")
+    previous_grade: str = Field(..., validation_alias=AliasChoices('previous_grade', 'previousGrade'), min_length=1, max_length=20, description="Previous grade completed")
+    grade_applied_for: str = Field(..., validation_alias=AliasChoices('grade_applied_for', 'gradeAppliedFor'), min_length=1, max_length=20, description="Grade applying for")
+    previous_school: str = Field(..., validation_alias=AliasChoices('previous_school', 'previousSchool'), min_length=1, max_length=100, description="Previous school attended")
+
+    model_config = ConfigDict(populate_by_name=True)
     
-    @validator('id_number')
+    @field_validator('id_number', mode='before')
+    @classmethod
+    def id_number_empty_to_none(cls, v):
+        """Convert empty strings to None."""
+        return None if v == '' else v
+
+    @field_validator('id_number')
+    @classmethod
     def validate_id_number(cls, v):
         """Validate South African ID number with Luhn checksum."""
         if not v:
@@ -62,20 +63,29 @@ class StudentInfoPartial(BaseModel):
     Allows partial updates to student data.
     """
     surname: Optional[str] = Field(None, min_length=1, max_length=100, description="Student's surname")
-    first_name: Optional[str] = Field(None, min_length=1, max_length=100, description="Student's first name")
-    middle_name: Optional[str] = Field(None, max_length=100, description="Student's middle name")
-    preferred_name: Optional[str] = Field(None, max_length=100, description="Student's preferred name")
+    first_name: Optional[str] = Field(None, validation_alias=AliasChoices('first_name', 'firstName'), min_length=1, max_length=100, description="Student's first name")
+    middle_name: Optional[str] = Field(None, validation_alias=AliasChoices('middle_name', 'middleName'), max_length=100, description="Student's middle name")
+    preferred_name: Optional[str] = Field(None, validation_alias=AliasChoices('preferred_name', 'preferredName'), max_length=100, description="Student's preferred name")
     email: Optional[str] = Field(None, max_length=255, description="Student's email address")
     phone: Optional[str] = Field(None, max_length=20, description="Student's phone number")
-    date_of_birth: Optional[str] = Field(None, pattern=r'^\d{4}-\d{2}-\d{2}$', description="Date of birth in YYYY-MM-DD format")
+    date_of_birth: Optional[str] = Field(None, validation_alias=AliasChoices('date_of_birth', 'dob'), pattern=r'^\d{4}-\d{2}-\d{2}$', description="Date of birth in YYYY-MM-DD format")
     gender: Optional[str] = Field(None, pattern=r'^(male|female|other)$', description="Student's gender")
-    home_language: Optional[str] = Field(None, min_length=1, max_length=50, description="Student's home language")
-    id_number: Optional[str] = Field(None, pattern=r'^\d{13}$', description="13-digit South African ID number")
-    previous_grade: Optional[str] = Field(None, min_length=1, max_length=20, description="Previous grade completed")
-    grade_applied_for: Optional[str] = Field(None, min_length=1, max_length=20, description="Grade applying for")
-    previous_school: Optional[str] = Field(None, min_length=1, max_length=100, description="Previous school attended")
-    
-    @validator('id_number')
+    home_language: Optional[str] = Field(None, validation_alias=AliasChoices('home_language', 'homeLanguage'), min_length=1, max_length=50, description="Student's home language")
+    id_number: Optional[str] = Field(None, validation_alias=AliasChoices('id_number', 'idNumber'), pattern=r'^\d{13}$', description="13-digit South African ID number")
+    previous_grade: Optional[str] = Field(None, validation_alias=AliasChoices('previous_grade', 'previousGrade'), min_length=1, max_length=20, description="Previous grade completed")
+    grade_applied_for: Optional[str] = Field(None, validation_alias=AliasChoices('grade_applied_for', 'gradeAppliedFor'), min_length=1, max_length=20, description="Grade applying for")
+    previous_school: Optional[str] = Field(None, validation_alias=AliasChoices('previous_school', 'previousSchool'), min_length=1, max_length=100, description="Previous school attended")
+
+    model_config = ConfigDict(populate_by_name=True)
+
+    @field_validator('id_number', 'date_of_birth', 'gender', mode='before')
+    @classmethod
+    def empty_str_to_none(cls, v):
+        """Convert empty strings to None before pattern validation."""
+        return None if v == '' else v
+
+    @field_validator('id_number')
+    @classmethod
     def validate_id_number(cls, v):
         """Validate South African ID number with Luhn checksum."""
         if not v:
@@ -105,10 +115,12 @@ class MedicalInfoPartial(BaseModel):
 
     Allows partial updates to medical data.
     """
-    medical_aid_name: Optional[str] = Field(None, max_length=100, description="Medical aid scheme name")
-    member_number: Optional[str] = Field(None, max_length=50, description="Medical aid member number")
+    medical_aid_name: Optional[str] = Field(None, validation_alias=AliasChoices('medical_aid_name', 'medicalAidName'), max_length=100, description="Medical aid scheme name")
+    member_number: Optional[str] = Field(None, validation_alias=AliasChoices('member_number', 'memberNumber'), max_length=50, description="Medical aid member number")
     conditions: Optional[List[str]] = Field(None, description="List of medical conditions")
     allergies: Optional[str] = Field(None, max_length=500, description="Known allergies")
+
+    model_config = ConfigDict(populate_by_name=True)
 
 
 class FamilyInfo(BaseModel):
@@ -117,26 +129,39 @@ class FamilyInfo(BaseModel):
 
     Contains parent/guardian contact and identification details.
     """
-    father_surname: Optional[str] = Field(None, max_length=100, description="Father's surname")
-    father_first_name: Optional[str] = Field(None, max_length=100, description="Father's first name")
-    father_id_number: Optional[str] = Field(None, pattern=r'^\d{13}$', description="Father's ID number")
-    father_mobile: Optional[str] = Field(None, pattern=r'^\+?[\d\s\-\(\)]+$', description="Father's mobile number")
-    father_email: Optional[str] = Field(None, description="Father's email address")
+    father_surname: Optional[str] = Field(None, validation_alias=AliasChoices('father_surname', 'fatherSurname'), max_length=100, description="Father's surname")
+    father_first_name: Optional[str] = Field(None, validation_alias=AliasChoices('father_first_name', 'fatherFirstName'), max_length=100, description="Father's first name")
+    father_id_number: Optional[str] = Field(None, validation_alias=AliasChoices('father_id_number', 'fatherIdNumber'), pattern=r'^\d{13}$', description="Father's ID number")
+    father_mobile: Optional[str] = Field(None, validation_alias=AliasChoices('father_mobile', 'fatherMobile'), pattern=r'^\+?[\d\s\-\(\)]+$', description="Father's mobile number")
+    father_email: Optional[str] = Field(None, validation_alias=AliasChoices('father_email', 'fatherEmail'), description="Father's email address")
 
-    mother_surname: Optional[str] = Field(None, max_length=100, description="Mother's surname")
-    mother_first_name: Optional[str] = Field(None, max_length=100, description="Mother's first name")
-    mother_id_number: Optional[str] = Field(None, pattern=r'^\d{13}$', description="Mother's ID number")
-    mother_mobile: Optional[str] = Field(None, pattern=r'^\+?[\d\s\-\(\)]+$', description="Mother's mobile number")
-    mother_email: Optional[str] = Field(None, description="Mother's email address")
+    mother_surname: Optional[str] = Field(None, validation_alias=AliasChoices('mother_surname', 'motherSurname'), max_length=100, description="Mother's surname")
+    mother_first_name: Optional[str] = Field(None, validation_alias=AliasChoices('mother_first_name', 'motherFirstName'), max_length=100, description="Mother's first name")
+    mother_id_number: Optional[str] = Field(None, validation_alias=AliasChoices('mother_id_number', 'motherIdNumber'), pattern=r'^\d{13}$', description="Mother's ID number")
+    mother_mobile: Optional[str] = Field(None, validation_alias=AliasChoices('mother_mobile', 'motherMobile'), pattern=r'^\+?[\d\s\-\(\)]+$', description="Mother's mobile number")
+    mother_email: Optional[str] = Field(None, validation_alias=AliasChoices('mother_email', 'motherEmail'), description="Mother's email address")
 
-    next_of_kin_surname: Optional[str] = Field(None, max_length=100, description="Next of kin's surname")
-    next_of_kin_first_name: Optional[str] = Field(None, max_length=100, description="Next of kin's first name")
-    next_of_kin_id_number: Optional[str] = Field(None, pattern=r'^\d{13}$', description="Next of kin's ID number")
-    next_of_kin_relationship: Optional[str] = Field(None, max_length=50, description="Next of kin's relationship")
-    next_of_kin_mobile: Optional[str] = Field(None, pattern=r'^\+?[\d\s\-\(\)]+$', description="Next of kin's mobile number")
-    next_of_kin_email: Optional[str] = Field(None, description="Next of kin's email address")
-    
-    @validator('father_id_number', 'mother_id_number')
+    next_of_kin_surname: Optional[str] = Field(None, validation_alias=AliasChoices('next_of_kin_surname', 'nextOfKinSurname'), max_length=100, description="Next of kin's surname")
+    next_of_kin_first_name: Optional[str] = Field(None, validation_alias=AliasChoices('next_of_kin_first_name', 'nextOfKinFirstName'), max_length=100, description="Next of kin's first name")
+    next_of_kin_id_number: Optional[str] = Field(None, validation_alias=AliasChoices('next_of_kin_id_number', 'nextOfKinIdNumber'), pattern=r'^\d{13}$', description="Next of kin's ID number")
+    next_of_kin_relationship: Optional[str] = Field(None, validation_alias=AliasChoices('next_of_kin_relationship', 'nextOfKinRelationship'), max_length=50, description="Next of kin's relationship")
+    next_of_kin_mobile: Optional[str] = Field(None, validation_alias=AliasChoices('next_of_kin_mobile', 'nextOfKinMobile'), pattern=r'^\+?[\d\s\-\(\)]+$', description="Next of kin's mobile number")
+    next_of_kin_email: Optional[str] = Field(None, validation_alias=AliasChoices('next_of_kin_email', 'nextOfKinEmail'), description="Next of kin's email address")
+
+    model_config = ConfigDict(populate_by_name=True)
+
+    @field_validator(
+        'father_id_number', 'mother_id_number', 'next_of_kin_id_number',
+        'father_mobile', 'mother_mobile', 'next_of_kin_mobile',
+        mode='before'
+    )
+    @classmethod
+    def empty_str_to_none(cls, v):
+        """Convert empty strings to None before pattern validation."""
+        return None if v == '' else v
+
+    @field_validator('father_id_number', 'mother_id_number', 'next_of_kin_id_number')
+    @classmethod
     def validate_parent_id_numbers(cls, v):
         """Validate parent ID numbers with Luhn checksum."""
         if not v:
@@ -154,26 +179,39 @@ class FamilyInfoPartial(BaseModel):
 
     Allows partial updates to family data.
     """
-    father_surname: Optional[str] = Field(None, max_length=100, description="Father's surname")
-    father_first_name: Optional[str] = Field(None, max_length=100, description="Father's first name")
-    father_id_number: Optional[str] = Field(None, pattern=r'^\d{13}$', description="Father's ID number")
-    father_mobile: Optional[str] = Field(None, pattern=r'^\+?[\d\s\-\(\)]+$', description="Father's mobile number")
-    father_email: Optional[str] = Field(None, description="Father's email address")
+    father_surname: Optional[str] = Field(None, validation_alias=AliasChoices('father_surname', 'fatherSurname'), max_length=100, description="Father's surname")
+    father_first_name: Optional[str] = Field(None, validation_alias=AliasChoices('father_first_name', 'fatherFirstName'), max_length=100, description="Father's first name")
+    father_id_number: Optional[str] = Field(None, validation_alias=AliasChoices('father_id_number', 'fatherIdNumber'), pattern=r'^\d{13}$', description="Father's ID number")
+    father_mobile: Optional[str] = Field(None, validation_alias=AliasChoices('father_mobile', 'fatherMobile'), pattern=r'^\+?[\d\s\-\(\)]+$', description="Father's mobile number")
+    father_email: Optional[str] = Field(None, validation_alias=AliasChoices('father_email', 'fatherEmail'), description="Father's email address")
 
-    mother_surname: Optional[str] = Field(None, max_length=100, description="Mother's surname")
-    mother_first_name: Optional[str] = Field(None, max_length=100, description="Mother's first name")
-    mother_id_number: Optional[str] = Field(None, pattern=r'^\d{13}$', description="Mother's ID number")
-    mother_mobile: Optional[str] = Field(None, pattern=r'^\+?[\d\s\-\(\)]+$', description="Mother's mobile number")
-    mother_email: Optional[str] = Field(None, description="Mother's email address")
+    mother_surname: Optional[str] = Field(None, validation_alias=AliasChoices('mother_surname', 'motherSurname'), max_length=100, description="Mother's surname")
+    mother_first_name: Optional[str] = Field(None, validation_alias=AliasChoices('mother_first_name', 'motherFirstName'), max_length=100, description="Mother's first name")
+    mother_id_number: Optional[str] = Field(None, validation_alias=AliasChoices('mother_id_number', 'motherIdNumber'), pattern=r'^\d{13}$', description="Mother's ID number")
+    mother_mobile: Optional[str] = Field(None, validation_alias=AliasChoices('mother_mobile', 'motherMobile'), pattern=r'^\+?[\d\s\-\(\)]+$', description="Mother's mobile number")
+    mother_email: Optional[str] = Field(None, validation_alias=AliasChoices('mother_email', 'motherEmail'), description="Mother's email address")
 
-    next_of_kin_surname: Optional[str] = Field(None, max_length=100, description="Next of kin's surname")
-    next_of_kin_first_name: Optional[str] = Field(None, max_length=100, description="Next of kin's first name")
-    next_of_kin_id_number: Optional[str] = Field(None, pattern=r'^\d{13}$', description="Next of kin's ID number")
-    next_of_kin_relationship: Optional[str] = Field(None, max_length=50, description="Next of kin's relationship")
-    next_of_kin_mobile: Optional[str] = Field(None, pattern=r'^\+?[\d\s\-\(\)]+$', description="Next of kin's mobile number")
-    next_of_kin_email: Optional[str] = Field(None, description="Next of kin's email address")
-    
-    @validator('father_id_number', 'mother_id_number')
+    next_of_kin_surname: Optional[str] = Field(None, validation_alias=AliasChoices('next_of_kin_surname', 'nextOfKinSurname'), max_length=100, description="Next of kin's surname")
+    next_of_kin_first_name: Optional[str] = Field(None, validation_alias=AliasChoices('next_of_kin_first_name', 'nextOfKinFirstName'), max_length=100, description="Next of kin's first name")
+    next_of_kin_id_number: Optional[str] = Field(None, validation_alias=AliasChoices('next_of_kin_id_number', 'nextOfKinIdNumber'), pattern=r'^\d{13}$', description="Next of kin's ID number")
+    next_of_kin_relationship: Optional[str] = Field(None, validation_alias=AliasChoices('next_of_kin_relationship', 'nextOfKinRelationship'), max_length=50, description="Next of kin's relationship")
+    next_of_kin_mobile: Optional[str] = Field(None, validation_alias=AliasChoices('next_of_kin_mobile', 'nextOfKinMobile'), pattern=r'^\+?[\d\s\-\(\)]+$', description="Next of kin's mobile number")
+    next_of_kin_email: Optional[str] = Field(None, validation_alias=AliasChoices('next_of_kin_email', 'nextOfKinEmail'), description="Next of kin's email address")
+
+    model_config = ConfigDict(populate_by_name=True)
+
+    @field_validator(
+        'father_id_number', 'mother_id_number', 'next_of_kin_id_number',
+        'father_mobile', 'mother_mobile', 'next_of_kin_mobile',
+        mode='before'
+    )
+    @classmethod
+    def empty_str_to_none(cls, v):
+        """Convert empty strings to None before pattern validation."""
+        return None if v == '' else v
+
+    @field_validator('father_id_number', 'mother_id_number', 'next_of_kin_id_number')
+    @classmethod
     def validate_parent_id_numbers(cls, v):
         """Validate parent ID numbers with Luhn checksum."""
         if not v:
@@ -192,23 +230,32 @@ class FeeResponsibilityInfo(BaseModel):
     Contains details about who is responsible for school fees,
     including complete parent/guardian information and banking details.
     """
-    fee_person: str = Field(..., min_length=1, max_length=200, description="Person responsible for fees")
+    fee_person: str = Field(..., validation_alias=AliasChoices('fee_person', 'feePerson'), min_length=1, max_length=200, description="Person responsible for fees")
     relationship: str = Field(..., min_length=1, max_length=50, description="Relationship to student")
-    fee_terms_accepted: bool = Field(default=False, description="Whether fee terms have been accepted")
-    selected_plan: Optional[str] = Field(None, max_length=100, description="Selected financing plan")
+    fee_terms_accepted: bool = Field(default=False, validation_alias=AliasChoices('fee_terms_accepted', 'feeTermsAccepted'), description="Whether fee terms have been accepted")
+    selected_plan: Optional[str] = Field(None, validation_alias=AliasChoices('selected_plan', 'selectedPlan'), max_length=100, description="Selected financing plan")
     # Parent/Guardian information
-    parent_id_number: Optional[str] = Field(None, pattern=r'^\d{13}$', description="Parent/Guardian ID number")
-    parent_first_name: Optional[str] = Field(None, max_length=100, description="Parent/Guardian first name")
-    parent_surname: Optional[str] = Field(None, max_length=100, description="Parent/Guardian surname")
-    parent_email: Optional[str] = Field(None, description="Parent/Guardian email address")
-    parent_mobile: Optional[str] = Field(None, pattern=r'^\+?[\d\s\-\(\)]+$', description="Parent/Guardian mobile number")
+    parent_id_number: Optional[str] = Field(None, validation_alias=AliasChoices('parent_id_number', 'parentIdNumber'), pattern=r'^\d{13}$', description="Parent/Guardian ID number")
+    parent_first_name: Optional[str] = Field(None, validation_alias=AliasChoices('parent_first_name', 'parentFirstName'), max_length=100, description="Parent/Guardian first name")
+    parent_surname: Optional[str] = Field(None, validation_alias=AliasChoices('parent_surname', 'parentSurname'), max_length=100, description="Parent/Guardian surname")
+    parent_email: Optional[str] = Field(None, validation_alias=AliasChoices('parent_email', 'parentEmail'), description="Parent/Guardian email address")
+    parent_mobile: Optional[str] = Field(None, validation_alias=AliasChoices('parent_mobile', 'parentMobile'), pattern=r'^\+?[\d\s\-\(\)]+$', description="Parent/Guardian mobile number")
     # Banking details
-    bank_name: Optional[str] = Field(None, max_length=100, description="Bank name for fee payments")
-    branch_code: Optional[str] = Field(None, max_length=6, description="Bank branch code (6 digits)")
-    account_number: Optional[str] = Field(None, max_length=12, description="Bank account number for fee deductions")
-    account_type: Optional[str] = Field(None, max_length=50, description="Bank account type (e.g., Cheque, Savings, Current)")
+    bank_name: Optional[str] = Field(None, validation_alias=AliasChoices('bank_name', 'bankName'), max_length=100, description="Bank name for fee payments")
+    branch_code: Optional[str] = Field(None, validation_alias=AliasChoices('branch_code', 'branchCode'), max_length=6, description="Bank branch code (6 digits)")
+    account_number: Optional[str] = Field(None, validation_alias=AliasChoices('account_number', 'accountNumber'), max_length=12, description="Bank account number for fee deductions")
+    account_type: Optional[str] = Field(None, validation_alias=AliasChoices('account_type', 'accountType'), max_length=50, description="Bank account type (e.g., Cheque, Savings, Current)")
+
+    model_config = ConfigDict(populate_by_name=True)
     
-    @validator('parent_id_number')
+    @field_validator('parent_id_number', 'parent_mobile', mode='before')
+    @classmethod
+    def empty_str_to_none(cls, v):
+        """Convert empty strings to None before pattern validation."""
+        return None if v == '' else v
+
+    @field_validator('parent_id_number')
+    @classmethod
     def validate_parent_id_number(cls, v):
         """Validate parent ID number with Luhn checksum."""
         if not v:
@@ -226,23 +273,32 @@ class FeeResponsibilityInfoPartial(BaseModel):
 
     Allows partial updates to fee data, including parent information and banking details.
     """
-    fee_person: Optional[str] = Field(None, min_length=1, max_length=200, description="Person responsible for fees")
+    fee_person: Optional[str] = Field(None, validation_alias=AliasChoices('fee_person', 'feePerson'), min_length=1, max_length=200, description="Person responsible for fees")
     relationship: Optional[str] = Field(None, min_length=1, max_length=50, description="Relationship to student")
-    fee_terms_accepted: Optional[bool] = Field(None, description="Whether fee terms have been accepted")
-    selected_plan: Optional[str] = Field(None, max_length=100, description="Selected financing plan")
+    fee_terms_accepted: Optional[bool] = Field(None, validation_alias=AliasChoices('fee_terms_accepted', 'feeTermsAccepted'), description="Whether fee terms have been accepted")
+    selected_plan: Optional[str] = Field(None, validation_alias=AliasChoices('selected_plan', 'selectedPlan'), max_length=100, description="Selected financing plan")
     # Parent/Guardian information
-    parent_id_number: Optional[str] = Field(None, pattern=r'^\d{13}$', description="Parent/Guardian ID number")
-    parent_first_name: Optional[str] = Field(None, max_length=100, description="Parent/Guardian first name")
-    parent_surname: Optional[str] = Field(None, max_length=100, description="Parent/Guardian surname")
-    parent_email: Optional[str] = Field(None, description="Parent/Guardian email address")
-    parent_mobile: Optional[str] = Field(None, pattern=r'^\+?[\d\s\-\(\)]+$', description="Parent/Guardian mobile number")
+    parent_id_number: Optional[str] = Field(None, validation_alias=AliasChoices('parent_id_number', 'parentIdNumber'), pattern=r'^\d{13}$', description="Parent/Guardian ID number")
+    parent_first_name: Optional[str] = Field(None, validation_alias=AliasChoices('parent_first_name', 'parentFirstName'), max_length=100, description="Parent/Guardian first name")
+    parent_surname: Optional[str] = Field(None, validation_alias=AliasChoices('parent_surname', 'parentSurname'), max_length=100, description="Parent/Guardian surname")
+    parent_email: Optional[str] = Field(None, validation_alias=AliasChoices('parent_email', 'parentEmail'), description="Parent/Guardian email address")
+    parent_mobile: Optional[str] = Field(None, validation_alias=AliasChoices('parent_mobile', 'parentMobile'), pattern=r'^\+?[\d\s\-\(\)]+$', description="Parent/Guardian mobile number")
     # Banking details
-    bank_name: Optional[str] = Field(None, max_length=100, description="Bank name for fee payments")
-    branch_code: Optional[str] = Field(None, max_length=6, description="Bank branch code (6 digits)")
-    account_number: Optional[str] = Field(None, max_length=12, description="Bank account number for fee deductions")
-    account_type: Optional[str] = Field(None, max_length=50, description="Bank account type (e.g., Cheque, Savings, Current)")
+    bank_name: Optional[str] = Field(None, validation_alias=AliasChoices('bank_name', 'bankName'), max_length=100, description="Bank name for fee payments")
+    branch_code: Optional[str] = Field(None, validation_alias=AliasChoices('branch_code', 'branchCode'), max_length=6, description="Bank branch code (6 digits)")
+    account_number: Optional[str] = Field(None, validation_alias=AliasChoices('account_number', 'accountNumber'), max_length=12, description="Bank account number for fee deductions")
+    account_type: Optional[str] = Field(None, validation_alias=AliasChoices('account_type', 'accountType'), max_length=50, description="Bank account type (e.g., Cheque, Savings, Current)")
+
+    model_config = ConfigDict(populate_by_name=True)
     
-    @validator('parent_id_number')
+    @field_validator('parent_id_number', 'parent_mobile', mode='before')
+    @classmethod
+    def empty_str_to_none(cls, v):
+        """Convert empty strings to None before pattern validation."""
+        return None if v == '' else v
+
+    @field_validator('parent_id_number')
+    @classmethod
     def validate_parent_id_number(cls, v):
         """Validate parent ID number with Luhn checksum."""
         if not v:
@@ -255,17 +311,25 @@ class FeeResponsibilityInfoPartial(BaseModel):
 
 
 class DeclarationInfo(BaseModel):
-    agree_truth: bool = Field(default=False, description="Agreement to truth of information")
-    agree_policies: bool = Field(default=False, description="Agreement to school policies")
-    agree_financial: bool = Field(default=False, description="Agreement to financial responsibility")
-    agree_verification: bool = Field(default=False, description="Consent to information verification")
-    agree_data_processing: bool = Field(default=False, description="Consent to data processing")
-    agree_audit_storage: bool = Field(default=False, description="Consent to audit storage")
-    agree_affordability_processing: bool = Field(default=False, description="Consent to affordability processing")
-    full_name: str = Field(..., min_length=1, max_length=150, description="Full name for digital signature")
+    agree_truth: bool = Field(default=False, validation_alias=AliasChoices('agree_truth', 'agreeTruth'), description="Agreement to truth of information")
+    agree_policies: bool = Field(default=False, validation_alias=AliasChoices('agree_policies', 'agreePolicies'), description="Agreement to school policies")
+    agree_financial: bool = Field(default=False, validation_alias=AliasChoices('agree_financial', 'agreeFinancial'), description="Agreement to financial responsibility")
+    agree_verification: bool = Field(default=False, validation_alias=AliasChoices('agree_verification', 'agreeVerification'), description="Consent to information verification")
+    agree_data_processing: bool = Field(default=False, validation_alias=AliasChoices('agree_data_processing', 'agreeDataProcessing'), description="Consent to data processing")
+    agree_audit_storage: bool = Field(default=False, validation_alias=AliasChoices('agree_audit_storage', 'agreeAuditStorage'), description="Consent to audit storage")
+    agree_affordability_processing: bool = Field(default=False, validation_alias=AliasChoices('agree_affordability_processing', 'agreeAffordabilityProcessing'), description="Consent to affordability processing")
+    full_name: str = Field(..., validation_alias=AliasChoices('full_name', 'fullName'), min_length=1, max_length=150, description="Full name for digital signature")
     city: Optional[str] = Field(None, max_length=100, description="City for signature")
-    date_signed: Optional[str] = Field(None, description="Date of signature")
+    date_signed: Optional[str] = Field(None, validation_alias=AliasChoices('date_signed', 'dateSigned'), description="Date of signature")
     status: str = Field(default="in_progress", max_length=20, description="Declaration status")
+
+    model_config = ConfigDict(populate_by_name=True)
+
+
+class DeclarationSubmitRequest(DeclarationInfo):
+    """Request schema for submitting a declaration."""
+    application_id: Optional[str] = Field(None, validation_alias=AliasChoices('application_id', 'applicationId'), description="Application ID")
+    signed: Optional[bool] = Field(False, description="Whether the declaration is signed")
 
 
 class EnrollmentData(BaseModel):
@@ -384,17 +448,29 @@ class AcademicHistorySchema(BaseModel):
 class AcademicHistoryCreate(BaseModel):
     """Schema for creating academic history records."""
     application_id: str = Field(..., description="Application ID")
-    school_name: str = Field(..., min_length=1, max_length=200, description="Name of the school")
-    school_type: str = Field(..., min_length=1, max_length=50, description="Type of school")
-    last_grade_completed: str = Field(..., min_length=1, max_length=20, description="Last grade completed")
-    academic_year_completed: str = Field(..., min_length=4, max_length=4, description="Year completed")
-    reason_for_leaving: Optional[str] = Field(None, description="Reason for leaving the school")
-    principal_name: Optional[str] = Field(None, max_length=100, description="Principal's name")
-    school_phone_number: Optional[str] = Field(None, max_length=20, description="School phone number")
-    school_email: Optional[str] = Field(None, description="School email address")
-    school_address: Optional[str] = Field(None, description="School address")
-    additional_notes: Optional[str] = Field(None, description="Additional notes")
-    report_card_url: Optional[str] = Field(None, description="URL of uploaded report card")
+    school_name: str = Field(..., validation_alias=AliasChoices('school_name', 'schoolName'), min_length=1, max_length=200, description="Name of the school")
+    school_type: str = Field(..., validation_alias=AliasChoices('school_type', 'schoolType'), min_length=1, max_length=50, description="Type of school")
+    last_grade_completed: str = Field(..., validation_alias=AliasChoices('last_grade_completed', 'lastGradeCompleted'), min_length=1, max_length=20, description="Last grade completed")
+    academic_year_completed: str = Field(..., validation_alias=AliasChoices('academic_year_completed', 'academicYearCompleted'), min_length=4, max_length=4, description="Year completed")
+    reason_for_leaving: Optional[str] = Field(None, validation_alias=AliasChoices('reason_for_leaving', 'reasonForLeaving'), description="Reason for leaving the school")
+    principal_name: Optional[str] = Field(None, validation_alias=AliasChoices('principal_name', 'principalName'), max_length=100, description="Principal's name")
+    school_phone_number: Optional[str] = Field(None, validation_alias=AliasChoices('school_phone_number', 'schoolPhoneNumber'), max_length=20, description="School phone number")
+    school_email: Optional[str] = Field(None, validation_alias=AliasChoices('school_email', 'schoolEmail'), description="School email address")
+    school_address: Optional[str] = Field(None, validation_alias=AliasChoices('school_address', 'schoolAddress'), description="School address")
+    additional_notes: Optional[str] = Field(None, validation_alias=AliasChoices('additional_notes', 'additionalNotes'), description="Additional notes")
+    report_card_url: Optional[str] = Field(None, validation_alias=AliasChoices('report_card_url', 'reportCardUrl'), description="URL of uploaded report card")
+
+    model_config = ConfigDict(populate_by_name=True)
+
+    @field_validator(
+        'reason_for_leaving', 'principal_name', 'school_phone_number',
+        'school_email', 'school_address', 'additional_notes', 'report_card_url',
+        mode='before'
+    )
+    @classmethod
+    def empty_str_to_none(cls, v):
+        """Convert empty strings to None before validation."""
+        return None if v == '' else v
 
 
 class AcademicHistoryResponse(BaseModel):
@@ -439,14 +515,16 @@ class NextOfKinCreate(BaseModel):
     """Schema for creating next of kin records."""
     application_id: str = Field(..., description="Application ID")
     surname: str = Field(..., min_length=1, max_length=100, description="Surname of next of kin")
-    first_name: str = Field(..., min_length=1, max_length=100, description="First name of next of kin")
-    id_number: Optional[str] = Field(None, max_length=50, description="ID number of next of kin")
+    first_name: str = Field(..., validation_alias=AliasChoices('first_name', 'firstName'), min_length=1, max_length=100, description="First name of next of kin")
+    id_number: Optional[str] = Field(None, validation_alias=AliasChoices('id_number', 'idNumber'), max_length=50, description="ID number of next of kin")
     relationship: str = Field(..., min_length=1, max_length=50, description="Relationship to student")
-    mobile_number: str = Field(..., min_length=1, max_length=20, description="Primary mobile number")
-    email_address: str = Field(..., description="Email address")
-    phone_number: Optional[str] = Field(None, max_length=20, description="Alternative phone number")
-    alternate_mobile: Optional[str] = Field(None, max_length=20, description="Alternate mobile number")
-    physical_address: Optional[str] = Field(None, max_length=500, description="Physical address")
+    mobile_number: str = Field(..., validation_alias=AliasChoices('mobile_number', 'mobileNumber'), min_length=1, max_length=20, description="Primary mobile number")
+    email_address: str = Field(..., validation_alias=AliasChoices('email_address', 'emailAddress'), description="Email address")
+    phone_number: Optional[str] = Field(None, validation_alias=AliasChoices('phone_number', 'phoneNumber'), max_length=20, description="Alternative phone number")
+    alternate_mobile: Optional[str] = Field(None, validation_alias=AliasChoices('alternate_mobile', 'alternateMobile'), max_length=20, description="Alternate mobile number")
+    physical_address: Optional[str] = Field(None, validation_alias=AliasChoices('physical_address', 'physicalAddress'), max_length=500, description="Physical address")
+
+    model_config = ConfigDict(populate_by_name=True)
 
 
 class NextOfKinUpdate(BaseModel):
@@ -482,14 +560,16 @@ class NextOfKinResponse(BaseModel):
 class NextOfKinPartial(BaseModel):
     """Schema for partial next of kin auto-save operations."""
     surname: Optional[str] = Field(None, max_length=100)
-    first_name: Optional[str] = Field(None, max_length=100)
-    id_number: Optional[str] = Field(None, max_length=50)
+    first_name: Optional[str] = Field(None, validation_alias=AliasChoices('first_name', 'firstName'), max_length=100)
+    id_number: Optional[str] = Field(None, validation_alias=AliasChoices('id_number', 'idNumber'), max_length=50)
     relationship: Optional[str] = Field(None, max_length=50)
-    mobile_number: Optional[str] = Field(None, max_length=20)
-    email_address: Optional[str] = Field(None)
-    phone_number: Optional[str] = Field(None, max_length=20)
-    alternate_mobile: Optional[str] = Field(None, max_length=20)
-    physical_address: Optional[str] = Field(None, max_length=500)
+    mobile_number: Optional[str] = Field(None, validation_alias=AliasChoices('mobile_number', 'mobileNumber'), max_length=20)
+    email_address: Optional[str] = Field(None, validation_alias=AliasChoices('email_address', 'emailAddress'))
+    phone_number: Optional[str] = Field(None, validation_alias=AliasChoices('phone_number', 'phoneNumber'), max_length=20)
+    alternate_mobile: Optional[str] = Field(None, validation_alias=AliasChoices('alternate_mobile', 'alternateMobile'), max_length=20)
+    physical_address: Optional[str] = Field(None, validation_alias=AliasChoices('physical_address', 'physicalAddress'), max_length=500)
+
+    model_config = ConfigDict(populate_by_name=True)
 
 
 # ============================================================================

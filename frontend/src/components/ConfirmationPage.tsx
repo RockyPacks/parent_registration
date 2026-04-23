@@ -1,7 +1,7 @@
 import React, { useRef } from 'react';
 import { useReactToPrint } from 'react-to-print';
 import CheckIcon from './icons/CheckIcon';
-import ApplicationForm from './ApplicationForm';
+import ApplicationForm, { ApplicationFormHandle } from './ApplicationForm';
 import type { SummaryData } from '../types';
 
 interface ConfirmationPageProps {
@@ -17,28 +17,25 @@ const ConfirmationPage: React.FC<ConfirmationPageProps> = ({
   summaryData,
   onClose
 }) => {
-  const applicationFormRef = useRef<HTMLDivElement>(null);
+  const applicationFormHandleRef = useRef<ApplicationFormHandle>(null);
 
-  const handlePrint = useReactToPrint({
-    contentRef: applicationFormRef,
-    documentTitle: `Application_${applicationId || 'Form'}`,
-    pageStyle: `
-      @page { size: A4; margin: 2cm; }
-      @media print {
-        body { -webkit-print-color-adjust: exact; }
-        div { page-break-inside: avoid; }
-      }
-    `
-  });
+  const handleDownload = () => {
+    if (applicationFormHandleRef.current) {
+      applicationFormHandleRef.current.downloadPDF();
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 flex items-center justify-center px-4 py-8 sm:py-12">
       {/* Hidden ApplicationForm for printing */}
       {summaryData && (
         <div style={{ display: 'none' }}>
-          <div ref={applicationFormRef}>
-            <ApplicationForm summaryData={summaryData} applicationId={applicationId || undefined} />
-          </div>
+          <ApplicationForm 
+            ref={applicationFormHandleRef}
+            summaryData={summaryData} 
+            applicationId={applicationId || undefined} 
+            showPrintButton={false} 
+          />
         </div>
       )}
       <div className="max-w-2xl w-full bg-white rounded-3xl shadow-2xl overflow-hidden animate-[fadeIn_0.5s_ease-in-out]">
@@ -229,7 +226,7 @@ const ConfirmationPage: React.FC<ConfirmationPageProps> = ({
           <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center mb-8 sm:mb-10">
             {summaryData && (
               <button
-                onClick={handlePrint}
+                onClick={handleDownload}
                 className="group relative w-full sm:w-auto px-6 sm:px-8 py-3 sm:py-4 bg-white border-2 border-blue-500 text-blue-600 font-bold rounded-xl shadow-lg hover:shadow-xl hover:bg-blue-50 transform hover:scale-105 transition-all duration-200 flex items-center justify-center gap-2 sm:gap-3 overflow-hidden"
               >
                 <div className="absolute inset-0 bg-gradient-to-r from-blue-500/10 to-purple-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-200"></div>

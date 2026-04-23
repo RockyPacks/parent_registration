@@ -48,23 +48,28 @@ const FeeResponsibility: React.FC<FeeResponsibilityProps> = ({ initialData, fami
     const hasMeaningfulData = initialData && Object.keys(initialData).length > 0 && 
       (initialData.feePerson || initialData.bankName || initialData.parentEmail);
     
-    if (!isInitialized && hasMeaningfulData) {
-      console.log('FeeResponsibility: Initializing with data:', initialData);
+    if (hasMeaningfulData) {
+      console.log('FeeResponsibility: Updating with data:', initialData);
       setFormData(prev => ({
         ...prev,
         ...initialData
       }));
-      setIsInitialized(true);
+      if (!isInitialized) {
+        setIsInitialized(true);
+      }
     }
-  }, [initialData, isInitialized]);
+  }, [initialData]);
 
   useEffect(() => {
-    if (onDataChange) {
+    // Only propagate changes if we have data or if fully initialized from props
+    const hasData = formData.feePerson || formData.bankName || formData.accountNumber;
+    
+    if (onDataChange && (hasData || isInitialized)) {
       // Send to parent component which will handle localStorage via MainContent
       onDataChange(formData);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [formData]);
+  }, [formData, isInitialized]);
 
   const validateField = (field: string, value: string | boolean) => {
     let error = '';

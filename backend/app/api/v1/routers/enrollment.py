@@ -7,7 +7,7 @@ from app.api.v1.schemas.enrollment import (
     SubmitEnrollmentResponse, ApplicationResponse,
     UploadSummaryResponse, SubmitApplicationRequest,
     SubmitApplicationResponse, ApplicationSummary,
-    AcademicHistorySchema
+    AcademicHistorySchema, DeclarationSubmitRequest
 )
 from app.services.enrollment_service import enrollment_service
 from app.core.security import get_current_user
@@ -91,7 +91,7 @@ async def get_declaration(
 
 @router.post("/declaration")
 async def submit_declaration(
-    data: Dict[str, Any],
+    data: DeclarationSubmitRequest,
     current_user: dict = Depends(get_current_user)
 ) -> Dict[str, Any]:
     """Submit declaration data"""

@@ -52,7 +52,7 @@ const Step4FeeAgreement: React.FC<Step4FeeAgreementProps> = ({
         try {
           console.log('Step4FeeAgreement: Grade not in props, fetching application...');
           const appData = await apiService.getApplication(applicationId);
-          grade = appData.student?.grade_applied_for;
+          grade = appData.student?.gradeAppliedFor;
           console.log('Step4FeeAgreement: Grade fetched from backend:', grade);
         } catch (err) {
           console.error('Step4FeeAgreement: Failed to fetch application for grade:', err);
@@ -90,11 +90,12 @@ const Step4FeeAgreement: React.FC<Step4FeeAgreementProps> = ({
       setSelectedPlan(initialData.plan);
     }
   }, [initialData?.plan]);
-
-  // Call onDataChange whenever selectedPlan changes or initialData is loaded
+  
+  // Call onDataChange whenever selectedPlan changes
   useEffect(() => {
-    // Also include feeData, as it's often related to financing in the summary
-    onDataChangeRef.current?.({ plan: selectedPlan });
+    if (onDataChangeRef.current && selectedPlan) {
+      onDataChangeRef.current({ plan: selectedPlan });
+    }
   }, [selectedPlan]);
 
   const getPlanType = (planTitle: string): string => {

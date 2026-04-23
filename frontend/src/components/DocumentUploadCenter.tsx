@@ -137,9 +137,9 @@ export const DocumentUploadCenter: React.FC<DocumentUploadCenterProps> = ({
     const mapToUploadedFile = (apiFile: any): UploadedFile => ({
       id: apiFile.id,
       name: apiFile.filename,
-      size: apiFile.file_size || apiFile.size, // Use file_size from backend, fallback to size
+      size: apiFile.fileSize || apiFile.file_size || apiFile.size, // camelCase from toCamelCase, fallback to snake_case
       progress: 100, // uploaded files are complete
-      timestamp: new Date(apiFile.created_at),
+      timestamp: new Date(apiFile.createdAt || apiFile.created_at),
     });
 
     setCategories(prev => {
@@ -164,7 +164,7 @@ export const DocumentUploadCenter: React.FC<DocumentUploadCenterProps> = ({
 
         // Filter uploaded files for this category
         const categoryApiFiles = uploadedFiles.filter(file => {
-          const docType = file.document_type?.toLowerCase() || '';
+          const docType = file.documentType?.toLowerCase() || file.document_type?.toLowerCase() || '';
           return types.includes(docType);
         });
 
@@ -318,9 +318,9 @@ export const DocumentUploadCenter: React.FC<DocumentUploadCenterProps> = ({
         const { apiService } = await import('../services/api');
         const response = await apiService.request('/enrollment/auto-save', {
           method: 'POST',
-          body: JSON.stringify({ application_id: null })
+          body: JSON.stringify({ applicationId: null })
         });
-        currentApplicationId = (response as any).application_id;
+        currentApplicationId = (response as any).applicationId;
       } catch (error) {
         const errorMsg = 'Failed to create application. Please complete step 1 first.';
         setErrorMessage(errorMsg);
@@ -448,7 +448,7 @@ export const DocumentUploadCenter: React.FC<DocumentUploadCenterProps> = ({
 
     const types = mapping[categoryId] || [];
     return uploadedFiles.filter(file => {
-      const docType = file.document_type?.toLowerCase() || '';
+      const docType = file.documentType?.toLowerCase() || file.document_type?.toLowerCase() || '';
       return types.includes(docType);
     }).length;
   };
@@ -719,7 +719,7 @@ export const DocumentUploadCenter: React.FC<DocumentUploadCenterProps> = ({
                       </div>
                       <div className="text-sm">
                         <p className="font-medium text-gray-800">{file.filename}</p>
-                        <p className="text-gray-600">{file.document_type} • {((file.file_size || file.size) / 1024).toFixed(1)} KB</p>
+                        <p className="text-gray-600">{file.documentType || file.document_type} • {(((file.fileSize || file.file_size || file.size) || 0) / 1024).toFixed(1)} KB</p>
                       </div>
                     </div>
                     <div className="flex items-center gap-2 w-full sm:w-auto">

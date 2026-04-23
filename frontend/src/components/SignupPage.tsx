@@ -1,7 +1,7 @@
 // SignupPage.tsx
 import React, { useState, useEffect } from 'react';
 import { authService } from '../services/auth';
-import { schoolsSupabase } from '../services/supabase';
+import { apiService } from '../services/api';
 import knitIcon from '../../assets/knit-icon.png';
 import PasswordInput from './ui/PasswordInput';
 
@@ -32,16 +32,14 @@ const SignupPage: React.FC<SignupPageProps> = ({ onSignupSuccess, onSwitchToLogi
     let mounted = true;
     const loadSchools = async () => {
       try {
-        const { data, error } = await schoolsSupabase
-          .from('Schools')
-          .select('id, schoolName')
-          .order('schoolName', { ascending: true });
+        const response = await apiService.getSchools();
         if (!mounted) return;
-        if (error) {
-          console.warn('[Schools]', error.message);
+        
+        if (response.error) {
+          console.warn('[Schools]', response.error);
           setSchoolsError('Could not load schools list.');
         } else {
-          const list: School[] = (data ?? []).map((row: any) => ({
+          const list: School[] = (response.data ?? []).map((row: any) => ({
             id: row.id as number,
             name: row.schoolName as string,
           }));

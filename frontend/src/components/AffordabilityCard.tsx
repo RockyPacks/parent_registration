@@ -14,7 +14,7 @@ interface AffordabilityCardProps {
 
 const AffordabilityCard: React.FC<AffordabilityCardProps> = ({ fees, disposableIncome = 65000 }) => {
   // Use actual fee data from API
-  const annualFees = fees.annual_fee;
+  const annualFees = fees.annualFee;
   const gap = Math.max(0, annualFees - disposableIncome);
   const feeToIncomeRatio = Math.min(100, Math.round((annualFees / disposableIncome) * 100));
   
@@ -55,7 +55,7 @@ const AffordabilityCard: React.FC<AffordabilityCardProps> = ({ fees, disposableI
           {/* Registration Fee Display */}
           <div className="mt-2 flex items-center justify-center md:justify-start space-x-2 text-sm">
             <span className="bg-blue-100 text-blue-700 py-0.5 px-2 rounded font-medium">
-              + {new Intl.NumberFormat('en-ZA', { style: 'currency', currency: 'ZAR', maximumFractionDigits: 0 }).format(fees.registration_fee)} Reg Fee
+              + {new Intl.NumberFormat('en-ZA', { style: 'currency', currency: 'ZAR', maximumFractionDigits: 0 }).format(fees.registrationFee)} Reg Fee
             </span>
             <span className="text-gray-400">|</span>
             <span className="text-gray-500">{fees.grade}</span>
