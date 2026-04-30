@@ -98,6 +98,33 @@ const Step4FeeAgreement: React.FC<Step4FeeAgreementProps> = ({
     }
   }, [selectedPlan]);
 
+  // Fetch existing financing selection from backend on mount
+  useEffect(() => {
+    const fetchExistingSelection = async () => {
+      if (!applicationId) return;
+
+      try {
+        console.log('Step4FeeAgreement: Fetching existing financing selection for:', applicationId);
+        const selection = await apiService.getFinancingSelection(applicationId);
+        
+        if (selection && selection.selectedPlan) {
+          console.log('Step4FeeAgreement: Found existing plan in backend:', selection.selectedPlan);
+          setSelectedPlan(selection.selectedPlan);
+          
+          // Also sync with parent state if it's different from what we have
+          if (onDataChangeRef.current) {
+            onDataChangeRef.current({ plan: selection.selectedPlan });
+          }
+        }
+      } catch (err) {
+        // 404 is expected if no plan has been selected yet
+        console.log('Step4FeeAgreement: No existing financing selection found or error fetching:', err);
+      }
+    };
+
+    fetchExistingSelection();
+  }, [applicationId]);
+
   const getPlanType = (planTitle: string): string => {
     const planMapping: { [key: string]: string } = {
       'Pay Monthly Debit': 'monthly_flat',

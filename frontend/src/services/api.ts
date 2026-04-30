@@ -595,6 +595,15 @@ class ApiService {
       authenticated: false
     });
   }
+
+  /**
+   * Get financing selection for an application.
+   * @param applicationId - Application ID
+   * @returns Financing selection data including selected plan
+   */
+  async getFinancingSelection(applicationId: string): Promise<any> {
+    return this.request(`/financing/selection/${applicationId}`);
+  }
 }
 
 export const apiService = new ApiService();
