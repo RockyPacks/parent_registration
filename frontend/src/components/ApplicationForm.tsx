@@ -306,17 +306,26 @@ const ApplicationForm = React.forwardRef<ApplicationFormHandle, ApplicationFormP
         </div>
 
         {/* Part C: Medical */}
-        <OfficialHeader title="Part C: Medical History and Allergies" />
+        <OfficialHeader title="Part C: Medical & Learner Health Details" />
         <div style={{ border: '1px solid #000', borderBottom: 'none', display: 'grid', gridTemplateColumns: '1fr 1fr' }}>
-          <FieldRow label="Medical Aid" value={medical.medicalAidName} />
-          <FieldRow label="Member No." value={medical.memberNumber} />
-          <FieldRow label="Main Member" value={medical.mainMemberName} />
-          <FieldRow label="Doctor Name" value={medical.doctorName} />
+          <FieldRow label="Religion" value={medical.religion} />
+          <FieldRow label="Home Language" value={medical.homeLanguage} />
+          <FieldRow label="Allergy Status" value={medical.allergyStatus} />
+          <FieldRow label="Immunisations" value={medical.immunisationsUpToDate} />
+          <FieldRow label="Medical Aid Scheme" value={medical.medicalAidScheme || medical.medicalAidName} />
+          <FieldRow label="Medical Aid No." value={medical.medicalAidNumber || medical.memberNumber} />
+          <FieldRow label="Primary Member" value={medical.primaryMemberDetails} fullWidth={true} />
           <div style={{ gridColumn: 'span 2', padding: '10px', fontSize: '11px', borderBottom: '1px solid #000' }}>
-            <strong>Chronic Conditions:</strong> {medical.conditions && medical.conditions.length > 0 ? medical.conditions.join(', ') : 'None Reported'}
+            <strong>Allergies:</strong> {medical.allergies || 'None Reported'}
           </div>
           <div style={{ gridColumn: 'span 2', padding: '10px', fontSize: '11px', borderBottom: '1px solid #000' }}>
-            <strong>Severe Allergies:</strong> {medical.allergies || 'None Reported'}
+            <strong>Allergy Action Required:</strong> {medical.allergyActionRequired || 'None'}
+          </div>
+          <div style={{ gridColumn: 'span 2', padding: '10px', fontSize: '11px', borderBottom: '1px solid #000' }}>
+            <strong>Chronic/Support Conditions:</strong> {medical.learnerConditions && medical.learnerConditions.length > 0 ? medical.learnerConditions.join(', ') : (medical.conditions && medical.conditions.length > 0 ? medical.conditions.join(', ') : 'None Reported')}
+          </div>
+          <div style={{ gridColumn: 'span 2', padding: '10px', fontSize: '11px', borderBottom: '1px solid #000' }}>
+            <strong>Medicine Not To Be Administered:</strong> {medical.medicineNotToAdminister || 'None'}
           </div>
         </div>
 

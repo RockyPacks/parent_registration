@@ -5,6 +5,7 @@ interface Step {
   title: string;
   subtitle: string;
   isRiskAssessment?: boolean; // New optional property for risk assessment step
+  showUpdateBadge?: boolean; // New optional property for medical update
 }
 
 interface SidebarProps {
@@ -159,11 +160,18 @@ const Sidebar: React.FC<SidebarProps> = ({ steps, activeStep, onStepClick, compl
                   {status === 'completed' ? getStepIcon('completed') : step.isRiskAssessment ? getStepIcon('pending', true) : step.number}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className={`font-medium text-xs md:text-sm truncate ${
-                    status === 'active' ? 'text-blue-900' : status === 'completed' ? 'text-green-800' : status === 'in-progress' ? 'text-yellow-900' : 'text-gray-900'
-                  }`}>
-                    {step.title}
-                  </p>
+                  <div className="flex items-center gap-2">
+                    <p className={`font-medium text-xs md:text-sm truncate ${
+                      status === 'active' ? 'text-blue-900' : status === 'completed' ? 'text-green-800' : status === 'in-progress' ? 'text-yellow-900' : 'text-gray-900'
+                    }`}>
+                      {step.title}
+                    </p>
+                    {step.showUpdateBadge && status !== 'completed' && (
+                      <span className="flex-shrink-0 px-1.5 py-0.5 bg-indigo-100 text-indigo-600 text-[8px] font-bold rounded uppercase tracking-wider animate-pulse border border-indigo-200">
+                        Updated
+                      </span>
+                    )}
+                  </div>
                   <p className={`text-xs truncate ${
                     status === 'active' ? 'text-blue-700' : status === 'completed' ? 'text-green-600' : status === 'in-progress' ? 'text-yellow-700' : 'text-gray-500'
                   }`}>

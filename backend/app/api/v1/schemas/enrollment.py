@@ -103,10 +103,22 @@ class MedicalInfo(BaseModel):
 
     Contains medical aid details, conditions, and allergies.
     """
+    # Legacy fields (kept for backward compatibility)
     medical_aid_name: Optional[str] = Field(None, max_length=100, description="Medical aid scheme name")
     member_number: Optional[str] = Field(None, max_length=50, description="Medical aid member number")
     conditions: List[str] = Field(default_factory=list, description="List of medical conditions")
-    allergies: Optional[str] = Field(None, max_length=500, description="Known allergies")
+    allergies: Optional[str] = Field(None, max_length=1000, description="Known allergies")
+    # New Medical & Learner Health Detail fields
+    religion: Optional[str] = Field(None, max_length=100, description="Religion")
+    home_language: Optional[str] = Field(None, max_length=100, description="Home language")
+    allergy_action_required: Optional[str] = Field(None, max_length=1000, description="Allergy action plan")
+    allergy_status: Optional[str] = Field(None, max_length=50, description="Allergy status")
+    immunisations_up_to_date: Optional[str] = Field(None, max_length=50, description="Immunisation status")
+    learner_conditions: List[str] = Field(default_factory=list, description="Learner conditions disclosure")
+    medicine_not_to_administer: Optional[str] = Field(None, max_length=1000, description="Medicine restrictions")
+    medical_aid_scheme: Optional[str] = Field(None, max_length=100, description="Medical aid scheme (new field)")
+    medical_aid_number: Optional[str] = Field(None, max_length=50, description="Medical aid number (new field)")
+    primary_member_details: Optional[str] = Field(None, max_length=200, description="Primary member details")
 
 
 class MedicalInfoPartial(BaseModel):
@@ -115,10 +127,22 @@ class MedicalInfoPartial(BaseModel):
 
     Allows partial updates to medical data.
     """
+    # Legacy fields (kept for backward compatibility)
     medical_aid_name: Optional[str] = Field(None, validation_alias=AliasChoices('medical_aid_name', 'medicalAidName'), max_length=100, description="Medical aid scheme name")
     member_number: Optional[str] = Field(None, validation_alias=AliasChoices('member_number', 'memberNumber'), max_length=50, description="Medical aid member number")
     conditions: Optional[List[str]] = Field(None, description="List of medical conditions")
-    allergies: Optional[str] = Field(None, max_length=500, description="Known allergies")
+    allergies: Optional[str] = Field(None, max_length=1000, description="Known allergies")
+    # New Medical & Learner Health Detail fields
+    religion: Optional[str] = Field(None, max_length=100, description="Religion")
+    home_language: Optional[str] = Field(None, validation_alias=AliasChoices('home_language', 'homeLanguage'), max_length=100, description="Home language")
+    allergy_action_required: Optional[str] = Field(None, validation_alias=AliasChoices('allergy_action_required', 'allergyActionRequired'), max_length=1000, description="Allergy action plan")
+    allergy_status: Optional[str] = Field(None, validation_alias=AliasChoices('allergy_status', 'allergyStatus'), max_length=50, description="Allergy status")
+    immunisations_up_to_date: Optional[str] = Field(None, validation_alias=AliasChoices('immunisations_up_to_date', 'immunisationsUpToDate'), max_length=50, description="Immunisation status")
+    learner_conditions: Optional[List[str]] = Field(None, validation_alias=AliasChoices('learner_conditions', 'learnerConditions'), description="Learner conditions disclosure")
+    medicine_not_to_administer: Optional[str] = Field(None, validation_alias=AliasChoices('medicine_not_to_administer', 'medicineNotToAdminister'), max_length=1000, description="Medicine restrictions")
+    medical_aid_scheme: Optional[str] = Field(None, validation_alias=AliasChoices('medical_aid_scheme', 'medicalAidScheme'), max_length=100, description="Medical aid scheme (new field)")
+    medical_aid_number: Optional[str] = Field(None, validation_alias=AliasChoices('medical_aid_number', 'medicalAidNumber'), max_length=50, description="Medical aid number (new field)")
+    primary_member_details: Optional[str] = Field(None, validation_alias=AliasChoices('primary_member_details', 'primaryMemberDetails'), max_length=200, description="Primary member details")
 
     model_config = ConfigDict(populate_by_name=True)
 

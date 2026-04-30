@@ -118,11 +118,22 @@ export interface SummaryData {
     nextOfKinIdNumber?: string;
   };
   medical?: {
+    religion?: string;
+    homeLanguage?: string;
+    allergies?: string;
+    allergyActionRequired?: string;
+    allergyStatus?: string;
+    immunisationsUpToDate?: string;
+    medicalAidScheme?: string;
+    medicalAidNumber?: string;
+    primaryMemberDetails?: string;
+    learnerConditions?: string[];
+    medicineNotToAdminister?: string;
+    // Legacy fields
     medicalAidName?: string;
     memberNumber?: string;
     mainMemberName?: string;
     conditions?: string[];
-    allergies?: string;
     doctorName?: string;
     doctorPhoneNumber?: string;
   };
@@ -149,6 +160,7 @@ export interface SummaryData {
     bankName?: string;
     branchCode?: string;
     accountNumber?: string;
+    accountType?: string;
   };
   declaration?: {
     signed: boolean;
@@ -191,11 +203,22 @@ export interface LocalStorageData {
   };
   nextOfKinInformation: NextOfKinData;
   medicalInformation: {
+    religion?: string;
+    homeLanguage?: string;
+    allergies?: string;
+    allergyActionRequired?: string;
+    allergyStatus?: string;
+    immunisationsUpToDate?: string;
+    medicalAidScheme?: string;
+    medicalAidNumber?: string;
+    primaryMemberDetails?: string;
+    learnerConditions?: string[];
+    medicineNotToAdminister?: string;
+    // Legacy fields
     medicalAidName?: string;
     memberNumber?: string;
     mainMemberName?: string;
     conditions?: string[];
-    allergies?: string;
     doctorName?: string;
     doctorPhoneNumber?: string;
   };
@@ -206,6 +229,7 @@ export interface LocalStorageData {
     bankName?: string;
     branchCode?: string;
     accountNumber?: string;
+    accountType?: string;
   };
   academicHistoryFormData: AcademicHistoryData;
   selectedSubjects: {

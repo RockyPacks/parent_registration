@@ -172,10 +172,10 @@ const MainContent: React.FC<MainContentProps> = (props) => {
   }, [studentData]);
 
   const isMedicalInfoCompleted = useMemo(() => {
-    return medicalData?.medicalAidName?.trim() ||
-      medicalData?.memberNumber?.trim() ||
-      (medicalData?.conditions && medicalData.conditions.length > 0) ||
-      medicalData?.allergies?.trim();
+    return medicalData?.homeLanguage?.trim() &&
+      medicalData?.allergies?.trim() &&
+      medicalData?.allergyStatus?.trim() &&
+      medicalData?.immunisationsUpToDate?.trim();
   }, [medicalData]);
 
   const isFamilyInfoCompleted = useMemo(() => {
@@ -250,8 +250,14 @@ const MainContent: React.FC<MainContentProps> = (props) => {
     if (!feeData?.relationship) errors.feeRelationship = 'Relationship is required';
     if (!feeData?.feeTermsAccepted) errors.feeTermsAccepted = 'You must accept the fee terms and conditions';
 
+    // Medical required field validation
+    if (!medicalData?.homeLanguage?.trim()) errors.medicalHomeLanguage = 'Home Language is required';
+    if (!medicalData?.allergies?.trim()) errors.medicalAllergies = 'Allergy information is required';
+    if (!medicalData?.allergyStatus?.trim()) errors.medicalAllergyStatus = 'Allergy Status is required';
+    if (!medicalData?.immunisationsUpToDate?.trim()) errors.medicalImmunisations = 'Immunisation status is required';
+
     return errors;
-  }, [studentData, familyData, feeData]);
+  }, [studentData, familyData, feeData, medicalData]);
 
   useEffect(() => {
     setValidationErrors(validationErrorsMemo);
