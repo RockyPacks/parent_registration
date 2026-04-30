@@ -360,7 +360,8 @@ const App: React.FC = () => {
                   bankName: appData.fee.bankName || '',
                   branchCode: appData.fee.branchCode || '',
                   accountNumber: appData.fee.accountNumber || '',
-                  accountType: appData.fee.accountType || ''
+                  accountType: appData.fee.accountType || '',
+                  selectedPlan: appData.fee.selectedPlan || ''
                 };
               }
 

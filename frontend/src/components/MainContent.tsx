@@ -436,7 +436,12 @@ const MainContent: React.FC<MainContentProps> = (props) => {
       storage.set(getUserKey('financingData'), newData);
       return newData;
     });
-  }, [getUserKey]);
+
+    // Also sync with feeData so it's included in auto-saves
+    if (data.plan) {
+      handleFeeDataChange({ selectedPlan: data.plan });
+    }
+  }, [getUserKey, handleFeeDataChange]);
 
   const handleDeclarationDataChange = useCallback((data: any) => {
     console.log('MainContent: handleDeclarationDataChange received - signature present:', !!data.signatureImage, 'length:', data.signatureImage?.length || 0);
