@@ -88,12 +88,25 @@ export interface EnrollmentData {
     previousGrade: string;
     gradeAppliedFor: string;
     previousSchool: string;
+    email?: string;
+    phone?: string;
   };
   medical: {
+    religion?: string;
+    homeLanguage?: string;
+    allergies?: string;
+    allergyActionRequired?: string;
+    allergyStatus?: string;
+    immunisationsUpToDate?: string;
+    medicalAidScheme?: string;
+    medicalAidNumber?: string;
+    primaryMemberDetails?: string;
+    learnerConditions?: string[];
+    medicineNotToAdminister?: string;
+    // Legacy fields for backward compatibility
     medicalAidName?: string;
     memberNumber?: string;
-    conditions: string[];
-    allergies?: string;
+    conditions?: string[];
   };
   family: {
     fatherSurname: string;
@@ -117,6 +130,10 @@ export interface EnrollmentData {
     feePerson: string;
     relationship: string;
     feeTermsAccepted: boolean;
+    bankName?: string;
+    branchCode?: string;
+    accountNumber?: string;
+    accountType?: string;
   };
   next_of_kin?: any;
 }
@@ -253,7 +270,7 @@ class ApiService {
    * Calls the backend to get an existing application ID for the current user
    * or create a new one. This is the authoritative way to get the ID after login.
    */
-  async initiateApplication(): Promise<{ application_id: string; status: string }> {
+  async initiateApplication(): Promise<{ applicationId: string; status: string }> {
     // This makes a POST request to the correct, secure endpoint.
     return this.request('/enrollment/initiate-application', {
       method: 'POST',
@@ -304,7 +321,7 @@ class ApiService {
     });
   }
 
-  async submitEnrollment(data: EnrollmentData): Promise<{ message: string; application_id: string }> {
+  async submitEnrollment(data: EnrollmentData): Promise<{ message: string; applicationId: string }> {
     const snakeCaseData = toSnakeCase(data);
     // Ensure required fields are present for submission
     if (snakeCaseData.student) {
@@ -346,7 +363,7 @@ class ApiService {
     });
   }
 
-  async autoSaveEnrollment(data: { application_id: string; student?: any; medical?: any; family?: any; fee?: any; next_of_kin?: any }): Promise<{ message: string; application_id: string }> {
+  async autoSaveEnrollment(data: { application_id: string; student?: any; medical?: any; family?: any; fee?: any; next_of_kin?: any }): Promise<{ message: string; applicationId: string }> {
     // Only include sections that have actual data
     const filteredData: any = {
       application_id: data.application_id
@@ -379,7 +396,7 @@ class ApiService {
     // Only proceed if we have at least some data to save besides the application_id
     if (!hasData(filteredData) || Object.keys(filteredData).length <= 1) {
       console.log('Auto-save skipped: no valid data to save');
-      return { message: 'No data to save', application_id: data.application_id };
+      return { message: 'No data to save', applicationId: data.application_id };
     }
 
     const snakeCaseData = toSnakeCase(filteredData);
@@ -452,7 +469,7 @@ class ApiService {
     return this.request(`/enrollment/declaration/${applicationId}`);
   }
 
-  async submitDeclaration(data: any): Promise<{ message: string; application_id: string }> {
+  async submitDeclaration(data: any): Promise<{ message: string; applicationId: string }> {
     const snakeCaseData = toSnakeCase(data);
     return this.request('/enrollment/declaration', {
       method: 'POST',
@@ -460,7 +477,7 @@ class ApiService {
     });
   }
 
-  async submitAcademicHistory(data: any): Promise<{ message: string; application_id: string }> {
+  async submitAcademicHistory(data: any): Promise<{ message: string; applicationId: string }> {
     // Extract application_id from the payload (handle both snake_case and camelCase)
     const application_id = data.application_id || data.applicationId;
     const { application_id: _1, applicationId: _2, ...formData } = data;
@@ -492,7 +509,7 @@ class ApiService {
     }
   }
 
-  async submitApplication(applicationId: string, fullData?: any): Promise<{ message: string; application_id: string }> {
+  async submitApplication(applicationId: string, fullData?: any): Promise<{ message: string; applicationId: string }> {
     const payload: any = { application_id: applicationId };
     
     // Include full application data if provided
@@ -546,7 +563,7 @@ class ApiService {
       }
     }
     
-    return this.request<{ message: string; application_id: string }>('/enrollment/submit-application', {
+    return this.request<{ message: string; applicationId: string }>('/enrollment/submit-application', {
       method: 'POST',
       body: JSON.stringify(payload),
     });

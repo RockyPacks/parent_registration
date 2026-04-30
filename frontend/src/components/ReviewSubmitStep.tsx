@@ -123,11 +123,22 @@ export const ReviewSubmitStep: React.FC<ReviewSubmitStepProps> = ({ currentData,
           nextOfKinIdNumber: nextOfKinData.idNumber || '',
         },
         medical: {
+          religion: medicalInfoData.religion || '',
+          homeLanguage: medicalInfoData.homeLanguage || '',
+          allergies: medicalInfoData.allergies || '',
+          allergyActionRequired: medicalInfoData.allergyActionRequired || '',
+          allergyStatus: medicalInfoData.allergyStatus || '',
+          immunisationsUpToDate: medicalInfoData.immunisationsUpToDate || '',
+          medicalAidScheme: medicalInfoData.medicalAidScheme || medicalInfoData.medicalAidName || '',
+          medicalAidNumber: medicalInfoData.medicalAidNumber || medicalInfoData.memberNumber || '',
+          primaryMemberDetails: medicalInfoData.primaryMemberDetails || '',
+          learnerConditions: medicalInfoData.learnerConditions || [],
+          medicineNotToAdminister: medicalInfoData.medicineNotToAdminister || '',
+          // Legacy fields
           medicalAidName: medicalInfoData.medicalAidName || '',
           memberNumber: medicalInfoData.memberNumber || '',
           mainMemberName: medicalInfoData.mainMemberName || '',
           conditions: medicalInfoData.conditions || [],
-          allergies: medicalInfoData.allergies || '',
           doctorName: medicalInfoData.doctorName || '',
           doctorPhoneNumber: medicalInfoData.doctorPhoneNumber || '',
         },
@@ -298,12 +309,29 @@ export const ReviewSubmitStep: React.FC<ReviewSubmitStepProps> = ({ currentData,
                   </div>
                 </div>
               </AccordionItem>
-              <AccordionItem title="Medical Information" onEdit={() => handleEdit('Medical Information')}>
+              <AccordionItem title="Medical & Learner Health Details" onEdit={() => handleEdit('Medical Information')}>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-4">
-                  <InfoItem label="Medical Aid Name" value={summaryData.medical?.medicalAidName} isRequired={false} placeholder="Medical Aid Name" />
-                  <InfoItem label="Member Number" value={summaryData.medical?.memberNumber} isRequired={false} placeholder="Member Number" />
-                  <InfoItem label="Conditions" value={summaryData.medical?.conditions?.join(', ') || 'None'} isRequired={false} placeholder="Conditions" />
-                  <InfoItem label="Allergies" value={summaryData.medical?.allergies || 'None'} isRequired={false} placeholder="Allergies" />
+                  <InfoItem label="Religion" value={summaryData.medical?.religion || 'Not specified'} isRequired={false} placeholder="Religion" />
+                  <InfoItem label="Home Language" value={summaryData.medical?.homeLanguage} isRequired={true} placeholder="Home Language" />
+                  <div className="md:col-span-2">
+                    <InfoItem label="Allergies" value={summaryData.medical?.allergies} isRequired={true} placeholder="Allergy Information" />
+                  </div>
+                  <div className="md:col-span-2">
+                    <InfoItem label="Allergy Action Required" value={summaryData.medical?.allergyActionRequired || 'Not specified'} isRequired={false} placeholder="Allergy actions" />
+                  </div>
+                  <InfoItem label="Allergy Status" value={summaryData.medical?.allergyStatus} isRequired={true} placeholder="Allergy Status" />
+                  <InfoItem label="Compulsory Immunisations Up to Date" value={summaryData.medical?.immunisationsUpToDate} isRequired={true} placeholder="Immunisation Status" />
+                  <InfoItem label="Medical Aid Scheme" value={summaryData.medical?.medicalAidScheme || summaryData.medical?.medicalAidName || 'Not specified'} isRequired={false} placeholder="Medical Aid Scheme" />
+                  <InfoItem label="Medical Aid Number" value={summaryData.medical?.medicalAidNumber || summaryData.medical?.memberNumber || 'Not specified'} isRequired={false} placeholder="Medical Aid Number" />
+                  <div className="md:col-span-2">
+                    <InfoItem label="Primary Member Details" value={summaryData.medical?.primaryMemberDetails || 'Not specified'} isRequired={false} placeholder="Primary Member Details" />
+                  </div>
+                  <div className="md:col-span-2">
+                    <InfoItem label="Learner Conditions Disclosure" value={summaryData.medical?.learnerConditions?.join(', ') || 'None'} isRequired={false} placeholder="Conditions" />
+                  </div>
+                  <div className="md:col-span-2">
+                    <InfoItem label="Medicine Not To Be Administered" value={summaryData.medical?.medicineNotToAdminister || 'None'} isRequired={false} placeholder="Medicine restrictions" />
+                  </div>
                 </div>
               </AccordionItem>
               <AccordionItem title="Documents" onEdit={() => handleEdit('documents')}>

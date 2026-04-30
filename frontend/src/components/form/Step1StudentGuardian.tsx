@@ -30,16 +30,17 @@ interface Step1StudentGuardianProps {
   nextOfKinData: any; // Add nextOfKinData to the interface
 }
 
-const getIncompleteRequirements = (isStudentCompleted: boolean, isFamilyCompleted: boolean, isFeeCompleted: boolean): string[] => {
+const getIncompleteRequirements = (isStudentCompleted: boolean, isMedicalCompleted: boolean, isFamilyCompleted: boolean, isFeeCompleted: boolean): string[] => {
   const incomplete: string[] = [];
   if (!isStudentCompleted) incomplete.push('Student Information');
+  if (!isMedicalCompleted) incomplete.push('Medical & Learner Health Details');
   if (!isFamilyCompleted) incomplete.push('Family Information (at least one parent)');
   if (!isFeeCompleted) incomplete.push('Fee Responsibility');
   return incomplete;
 };
 
 // Get detailed missing fields for better error messages
-const getDetailedMissingFields = (studentData: any, familyData: any, feeData: any) => {
+const getDetailedMissingFields = (studentData: any, medicalData: any, familyData: any, feeData: any) => {
   const missingFields: { section: string; fields: string[] }[] = [];
   
   // Student Information required fields
@@ -79,6 +80,16 @@ const getDetailedMissingFields = (studentData: any, familyData: any, feeData: an
     missingFields.push({ section: 'Fee Responsibility', fields: feeMissing });
   }
   
+  // Medical Information required fields
+  const medicalMissing: string[] = [];
+  if (!medicalData?.homeLanguage) medicalMissing.push('Home Language');
+  if (!medicalData?.allergies || medicalData.allergies.trim().length === 0) medicalMissing.push('Allergy Information');
+  if (!medicalData?.allergyStatus) medicalMissing.push('Allergy Status');
+  if (!medicalData?.immunisationsUpToDate) medicalMissing.push('Compulsory Immunisations Up to Date');
+  if (medicalMissing.length > 0) {
+    missingFields.push({ section: 'Medical & Learner Health Details', fields: medicalMissing });
+  }
+
   return missingFields;
 };
 
@@ -106,11 +117,12 @@ const Step1StudentGuardian: React.FC<Step1StudentGuardianProps> = ({
 }) => {
   const incompleteRequirements = getIncompleteRequirements(
     isStudentInfoCompleted,
+    isMedicalInfoCompleted,
     isFamilyInfoCompleted,
     isFeeResponsibilityCompleted
   );
   
-  const detailedMissingFields = getDetailedMissingFields(studentData, familyData, feeData);
+  const detailedMissingFields = getDetailedMissingFields(studentData, medicalData, familyData, feeData);
   const canProceed = incompleteRequirements.length === 0;
   
   const handleSubmitClick = () => {
@@ -120,6 +132,7 @@ const Step1StudentGuardian: React.FC<Step1StudentGuardianProps> = ({
       if (firstIncompleteSection) {
         const sectionMap: { [key: string]: string } = {
           'Student Information': 'student-information',
+          'Medical & Learner Health Details': 'medical-information',
           'Family Information': 'family-information',
           'Fee Responsibility': 'fee-responsibility'
         };
@@ -198,6 +211,24 @@ const Step1StudentGuardian: React.FC<Step1StudentGuardianProps> = ({
       </div>
 
       <div className="max-w-6xl mx-auto px-3 sm:px-4 md:px-6 lg:px-8 pt-6 md:pt-10 pb-24 md:pb-32">
+        {/* Update Notice for Existing Users - only shown if medical info is not complete */}
+        {!isMedicalInfoCompleted && (
+          <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-4 mb-8 flex items-start gap-4 shadow-sm animate-fade-in">
+            <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center shadow-sm flex-shrink-0">
+              <svg className="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <div className="flex-1">
+              <h4 className="text-sm font-bold text-indigo-900 mb-1">Important: Enrollment Requirements Updated</h4>
+              <p className="text-xs text-indigo-700 leading-relaxed">
+                To ensure the highest level of learner support and safety, we have updated our health records requirements. 
+                <strong> Please review the "Medical & Learner Health Details" section below and complete any missing required fields (*)</strong> to proceed with your application.
+              </p>
+            </div>
+          </div>
+        )}
+
         {/* Form Sections */}
         <div className="space-y-6">
           <UploadCard
@@ -220,13 +251,13 @@ const Step1StudentGuardian: React.FC<Step1StudentGuardianProps> = ({
 
           <UploadCard
             id="medical-information"
-            title="Medical Information"
-            required={false}
+            title="Medical & Learner Health Details"
+            required
             collapsible={true}
             defaultOpen={false}
             status={isMedicalInfoCompleted ? 'completed' : 'not-started'}
             icon={
-              <div className="w-8 h-8 bg-gradient-to-r from-green-500 to-green-600 rounded-full flex items-center justify-center">
+              <div className="w-8 h-8 bg-gradient-to-r from-red-500 to-rose-600 rounded-full flex items-center justify-center">
                 <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
                 </svg>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import Header from './src/components/Header';
 import Sidebar from './src/components/Sidebar';
 import MainContent from './src/components/MainContent';
@@ -36,14 +36,19 @@ const App: React.FC = () => {
   const [applicationStatus, setApplicationStatus] = useState<string | null>(null);
 
 
-  const steps = [
-    { number: 1, title: 'Student & Guardian Info', subtitle: 'Personal details' },
+  const steps = useMemo(() => [
+    { 
+      number: 1, 
+      title: 'Student & Guardian Info', 
+      subtitle: 'Personal details',
+      showUpdateBadge: true // Draw attention to the new medical requirements
+    },
     { number: 2, title: 'Document Upload', subtitle: 'Required documents' },
     { number: 3, title: 'Academic History', subtitle: 'Previous schools' },
     { number: 4, title: 'Fee Agreement', subtitle: 'Payment terms' },
     { number: 5, title: 'Declaration', subtitle: 'Terms & conditions' },
     { number: 6, title: 'Review & Submit', subtitle: 'Final review' },
-  ];
+  ], []);
 
   useEffect(() => {
     // Check if user is already authenticated on app load
@@ -308,10 +313,21 @@ const App: React.FC = () => {
 
               if (appData.medical) {
                 enrollmentData.medical = {
+                  religion: appData.medical.religion || '',
+                  homeLanguage: appData.medical.homeLanguage || '',
+                  allergies: appData.medical.allergies || '',
+                  allergyActionRequired: appData.medical.allergyActionRequired || '',
+                  allergyStatus: appData.medical.allergyStatus || '',
+                  immunisationsUpToDate: appData.medical.immunisationsUpToDate || '',
+                  medicalAidScheme: appData.medical.medicalAidScheme || appData.medical.medicalAidName || '',
+                  medicalAidNumber: appData.medical.medicalAidNumber || appData.medical.memberNumber || '',
+                  primaryMemberDetails: appData.medical.primaryMemberDetails || '',
+                  learnerConditions: Array.isArray(appData.medical.learnerConditions) ? appData.medical.learnerConditions : [],
+                  medicineNotToAdminister: appData.medical.medicineNotToAdminister || '',
+                  // Legacy fields for backward compatibility
                   medicalAidName: appData.medical.medicalAidName || '',
                   memberNumber: appData.medical.memberNumber || '',
                   conditions: Array.isArray(appData.medical.conditions) ? appData.medical.conditions : [],
-                  allergies: appData.medical.allergies || ''
                 };
               }
 
@@ -616,7 +632,7 @@ const App: React.FC = () => {
       const result = await apiService.submitEnrollment(data);
 
       setEnrollmentData(data);
-      setApplicationId(result.application_id); // Store the application ID from backend
+      setApplicationId(result.applicationId); // Store the application ID from backend
       setCompletedSteps(prev => {
         const newSteps = [...new Set([...prev, 1])]; // Use Set to ensure uniqueness
         if (userEmail) {
