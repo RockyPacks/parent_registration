@@ -103,11 +103,11 @@ const FamilyInformation: React.FC<FamilyInformationProps> = ({ initialFamilyData
     // This protects against empty state overwriting valid localStorage/backend data
     const hasData = familyFormData.fatherSurname || familyFormData.motherSurname;
     
-    if (onFamilyDataChange && (hasData || isInitialized)) {
+    if (onFamilyDataChange && (hasData || isFamilyInitialized)) {
       onFamilyDataChange(familyFormData);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [familyFormData, isInitialized]);
+  }, [familyFormData, isFamilyInitialized]);
 
   useEffect(() => {
     if (onNextOfKinDataChange) {
