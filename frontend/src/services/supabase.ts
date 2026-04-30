@@ -25,9 +25,11 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
 const schoolsSupabaseUrl = import.meta.env.VITE_SCHOOLS_SUPABASE_URL || ''
 const schoolsSupabaseAnonKey = import.meta.env.VITE_SCHOOLS_SUPABASE_ANON_KEY || ''
 
-export const schoolsSupabase = createClient(schoolsSupabaseUrl, schoolsSupabaseAnonKey, {
-  auth: {
-    persistSession: false,
-    autoRefreshToken: false,
-  }
-})
+export const schoolsSupabase = schoolsSupabaseUrl && schoolsSupabaseAnonKey
+  ? createClient(schoolsSupabaseUrl, schoolsSupabaseAnonKey, {
+      auth: {
+        persistSession: false,
+        autoRefreshToken: false,
+      }
+    })
+  : null

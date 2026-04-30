@@ -29,17 +29,16 @@ const MedicalInformation: React.FC<MedicalInformationProps> = ({ initialData, on
   const [isInitialized, setIsInitialized] = useState(false);
 
   // Update form data when initialData changes (e.g., after data is loaded from localStorage/backend)
+  // Only run once when component first receives meaningful data to prevent infinite loops
   useEffect(() => {
-    if (initialData && Object.keys(initialData).length > 0) {
+    if (!isInitialized && initialData && Object.keys(initialData).length > 0) {
       setFormData(prev => ({
         ...prev,
         ...initialData
       }));
-      if (!isInitialized) {
-        setIsInitialized(true);
-      }
+      setIsInitialized(true);
     }
-  }, [initialData]);
+  }, [initialData, isInitialized]);
 
   useEffect(() => {
     // Only propagate changes if we have data or if fully initialized from props
