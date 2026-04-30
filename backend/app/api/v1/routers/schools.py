@@ -2,7 +2,15 @@ from fastapi import APIRouter
 from typing import List
 import logging
 import os
+from pathlib import Path
 from supabase import create_client
+
+# Load .env explicitly so os.getenv works regardless of how the process was started
+try:
+    from dotenv import load_dotenv
+    load_dotenv(Path(__file__).resolve().parents[4] / ".env", override=False)
+except ImportError:
+    pass
 
 logger = logging.getLogger(__name__)
 
@@ -22,14 +30,17 @@ async def get_schools():
         
         # Create a Supabase client for schools database using service key
         schools_client = create_client(schools_url, schools_service_key)
-        response = schools_client.table("Schools").select("id, schoolName").order("schoolName").execute()
+        response = schools_client.table("organizations").select("id, name").is_("archived_at", None).order("name").execute()
         
         if response.data is None:
             return {"data": [], "count": 0}
         
+        # Map 'name' to 'schoolName' to match frontend expectations
+        data = [{"id": row["id"], "schoolName": row["name"]} for row in response.data]
+        
         return {
-            "data": response.data,
-            "count": len(response.data)
+            "data": data,
+            "count": len(data)
         }
     except Exception as e:
         logger.error(f"Error fetching schools: {str(e)}")
