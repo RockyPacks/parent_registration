@@ -15,6 +15,7 @@ interface Step6ReviewSubmitStepProps {
   familyData: any;
   medicalData: any;
   feeData: any;
+  applicationDetailsData: any;
   academicHistoryData: any;
   subjectsData: any;
   financingData: any;
@@ -93,6 +94,7 @@ const Step6ReviewSubmitStep: React.FC<Step6ReviewSubmitStepProps> = ({
   familyData,
   medicalData,
   feeData,
+  applicationDetailsData,
   academicHistoryData,
   subjectsData,
   financingData,
@@ -125,6 +127,12 @@ const Step6ReviewSubmitStep: React.FC<Step6ReviewSubmitStepProps> = ({
       previousGrade: studentData?.previousGrade,
       gradeAppliedFor: studentData?.gradeAppliedFor,
       previousSchool: studentData?.previousSchool,
+    },
+    applicationDetails: {
+      proposedStartTerm: applicationDetailsData?.proposedStartTerm || '',
+      year: applicationDetailsData?.year || '',
+      gradeApplyingFor: applicationDetailsData?.gradeApplyingFor || '',
+      proposedStartDate: applicationDetailsData?.proposedStartDate || '',
     },
     guardian: {
       fatherName: `${familyData?.fatherFirstName || ''} ${familyData?.fatherSurname || ''}`,
@@ -202,6 +210,12 @@ const Step6ReviewSubmitStep: React.FC<Step6ReviewSubmitStepProps> = ({
         gradeAppliedFor: studentData?.gradeAppliedFor,
         previousSchool: studentData?.previousSchool,
       },
+      applicationDetails: {
+        proposedStartTerm: applicationDetailsData?.proposedStartTerm || '',
+        year: applicationDetailsData?.year || '',
+        gradeApplyingFor: applicationDetailsData?.gradeApplyingFor || '',
+        proposedStartDate: applicationDetailsData?.proposedStartDate || '',
+      },
       guardian: {
         fatherName: `${familyData?.fatherFirstName || ''} ${familyData?.fatherSurname || ''}`,
         fatherEmail: familyData?.fatherEmail || '',
@@ -239,7 +253,7 @@ const Step6ReviewSubmitStep: React.FC<Step6ReviewSubmitStepProps> = ({
     
     console.log('Step6ReviewSubmitStep: newData to be set:', newData);
     setCurrentData(newData);
-  }, [studentData, familyData, medicalData, feeData, academicHistoryData, subjectsData, financingData, declarationData, documentsData, nextOfKinData]);
+  }, [studentData, familyData, medicalData, feeData, applicationDetailsData, academicHistoryData, subjectsData, financingData, declarationData, documentsData, nextOfKinData]);
 
   const handleEditStep = (stepNumber: number) => {
     if (setIsEditing) setIsEditing(true);

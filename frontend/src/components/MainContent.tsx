@@ -88,6 +88,7 @@ const MainContent: React.FC<MainContentProps> = (props) => {
   const [medicalData, setMedicalData] = useState<any>({});
   const [familyData, setFamilyData] = useState<any>({});
   const [feeData, setFeeData] = useState<any>({});
+  const [applicationDetailsData, setApplicationDetailsData] = useState<any>({});
   const [validationErrors, setValidationErrors] = useState<{ [key: string]: string }>({});
   const [isSubmitting, setIsSubmitting] = useState(isSubmittingProp || false);
   const [dataLoaded, setDataLoaded] = useState(false);
@@ -119,6 +120,7 @@ const MainContent: React.FC<MainContentProps> = (props) => {
     setMedicalData(getStoredData('medicalData'));
     setFamilyData(getStoredData('familyData'));
     setFeeData(getStoredData('feeData'));
+    setApplicationDetailsData(getStoredData('applicationDetailsData'));
     
     // Try user-specific key first, then fall back to global uploadedFiles key
     const userDocs = storage.get(getUserKey('documentsData'), null);
@@ -203,6 +205,26 @@ const MainContent: React.FC<MainContentProps> = (props) => {
       feeData?.accountNumber?.trim();
   }, [feeData]);
 
+  const isApplicationDetailsCompleted = useMemo(() => {
+    const hasRequiredFields = applicationDetailsData?.proposedStartTerm &&
+      applicationDetailsData?.year &&
+      applicationDetailsData?.gradeApplyingFor;
+
+    if (!hasRequiredFields) {
+      return false;
+    }
+
+    if (!applicationDetailsData?.proposedStartDate) {
+      return true;
+    }
+
+    const startDate = new Date(applicationDetailsData.proposedStartDate);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    return !Number.isNaN(startDate.getTime()) && startDate >= today;
+  }, [applicationDetailsData]);
+
   const validationErrorsMemo = useMemo(() => {
     const errors: { [key: string]: string } = {};
 
@@ -271,7 +293,8 @@ const MainContent: React.FC<MainContentProps> = (props) => {
         student: studentData,
         medical: medicalData,
         family: familyData,
-        fee: feeData
+        fee: feeData,
+        applicationDetails: applicationDetailsData
       };
 
       const authModule = await import('../services/auth');
@@ -305,6 +328,7 @@ const MainContent: React.FC<MainContentProps> = (props) => {
         medical: combinedData.medical,
         family: combinedData.family,
         fee: combinedData.fee,
+        application_details: combinedData.applicationDetails,
         next_of_kin: nextOfKinData
       };
 
@@ -334,7 +358,7 @@ const MainContent: React.FC<MainContentProps> = (props) => {
       setSavingStatus('idle');
       return false;
     }
-  }, [studentData, medicalData, familyData, feeData, nextOfKinData, applicationId, applicationInitialized, addToast]);
+  }, [studentData, medicalData, familyData, feeData, applicationDetailsData, nextOfKinData, applicationId, applicationInitialized, addToast]);
 
   const debouncedAutoSave = useRef(
     debounce(() => {
@@ -364,7 +388,7 @@ const MainContent: React.FC<MainContentProps> = (props) => {
         debouncedAutoSave.current();
       }
     }
-  }, [studentData, medicalData, familyData, feeData, dataLoaded, applicationInitialized]);
+  }, [studentData, medicalData, familyData, feeData, applicationDetailsData, dataLoaded, applicationInitialized]);
 
   const handleStudentDataChange = useCallback((data: any) => {
     setStudentData(prevData => {
@@ -394,6 +418,17 @@ const MainContent: React.FC<MainContentProps> = (props) => {
     setFeeData(prevData => {
       const newData = { ...prevData, ...data };
       storage.set(getUserKey('feeData'), newData);
+      return newData;
+    });
+  }, [getUserKey]);
+
+  const handleApplicationDetailsDataChange = useCallback((data: any) => {
+    setApplicationDetailsData(prevData => {
+      const newData = { ...prevData, ...data };
+      if (JSON.stringify(prevData) === JSON.stringify(newData)) {
+        return prevData;
+      }
+      storage.set(getUserKey('applicationDetailsData'), newData);
       return newData;
     });
   }, [getUserKey]);
@@ -480,6 +515,12 @@ const MainContent: React.FC<MainContentProps> = (props) => {
       return;
     }
 
+    if (!isApplicationDetailsCompleted) {
+      console.error('MainContent: Submission blocked - Application details incomplete');
+      addToast('Please complete the Application Details section before submitting.', 'error');
+      return;
+    }
+
     setIsSubmitting(true);
     try {
       const { apiService } = await import('../services/api');
@@ -490,6 +531,7 @@ const MainContent: React.FC<MainContentProps> = (props) => {
         family: familyData, // familyData now includes nextOfKin
         medical: medicalData,
         fee: feeData,
+        applicationDetails: applicationDetailsData,
         academicHistory: academicHistoryData,
         subjects: subjectsData,
         financing: financingData,
@@ -541,11 +583,18 @@ const MainContent: React.FC<MainContentProps> = (props) => {
         return;
       }
 
+      if (!isApplicationDetailsCompleted) {
+        addToast('Please complete all required Application Details fields.', 'error');
+        setIsSubmitting(false);
+        return;
+      }
+
       const combinedData = {
         student: studentData,
         medical: medicalData,
         family: familyData,
-        fee: feeData
+        fee: feeData,
+        applicationDetails: applicationDetailsData
       };
 
       const authModule = await import('../services/auth');
@@ -587,6 +636,7 @@ const MainContent: React.FC<MainContentProps> = (props) => {
         medical: combinedData.medical,
         family: combinedData.family,
         fee: combinedData.fee,
+        applicationDetails: combinedData.applicationDetails,
         nextOfKin: nextOfKinData
       } as any);
       console.log('submitEnrollment result:', result);
@@ -603,6 +653,7 @@ const MainContent: React.FC<MainContentProps> = (props) => {
       setMedicalData(combinedData.medical);
       setFamilyData(combinedData.family);
       setFeeData(combinedData.fee);
+      setApplicationDetailsData(combinedData.applicationDetails);
 
       // Notify successful save
       addToast('Enrollment data saved successfully.', 'success');
@@ -620,7 +671,7 @@ const MainContent: React.FC<MainContentProps> = (props) => {
       addToast(errorMsg, 'error');
       setIsSubmitting(false);
     }
-  }, [applicationId, applicationInitialized, studentData, medicalData, familyData, feeData, onStepChange, onStepComplete, addToast, isStudentInfoCompleted, isFamilyInfoCompleted, isFeeResponsibilityCompleted]);
+  }, [applicationId, applicationInitialized, studentData, medicalData, familyData, feeData, applicationDetailsData, onStepChange, onStepComplete, addToast, isStudentInfoCompleted, isFamilyInfoCompleted, isFeeResponsibilityCompleted, isApplicationDetailsCompleted, nextOfKinData, localCompletedSteps, getUserKey]);
 
   const handleCombinedSubmitClick = useCallback(() => {
     handleCombinedSubmit();
@@ -631,12 +682,13 @@ const MainContent: React.FC<MainContentProps> = (props) => {
       const hasStudentData = isStudentInfoCompleted;
       const hasFamilyData = isFamilyInfoCompleted;
       const hasFeeData = isFeeResponsibilityCompleted;
+      const hasApplicationDetailsData = isApplicationDetailsCompleted;
       const isStep1Completed = completedSteps.includes(1);
-      if (hasStudentData && hasFamilyData && hasFeeData && !isStep1Completed) {
+      if (hasStudentData && hasFamilyData && hasFeeData && hasApplicationDetailsData && !isStep1Completed) {
         onStepComplete && onStepComplete(1);
       }
     }
-  }, [isStudentInfoCompleted, isFamilyInfoCompleted, isFeeResponsibilityCompleted, activeStep, dataLoaded, applicationInitialized, completedSteps, onStepComplete]);
+  }, [isStudentInfoCompleted, isFamilyInfoCompleted, isFeeResponsibilityCompleted, isApplicationDetailsCompleted, activeStep, dataLoaded, applicationInitialized, completedSteps, onStepComplete]);
 
   // Show global loading state while application data is being synchronized
   if (!applicationInitialized) {
@@ -660,6 +712,7 @@ const MainContent: React.FC<MainContentProps> = (props) => {
             medicalData={medicalData}
             familyData={familyData}
             feeData={feeData}
+            applicationDetailsData={applicationDetailsData}
             validationErrors={validationErrors}
             savingStatus={savingStatus}
             dataLoaded={dataLoaded}
@@ -670,8 +723,10 @@ const MainContent: React.FC<MainContentProps> = (props) => {
             onFamilyDataChange={handleFamilyDataChange}
             onNextOfKinDataChange={handleNextOfKinDataChange}
             onFeeDataChange={handleFeeDataChange}
+            onApplicationDetailsDataChange={handleApplicationDetailsDataChange}
             onSubmitClick={handleCombinedSubmitClick}
             isStudentInfoCompleted={isStudentInfoCompleted}
+            isApplicationDetailsCompleted={isApplicationDetailsCompleted}
             isMedicalInfoCompleted={isMedicalInfoCompleted}
             isFamilyInfoCompleted={isFamilyInfoCompleted}
             isFeeResponsibilityCompleted={isFeeResponsibilityCompleted}
@@ -844,6 +899,7 @@ const MainContent: React.FC<MainContentProps> = (props) => {
             familyData={familyData}
             medicalData={medicalData}
             feeData={feeData}
+            applicationDetailsData={applicationDetailsData}
             academicHistoryData={academicHistoryData}
             subjectsData={subjectsData}
             financingData={financingData}

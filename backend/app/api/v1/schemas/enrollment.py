@@ -334,6 +334,54 @@ class FeeResponsibilityInfoPartial(BaseModel):
             raise ValueError(str(e))
 
 
+class ApplicationDetailsInfo(BaseModel):
+    proposed_start_term: str = Field(..., validation_alias=AliasChoices('proposed_start_term', 'proposedStartTerm'), min_length=1, max_length=50)
+    year: str = Field(..., min_length=1, max_length=4)
+    grade_applying_for: str = Field(..., validation_alias=AliasChoices('grade_applying_for', 'gradeApplyingFor'), min_length=1, max_length=100)
+    proposed_start_date: Optional[str] = Field(None, validation_alias=AliasChoices('proposed_start_date', 'proposedStartDate'), pattern=r'^\d{4}-\d{2}-\d{2}$')
+
+    model_config = ConfigDict(populate_by_name=True)
+
+    @field_validator('proposed_start_date', mode='before')
+    @classmethod
+    def empty_str_to_none(cls, v):
+        return None if v == '' else v
+
+    @field_validator('proposed_start_date')
+    @classmethod
+    def validate_proposed_start_date(cls, v):
+        if not v:
+            return v
+        parsed = datetime.strptime(v, '%Y-%m-%d').date()
+        if parsed < datetime.now().date():
+            raise ValueError('Proposed start date cannot be in the past')
+        return v
+
+
+class ApplicationDetailsInfoPartial(BaseModel):
+    proposed_start_term: Optional[str] = Field(None, validation_alias=AliasChoices('proposed_start_term', 'proposedStartTerm'), min_length=1, max_length=50)
+    year: Optional[str] = Field(None, min_length=1, max_length=4)
+    grade_applying_for: Optional[str] = Field(None, validation_alias=AliasChoices('grade_applying_for', 'gradeApplyingFor'), min_length=1, max_length=100)
+    proposed_start_date: Optional[str] = Field(None, validation_alias=AliasChoices('proposed_start_date', 'proposedStartDate'), pattern=r'^\d{4}-\d{2}-\d{2}$')
+
+    model_config = ConfigDict(populate_by_name=True)
+
+    @field_validator('proposed_start_date', mode='before')
+    @classmethod
+    def empty_str_to_none(cls, v):
+        return None if v == '' else v
+
+    @field_validator('proposed_start_date')
+    @classmethod
+    def validate_proposed_start_date(cls, v):
+        if not v:
+            return v
+        parsed = datetime.strptime(v, '%Y-%m-%d').date()
+        if parsed < datetime.now().date():
+            raise ValueError('Proposed start date cannot be in the past')
+        return v
+
+
 class DeclarationInfo(BaseModel):
     agree_truth: bool = Field(default=False, validation_alias=AliasChoices('agree_truth', 'agreeTruth'), description="Agreement to truth of information")
     agree_policies: bool = Field(default=False, validation_alias=AliasChoices('agree_policies', 'agreePolicies'), description="Agreement to school policies")
@@ -367,6 +415,7 @@ class EnrollmentData(BaseModel):
     medical: MedicalInfo
     family: FamilyInfo
     fee: FeeResponsibilityInfo
+    application_details: ApplicationDetailsInfo
     next_of_kin: Optional[Any] = None  # Will accept NextOfKinCreate
 
 
@@ -381,6 +430,7 @@ class AutoSaveRequest(BaseModel):
     medical: Optional[MedicalInfoPartial] = None
     family: Optional[FamilyInfoPartial] = None
     fee: Optional[FeeResponsibilityInfoPartial] = None
+    application_details: Optional[ApplicationDetailsInfoPartial] = None
     next_of_kin: Optional[Any] = None  # Will accept NextOfKinPartial
 
 
@@ -410,6 +460,7 @@ class ApplicationResponse(BaseModel):
     medical: Dict[str, Any]
     family: Dict[str, Any]
     fee: Dict[str, Any]
+    application_details: Optional[Dict[str, Any]] = {}
     academic_history: Optional[List[Dict[str, Any]]] = []
     documents: Optional[List[Dict[str, Any]]] = []
     financing_selections: Optional[List[Dict[str, Any]]] = []
@@ -429,6 +480,7 @@ class SubmitApplicationRequest(BaseModel):
     medical: Optional[MedicalInfo] = None
     family: Optional[FamilyInfo] = None
     fee: Optional[FeeResponsibilityInfo] = None
+    application_details: Optional[ApplicationDetailsInfo] = None
     academic_history: Optional[Dict[str, Any]] = None
     subjects: Optional[Dict[str, Any]] = None
     financing: Optional[Dict[str, Any]] = None
@@ -702,4 +754,3 @@ class MarkCompleteRequest(BaseModel):
 class MarkCompleteResponse(BaseModel):
     """Response schema for document type completion operations."""
     message: str = Field(..., description="Completion confirmation message")
-

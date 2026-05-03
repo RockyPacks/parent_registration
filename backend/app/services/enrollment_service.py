@@ -163,6 +163,14 @@ class EnrollmentService:
                     logger.warning(f"Failed to save fee data: {str(e)}")
                     failed_sections.append("fee")
 
+            if data.application_details:
+                try:
+                    self.repository.save_application_details_partial(application_id, data.application_details)
+                    saved_sections.append("application_details")
+                except Exception as e:
+                    logger.warning(f"Failed to save application details: {str(e)}")
+                    failed_sections.append("application_details")
+
             # Update parent status flags after family and fee data are saved
             if ("family" in saved_sections or "family" in data.__dict__) and ("fee" in saved_sections or data.fee):
                 try:
@@ -265,6 +273,14 @@ class EnrollmentService:
                 logger.error(f"FAILED TO SAVE FEE DATA: {str(e)}", exc_info=True)
                 raise
 
+            try:
+                logger.info("DEBUG: Saving application details")
+                self.repository.save_application_details(application_id, data.application_details)
+                logger.info("DEBUG: Application details saved successfully")
+            except Exception as e:
+                logger.error(f"FAILED TO SAVE APPLICATION DETAILS: {str(e)}", exc_info=True)
+                raise
+
             if data.next_of_kin:
                 try:
                     self.save_next_of_kin_data(application_id, data.next_of_kin)
@@ -353,23 +369,25 @@ class EnrollmentService:
                 self.repository.save_family_data(application_id, data.family, user_id)
             if data.fee:
                 self.repository.save_fee_data(application_id, data.fee, user_id)
+            if data.application_details:
+                self.repository.save_application_details(application_id, data.application_details)
 
             # Save academic history if provided
             if data.academic_history:
                 from app.repositories.academic_repository import academic_repository
                 academic_data = AcademicHistoryCreate(
                     application_id=application_id,
-                    school_name=data.academic_history.get("schoolName") or "N/A",
-                    school_type=data.academic_history.get("schoolType") or "public",
-                    last_grade_completed=data.academic_history.get("lastGradeCompleted") or "N/A",
-                    academic_year_completed=str(data.academic_history.get("academicYearCompleted") or "2023"),
-                    reason_for_leaving=data.academic_history.get("reasonForLeaving") or None,
-                    principal_name=data.academic_history.get("principalName") or None,
-                    school_phone_number=data.academic_history.get("schoolPhoneNumber") or None,
-                    school_email=data.academic_history.get("schoolEmail") or None,
-                    school_address=data.academic_history.get("schoolAddress") or None,
-                    additional_notes=data.academic_history.get("additionalNotes") or None,
-                    report_card_url=data.academic_history.get("reportCardUrl") or ""
+                    school_name=data.academic_history.get("school_name") or data.academic_history.get("schoolName") or "N/A",
+                    school_type=data.academic_history.get("school_type") or data.academic_history.get("schoolType") or "public",
+                    last_grade_completed=data.academic_history.get("last_grade_completed") or data.academic_history.get("lastGradeCompleted") or "N/A",
+                    academic_year_completed=str(data.academic_history.get("academic_year_completed") or data.academic_history.get("academicYearCompleted") or "2023"),
+                    reason_for_leaving=data.academic_history.get("reason_for_leaving") or data.academic_history.get("reasonForLeaving") or None,
+                    principal_name=data.academic_history.get("principal_name") or data.academic_history.get("principalName") or None,
+                    school_phone_number=data.academic_history.get("school_phone_number") or data.academic_history.get("schoolPhoneNumber") or None,
+                    school_email=data.academic_history.get("school_email") or data.academic_history.get("schoolEmail") or None,
+                    school_address=data.academic_history.get("school_address") or data.academic_history.get("schoolAddress") or None,
+                    additional_notes=data.academic_history.get("additional_notes") or data.academic_history.get("additionalNotes") or None,
+                    report_card_url=data.academic_history.get("report_card_url") or data.academic_history.get("reportCardUrl") or ""
                 )
                 academic_repository.create_academic_history(academic_data)
 

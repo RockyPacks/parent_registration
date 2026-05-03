@@ -52,14 +52,12 @@ const StudentInformation: React.FC<StudentInformationProps> = ({ initialData, on
   const [errors, setErrors] = useState<{[key: string]: string}>({});
   const [isInitialized, setIsInitialized] = useState(false);
 
-  // Update form data when initialData changes (e.g., after data is loaded from localStorage/backend)
   useEffect(() => {
-    // Check if initialData has meaningful content (not just empty object)
     const hasMeaningfulData = initialData && Object.keys(initialData).length > 0 && 
       (initialData.surname || initialData.firstName || initialData.email);
     
-    if (hasMeaningfulData) {
-      console.log('StudentInformation: Updating with new data:', initialData);
+    if (!isInitialized && hasMeaningfulData) {
+      console.log('StudentInformation: Initializing with data:', initialData);
       setFormData(prev => {
         const updatedData = {
           ...prev,
@@ -77,11 +75,9 @@ const StudentInformation: React.FC<StudentInformationProps> = ({ initialData, on
         }
         return updatedData;
       });
-      if (!isInitialized) {
-        setIsInitialized(true);
-      }
+      setIsInitialized(true);
     }
-  }, [initialData]);
+  }, [initialData, isInitialized]);
 
   useEffect(() => {
     // Only propagate changes to parent if we have actual data or if we've been initialized

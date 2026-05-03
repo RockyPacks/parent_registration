@@ -7,9 +7,9 @@ from datetime import datetime
 import logging
 from app.repositories.base import BaseRepository
 from app.api.v1.schemas.enrollment import (
-    StudentInfo, MedicalInfo, FamilyInfo, FeeResponsibilityInfo,
+    StudentInfo, MedicalInfo, FamilyInfo, FeeResponsibilityInfo, ApplicationDetailsInfo,
     ApplicationStatus, StudentInfoPartial, MedicalInfoPartial,
-    FamilyInfoPartial, FeeResponsibilityInfoPartial
+    FamilyInfoPartial, FeeResponsibilityInfoPartial, ApplicationDetailsInfoPartial
 )
 from app.core.exceptions import ExternalServiceError
 
@@ -137,6 +137,15 @@ class EnrollmentRepository(BaseRepository):
         if submitted_at:
             data["submitted_at"] = datetime.now().isoformat()
         self.update(application_id, data)
+
+    def save_application_details(self, application_id: str, application_details: ApplicationDetailsInfo) -> None:
+        data = application_details.model_dump()
+        self.update(application_id, data)
+
+    def save_application_details_partial(self, application_id: str, application_details: ApplicationDetailsInfoPartial) -> None:
+        data = application_details.model_dump(exclude_unset=True)
+        if data:
+            self.update(application_id, data)
 
     def save_student_data(self, application_id: str, student_data: StudentInfo, user_id: str = None) -> None:
         """
@@ -629,6 +638,12 @@ class EnrollmentRepository(BaseRepository):
                 "medical": medical_result.data[0] if medical_result.data else {},
                 "family": family_data,
                 "fee": fee_result.data[0] if fee_result.data else {},
+                "application_details": {
+                    "proposed_start_term": application.get("proposed_start_term"),
+                    "year": application.get("year"),
+                    "grade_applying_for": application.get("grade_applying_for"),
+                    "proposed_start_date": application.get("proposed_start_date"),
+                },
                 "academic_history": academic_history_result.data if academic_history_result.data else [],
                 "documents": documents_result.data if documents_result.data else [],
                 "financing_selections": self._get_financing_from_fee_responsibility(fee_result),  # Get from fee_responsibility.selected_plan

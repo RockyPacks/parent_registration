@@ -42,23 +42,19 @@ const FeeResponsibility: React.FC<FeeResponsibilityProps> = ({ initialData, fami
     accountType: ''
   });
 
-  // Update form data when initialData changes (e.g., after data is loaded from localStorage/backend)
   useEffect(() => {
-    // Check if initialData has meaningful content (not just empty object)
     const hasMeaningfulData = initialData && Object.keys(initialData).length > 0 && 
       (initialData.feePerson || initialData.bankName || initialData.parentEmail);
     
-    if (hasMeaningfulData) {
-      console.log('FeeResponsibility: Updating with data:', initialData);
+    if (!isInitialized && hasMeaningfulData) {
+      console.log('FeeResponsibility: Initializing with data:', initialData);
       setFormData(prev => ({
         ...prev,
         ...initialData
       }));
-      if (!isInitialized) {
-        setIsInitialized(true);
-      }
+      setIsInitialized(true);
     }
-  }, [initialData]);
+  }, [initialData, isInitialized]);
 
   useEffect(() => {
     // Only propagate changes if we have data or if fully initialized from props

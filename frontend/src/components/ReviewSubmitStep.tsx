@@ -72,6 +72,7 @@ export const ReviewSubmitStep: React.FC<ReviewSubmitStepProps> = ({ currentData,
       const subjectData: LocalStorageData['selectedSubjects'] = storage.get('selectedSubjects', { core: [], electives: [] });
       const financingPlanData: LocalStorageData['financingPlan'] = storage.get('financingPlan', {});
       const feeData: LocalStorageData['feeResponsibility'] = storage.get('feeResponsibility', {});
+      const applicationDetailsData: LocalStorageData['applicationDetailsData'] = storage.get('applicationDetailsData', {});
       const declarationData: LocalStorageData['declarationData'] = storage.get('declarationData', {});
       const medicalInfoData: LocalStorageData['medicalInformation'] = storage.get('medicalInformation', {});
       const nextOfKinData: NextOfKinData = storage.get('nextOfKinInformation', {});
@@ -102,6 +103,12 @@ export const ReviewSubmitStep: React.FC<ReviewSubmitStepProps> = ({ currentData,
           previousGrade: studentData.previousGrade || '',
           gradeAppliedFor: studentData.gradeAppliedFor || '',
           previousSchool: studentData.previousSchool || '',
+        },
+        applicationDetails: {
+          proposedStartTerm: applicationDetailsData.proposedStartTerm || '',
+          year: applicationDetailsData.year || '',
+          gradeApplyingFor: applicationDetailsData.gradeApplyingFor || '',
+          proposedStartDate: applicationDetailsData.proposedStartDate || '',
         },
         guardian: {
           fatherName: familyData.fatherFirstName && familyData.fatherSurname ? `${familyData.fatherFirstName} ${familyData.fatherSurname}` : '',
@@ -282,6 +289,13 @@ export const ReviewSubmitStep: React.FC<ReviewSubmitStepProps> = ({ currentData,
                     <InfoItem label="Previous Grade" value={summaryData.student.previousGrade} isRequired={false} placeholder="Previous Grade" />
                     <InfoItem label="Grade Applied For" value={summaryData.student.gradeAppliedFor} isRequired={false} placeholder="Grade Applied For" />
                     <InfoItem label="Previous School" value={summaryData.student.previousSchool} isRequired={false} placeholder="Previous School" />
+                  </div>
+                  <div className="space-y-4">
+                    <h3 className="font-semibold text-gray-700">Application Details</h3>
+                    <InfoItem label="Proposed Start Term" value={summaryData.applicationDetails?.proposedStartTerm} isRequired={true} placeholder="Please choose..." />
+                    <InfoItem label="Year" value={summaryData.applicationDetails?.year} isRequired={true} placeholder="Please choose..." />
+                    <InfoItem label="Grade/Class Applying For" value={summaryData.applicationDetails?.gradeApplyingFor} isRequired={true} placeholder="Please choose..." />
+                    <InfoItem label="Proposed Start Date" value={summaryData.applicationDetails?.proposedStartDate} isRequired={false} placeholder="Choose date" />
                   </div>
                   <div className="space-y-4">
                     <h3 className="font-semibold text-gray-700">Father Information</h3>

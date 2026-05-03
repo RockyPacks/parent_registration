@@ -100,6 +100,12 @@ export interface SummaryData {
     gradeAppliedFor?: string;
     previousSchool?: string;
   };
+  applicationDetails?: {
+    proposedStartTerm?: string;
+    year?: string;
+    gradeApplyingFor?: string;
+    proposedStartDate?: string;
+  };
   guardian?: {
     fatherName?: string;
     fatherRelationship?: string;
@@ -230,6 +236,12 @@ export interface LocalStorageData {
     branchCode?: string;
     accountNumber?: string;
     accountType?: string;
+  };
+  applicationDetailsData?: {
+    proposedStartTerm?: string;
+    year?: string;
+    gradeApplyingFor?: string;
+    proposedStartDate?: string;
   };
   academicHistoryFormData: AcademicHistoryData;
   selectedSubjects: {
