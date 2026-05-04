@@ -96,30 +96,6 @@ export const financingOptionsData = [
     ],
   },
   {
-    title: 'Buy Now, Pay Later',
-    subtitle: '12% cost applies',
-    price: 'R 7,933',
-    period: '',
-    tag: { type: 'cost', text: '12% Cost' },
-    features: [
-      { text: 'Immediate access to services', type: 'positive' },
-      { text: '12% financing cost applies', type: 'positive' },
-      { text: 'Deferred payment option', type: 'positive' },
-    ],
-  },
-  {
-    title: 'Forward Funding',
-    subtitle: '15% cost applies',
-    price: 'R 8,125',
-    period: '',
-    tag: { type: 'cost', text: '15% Cost' },
-    features: [
-      { text: 'Quick funding approval', type: 'positive' },
-      { text: '15% cost of credit applies', type: 'positive' },
-      { text: 'For urgent needs', type: 'positive' },
-    ],
-  },
-  {
     title: 'Sibling Benefit',
     subtitle: '20% sibling discount',
     price: 'R 6,375',

@@ -4,6 +4,17 @@ import Footer from '../Footer';
 import { apiService, SchoolFees } from '../../services/api';
 import { useToast } from '../../hooks/useToast';
 
+const DEFAULT_PLAN = 'Pay Once Per Year';
+const REMOVED_PLAN_TITLES = new Set(['Buy Now, Pay Later', 'Forward Funding']);
+const REMOVED_PLAN_TYPES = new Set(['bnpl', 'forward_funding']);
+const SUPPORTED_PLAN_TITLES = new Set([
+  'Pay Monthly Debit',
+  'Pay Per Term',
+  'Pay Once Per Year',
+  'Sibling Benefit',
+  'Pay via EFT',
+]);
+
 interface Step4FeeAgreementProps {
   applicationId?: string | null;
   grade?: string; // Grade passed down from parent state
@@ -26,9 +37,9 @@ const Step4FeeAgreement: React.FC<Step4FeeAgreementProps> = ({
   // Initialize from initialData (localStorage via MainContent) or default
   const [selectedPlan, setSelectedPlan] = useState<string>(() => {
     if (initialData?.plan) {
-      return initialData.plan;
+      return normalizePlanTitle(initialData.plan);
     }
-    return 'Pay Once Per Year';
+    return DEFAULT_PLAN;
   });
   const [fees, setFees] = useState<SchoolFees | null>(null);
   const [loading, setLoading] = useState(true);
@@ -87,7 +98,7 @@ const Step4FeeAgreement: React.FC<Step4FeeAgreementProps> = ({
   // Update selectedPlan when initialData changes (e.g., after data is loaded from backend)
   useEffect(() => {
     if (initialData?.plan) {
-      setSelectedPlan(initialData.plan);
+      setSelectedPlan(normalizePlanTitle(initialData.plan));
     }
   }, [initialData?.plan]);
   
@@ -108,12 +119,13 @@ const Step4FeeAgreement: React.FC<Step4FeeAgreementProps> = ({
         const selection = await apiService.getFinancingSelection(applicationId);
         
         if (selection && selection.selectedPlan) {
-          console.log('Step4FeeAgreement: Found existing plan in backend:', selection.selectedPlan);
-          setSelectedPlan(selection.selectedPlan);
+          const normalizedPlan = normalizePlanTitle(selection.selectedPlan);
+          console.log('Step4FeeAgreement: Found existing plan in backend:', selection.selectedPlan, 'normalized to:', normalizedPlan);
+          setSelectedPlan(normalizedPlan);
           
           // Also sync with parent state if it's different from what we have
           if (onDataChangeRef.current) {
-            onDataChangeRef.current({ plan: selection.selectedPlan });
+            onDataChangeRef.current({ plan: normalizedPlan });
           }
         }
       } catch (err) {
@@ -130,8 +142,6 @@ const Step4FeeAgreement: React.FC<Step4FeeAgreementProps> = ({
       'Pay Monthly Debit': 'monthly_flat',
       'Pay Per Term': 'termly_discount',
       'Pay Once Per Year': 'annual_discount',
-      'Buy Now, Pay Later': 'bnpl',
-      'Forward Funding': 'forward_funding',
       'Sibling Benefit': 'sibling_discount',
       'Pay via EFT': 'eft'
     };
@@ -140,10 +150,17 @@ const Step4FeeAgreement: React.FC<Step4FeeAgreementProps> = ({
 
   const sanitizePlanTitle = (title: string): string => {
     if (!title || typeof title !== 'string') {
-      return 'Pay Once Per Year'; // Default fallback
+      return DEFAULT_PLAN;
     }
-    return title.trim();
+    return normalizePlanTitle(title.trim());
   };
+
+  function normalizePlanTitle(title: string): string {
+    if (REMOVED_PLAN_TITLES.has(title) || REMOVED_PLAN_TYPES.has(title)) {
+      return DEFAULT_PLAN;
+    }
+    return SUPPORTED_PLAN_TITLES.has(title) ? title : DEFAULT_PLAN;
+  }
 
   const handleNext = async () => {
     if (!selectedPlan) {
