@@ -1,7 +1,7 @@
 import React from 'react';
 import { UploadCard } from '../UploadCard';
 import StudentInformation from './StudentInformation';
-
+import ApplicationDetails from './ApplicationDetails';
 import MedicalInformation from './MedicalInformation';
 import FamilyInformation from './FamilyInformation';
 import FeeResponsibility from './FeeResponsibility';
@@ -12,6 +12,7 @@ interface Step1StudentGuardianProps {
   medicalData: any;
   familyData: any; // Now includes nextOfKin data
   feeData: any;
+  applicationDetailsData: any;
   validationErrors: {[key: string]: string};
   savingStatus: 'idle' | 'saving' | 'saved';
   dataLoaded: boolean;
@@ -22,17 +23,26 @@ interface Step1StudentGuardianProps {
   onFamilyDataChange: (data: any) => void;
   onNextOfKinDataChange: (data: any) => void; // Add this prop
   onFeeDataChange: (data: any) => void;
+  onApplicationDetailsDataChange: (data: any) => void;
   onSubmitClick: () => void;
   isStudentInfoCompleted: boolean;
+  isApplicationDetailsCompleted: boolean;
   isMedicalInfoCompleted: boolean;
   isFamilyInfoCompleted: boolean;
   isFeeResponsibilityCompleted: boolean;
   nextOfKinData: any; // Add nextOfKinData to the interface
 }
 
-const getIncompleteRequirements = (isStudentCompleted: boolean, isMedicalCompleted: boolean, isFamilyCompleted: boolean, isFeeCompleted: boolean): string[] => {
+const getIncompleteRequirements = (
+  isStudentCompleted: boolean,
+  isApplicationDetailsCompleted: boolean,
+  isMedicalCompleted: boolean,
+  isFamilyCompleted: boolean,
+  isFeeCompleted: boolean
+): string[] => {
   const incomplete: string[] = [];
   if (!isStudentCompleted) incomplete.push('Student Information');
+  if (!isApplicationDetailsCompleted) incomplete.push('Application Details');
   if (!isMedicalCompleted) incomplete.push('Medical & Learner Health Details');
   if (!isFamilyCompleted) incomplete.push('Family Information (at least one parent)');
   if (!isFeeCompleted) incomplete.push('Fee Responsibility');
@@ -40,7 +50,7 @@ const getIncompleteRequirements = (isStudentCompleted: boolean, isMedicalComplet
 };
 
 // Get detailed missing fields for better error messages
-const getDetailedMissingFields = (studentData: any, medicalData: any, familyData: any, feeData: any) => {
+const getDetailedMissingFields = (studentData: any, applicationDetailsData: any, medicalData: any, familyData: any, feeData: any) => {
   const missingFields: { section: string; fields: string[] }[] = [];
   
   // Student Information required fields
@@ -58,6 +68,22 @@ const getDetailedMissingFields = (studentData: any, medicalData: any, familyData
   if (!studentData?.previousSchool || studentData.previousSchool.trim().length < 3) studentMissing.push('Previous School');
   if (studentMissing.length > 0) {
     missingFields.push({ section: 'Student Information', fields: studentMissing });
+  }
+
+  const applicationDetailsMissing: string[] = [];
+  if (!applicationDetailsData?.proposedStartTerm) applicationDetailsMissing.push('Proposed Start Term');
+  if (!applicationDetailsData?.year) applicationDetailsMissing.push('Year');
+  if (!applicationDetailsData?.gradeApplyingFor) applicationDetailsMissing.push('Grade/Class Applying For');
+  if (applicationDetailsData?.proposedStartDate) {
+    const startDate = new Date(applicationDetailsData.proposedStartDate);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    if (!Number.isNaN(startDate.getTime()) && startDate < today) {
+      applicationDetailsMissing.push('Proposed Start Date cannot be in the past');
+    }
+  }
+  if (applicationDetailsMissing.length > 0) {
+    missingFields.push({ section: 'Application Details', fields: applicationDetailsMissing });
   }
   
   // Family Information required fields (at least one parent)
@@ -98,6 +124,7 @@ const Step1StudentGuardian: React.FC<Step1StudentGuardianProps> = ({
   medicalData,
   familyData,
   feeData,
+  applicationDetailsData,
   validationErrors,
   savingStatus,
   dataLoaded,
@@ -108,8 +135,10 @@ const Step1StudentGuardian: React.FC<Step1StudentGuardianProps> = ({
   onFamilyDataChange,
   onNextOfKinDataChange, 
   onFeeDataChange,
+  onApplicationDetailsDataChange,
   onSubmitClick,
   isStudentInfoCompleted,
+  isApplicationDetailsCompleted,
   isMedicalInfoCompleted,
   isFamilyInfoCompleted,
   isFeeResponsibilityCompleted,
@@ -117,12 +146,13 @@ const Step1StudentGuardian: React.FC<Step1StudentGuardianProps> = ({
 }) => {
   const incompleteRequirements = getIncompleteRequirements(
     isStudentInfoCompleted,
+    isApplicationDetailsCompleted,
     isMedicalInfoCompleted,
     isFamilyInfoCompleted,
     isFeeResponsibilityCompleted
   );
   
-  const detailedMissingFields = getDetailedMissingFields(studentData, medicalData, familyData, feeData);
+  const detailedMissingFields = getDetailedMissingFields(studentData, applicationDetailsData, medicalData, familyData, feeData);
   const canProceed = incompleteRequirements.length === 0;
   
   const handleSubmitClick = () => {
@@ -132,6 +162,7 @@ const Step1StudentGuardian: React.FC<Step1StudentGuardianProps> = ({
       if (firstIncompleteSection) {
         const sectionMap: { [key: string]: string } = {
           'Student Information': 'student-information',
+          'Application Details': 'application-details',
           'Medical & Learner Health Details': 'medical-information',
           'Family Information': 'family-information',
           'Fee Responsibility': 'fee-responsibility'
@@ -282,6 +313,24 @@ const Step1StudentGuardian: React.FC<Step1StudentGuardianProps> = ({
               onFamilyDataChange={onFamilyDataChange}
               onNextOfKinDataChange={onNextOfKinDataChange}
             />
+          </UploadCard>
+
+          <UploadCard
+            id="application-details"
+            title="Application Details"
+            required
+            collapsible={true}
+            defaultOpen={false}
+            status={isApplicationDetailsCompleted ? 'completed' : 'not-started'}
+            icon={
+              <div className="w-8 h-8 bg-gradient-to-r from-indigo-500 to-indigo-600 rounded-full flex items-center justify-center">
+                <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+                </svg>
+              </div>
+            }
+          >
+            <ApplicationDetails initialData={applicationDetailsData} onDataChange={onApplicationDetailsDataChange} />
           </UploadCard>
 
           <UploadCard

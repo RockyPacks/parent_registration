@@ -357,13 +357,16 @@ class ApiService {
         }
       }
     }
+    if (snakeCaseData.application_details?.proposed_start_date === '') {
+      snakeCaseData.application_details.proposed_start_date = undefined;
+    }
     return this.request('/enrollment/submit', {
       method: 'POST',
       body: JSON.stringify(snakeCaseData),
     });
   }
 
-  async autoSaveEnrollment(data: { application_id: string; student?: any; medical?: any; family?: any; fee?: any; next_of_kin?: any }): Promise<{ message: string; applicationId: string }> {
+  async autoSaveEnrollment(data: { application_id: string; student?: any; medical?: any; family?: any; fee?: any; application_details?: any; next_of_kin?: any }): Promise<{ message: string; applicationId: string }> {
     // Only include sections that have actual data
     const filteredData: any = {
       application_id: data.application_id
@@ -388,6 +391,9 @@ class ApiService {
     }
     if (hasData(data.fee)) {
       filteredData.fee = data.fee;
+    }
+    if (hasData(data.application_details)) {
+      filteredData.application_details = data.application_details;
     }
     if (hasData(data.next_of_kin)) {
       filteredData.next_of_kin = data.next_of_kin;
@@ -433,6 +439,9 @@ class ApiService {
           snakeCaseData.family[field] = undefined;
         }
       }
+    }
+    if (snakeCaseData.application_details?.proposed_start_date === '') {
+      snakeCaseData.application_details.proposed_start_date = undefined;
     }
 
     console.log('Auto-saving data:', snakeCaseData);
@@ -553,9 +562,16 @@ class ApiService {
       if (snakeCaseData.fee) {
         payload.fee = snakeCaseData.fee;
       }
+
+      if (snakeCaseData.application_details) {
+        payload.application_details = snakeCaseData.application_details;
+        if (payload.application_details.proposed_start_date === '') {
+          payload.application_details.proposed_start_date = undefined;
+        }
+      }
       
-      if (snakeCaseData.academicHistory) {
-        payload.academic_history = snakeCaseData.academicHistory;
+      if (snakeCaseData.academic_history) {
+        payload.academic_history = snakeCaseData.academic_history;
       }
       
       if (snakeCaseData.declaration) {
