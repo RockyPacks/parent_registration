@@ -59,32 +59,6 @@ const FinancingOptions: React.FC<FinancingOptionsProps> = ({ selectedPlan, onSel
         ],
       },
       {
-        title: 'Buy Now, Pay Later',
-        subtitle: 'Start now, pay over time',
-        price: `R ${Math.round((annualFee * 1.12) / 12).toLocaleString('en-ZA')}`,
-        period: '/month',
-        tag: { type: 'cost', text: '12% Interest' },
-        features: [
-          { text: `${formatCurrency(regFee)} registration fee required`, type: 'info' },
-          { text: 'Start immediately, pay later', type: 'positive' },
-          { text: '12% annual interest applies', type: 'neutral' },
-          { text: 'Flexible 12-month repayment', type: 'positive' },
-        ],
-      },
-      {
-        title: 'Forward Funding',
-        subtitle: 'Fast approval financing',
-        price: `R ${Math.round((annualFee * 1.15) / 12).toLocaleString('en-ZA')}`,
-        period: '/month',
-        tag: { type: 'cost', text: '15% Interest' },
-        features: [
-          { text: `${formatCurrency(regFee)} upfront registration`, type: 'info' },
-          { text: 'Quick 24-hour approval', type: 'positive' },
-          { text: '15% annual interest rate', type: 'neutral' },
-          { text: 'Ideal for urgent enrollment', type: 'positive' },
-        ],
-      },
-      {
         title: 'Sibling Benefit',
         subtitle: 'Family discount program',
         price: `R ${Math.round(annualFee * 0.80).toLocaleString('en-ZA')}`,

@@ -427,8 +427,6 @@ const App: React.FC = () => {
                   'Pay Monthly Debit',
                   'Pay Per Term',
                   'Pay Once Per Year',
-                  'Buy Now, Pay Later',
-                  'Forward Funding',
                   'Sibling Benefit',
                   'Pay via EFT'
                 ];
@@ -441,8 +439,8 @@ const App: React.FC = () => {
                     'monthly_flat': 'Pay Monthly Debit',
                     'termly_discount': 'Pay Per Term',
                     'annual_discount': 'Pay Once Per Year',
-                    'bnpl': 'Buy Now, Pay Later',
-                    'forward_funding': 'Forward Funding',
+                    'bnpl': 'Pay Once Per Year',
+                    'forward_funding': 'Pay Once Per Year',
                     'sibling_discount': 'Sibling Benefit',
                     'eft': 'Pay via EFT'
                   };
