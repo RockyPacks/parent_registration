@@ -57,7 +57,13 @@ class DocumentService:
                 "payslip": "payslips",
                 "bank_statement": "bank_statements",
                 "academic_history": "academic_history",
-                "transcript": "id_documents"
+                "transcript": "id_documents",
+                # Supporting Documents fields
+                "birth_certificate": "supporting_documents",
+                "parent1_id": "supporting_documents",
+                "parent2_id": "supporting_documents",
+                "school_report": "supporting_documents",
+                "immunization_record": "supporting_documents"
             }
             if document_type not in bucket_mapping:
                 raise HTTPException(status_code=400, detail="Invalid document type")

@@ -713,6 +713,7 @@ const MainContent: React.FC<MainContentProps> = (props) => {
             familyData={familyData}
             feeData={feeData}
             applicationDetailsData={applicationDetailsData}
+            applicationId={applicationId}
             validationErrors={validationErrors}
             savingStatus={savingStatus}
             dataLoaded={dataLoaded}

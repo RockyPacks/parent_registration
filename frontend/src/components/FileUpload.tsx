@@ -7,9 +7,11 @@ interface FileUploadProps {
   title?: string;
   variant?: 'default' | 'button';
   small?: boolean;
+  accept?: string;
+  helperText?: string;
 }
 
-export const FileUpload: React.FC<FileUploadProps> = ({ onFileUpload, title, variant = 'default', small = false }) => {
+export const FileUpload: React.FC<FileUploadProps> = ({ onFileUpload, title, variant = 'default', small = false, accept, helperText }) => {
   const [isDragging, setIsDragging] = useState(false);
 
   const handleDragEnter = (e: React.DragEvent<HTMLDivElement>) => {
@@ -51,9 +53,9 @@ export const FileUpload: React.FC<FileUploadProps> = ({ onFileUpload, title, var
         <p className="text-sm font-medium text-gray-700 mb-1">{title || 'Upload Document'}</p>
         <label className="cursor-pointer bg-blue-600 text-white text-sm font-medium py-1 px-3 rounded hover:bg-blue-700 transition-colors inline-block">
           Choose Files
-          <input type="file" multiple className="hidden" onChange={handleFileChange} />
+          <input type="file" multiple className="hidden" accept={accept} onChange={handleFileChange} />
         </label>
-        <p className="text-xs text-gray-500 mt-1">PDF, JPG, PNG - max 5MB</p>
+        <p className="text-xs text-gray-500 mt-1">{helperText || 'PDF, JPG, PNG - max 5MB'}</p>
       </div>
     );
   }
@@ -63,7 +65,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({ onFileUpload, title, var
         <div className="relative border border-gray-300 rounded-md p-2 flex items-center justify-between hover:bg-gray-50">
             <p className="text-sm font-medium text-gray-700">{title}</p>
             <UploadCloudIcon className="w-4 h-4 text-gray-500"/>
-            <input type="file" className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" onChange={handleFileChange} />
+            <input type="file" className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" accept={accept} onChange={handleFileChange} />
         </div>
     )
   }
@@ -81,13 +83,14 @@ export const FileUpload: React.FC<FileUploadProps> = ({ onFileUpload, title, var
       <input
         type="file"
         className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+        accept={accept}
         onChange={handleFileChange}
       />
       <div className="flex flex-col items-center">
         <UploadCloudIcon className="h-10 w-10 text-gray-400 mb-3" />
         <p className="text-gray-700 font-semibold">Drop your file here</p>
         <p className="text-sm text-gray-500">or <span className="text-blue-600 font-medium">click to browse</span></p>
-        <p className="text-xs text-gray-500 mt-4">PDF, JPG, PNG up to 5MB</p>
+        <p className="text-xs text-gray-500 mt-4">{helperText || 'PDF, JPG, PNG up to 5MB'}</p>
       </div>
     </div>
   );
