@@ -1,5 +1,5 @@
 // SignupPage.tsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { authService } from '../services/auth';
 import { apiService } from '../services/api';
 import knitIcon from '../../assets/knit-icon.png';
@@ -27,6 +27,9 @@ const SignupPage: React.FC<SignupPageProps> = ({ onSignupSuccess, onSwitchToLogi
   const [schoolsError, setSchoolsError] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [schoolSearch, setSchoolSearch] = useState('');
+  const [showSchoolDropdown, setShowSchoolDropdown] = useState(false);
+  const schoolDropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     let mounted = true;
@@ -56,6 +59,18 @@ const SignupPage: React.FC<SignupPageProps> = ({ onSignupSuccess, onSwitchToLogi
     };
     loadSchools();
     return () => { mounted = false; };
+  }, []);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (schoolDropdownRef.current && !schoolDropdownRef.current.contains(event.target as Node)) {
+        setShowSchoolDropdown(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
   const validateInputs = () => {
@@ -111,6 +126,17 @@ const SignupPage: React.FC<SignupPageProps> = ({ onSignupSuccess, onSwitchToLogi
 
     return null;
   };
+
+  const handleSelectSchool = (school: School) => {
+    setSelectedSchool(school.name);
+    setSelectedSchoolId(school.id);
+    setSchoolSearch('');
+    setShowSchoolDropdown(false);
+  };
+
+  const filteredSchools = schools.filter((school) =>
+    school.name.toLowerCase().includes(schoolSearch.toLowerCase())
+  );
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -204,12 +230,12 @@ const SignupPage: React.FC<SignupPageProps> = ({ onSignupSuccess, onSwitchToLogi
               </div>
             </div>
 
-            {/* School Applying For */}
-            <div>
-              <label htmlFor="school" className="block text-sm font-medium text-gray-700">
+            {/* School Applying For - Searchable */}
+            <div className="relative" ref={schoolDropdownRef}>
+              <label htmlFor="school-search" className="block text-sm font-medium text-gray-700">
                 School Applying For <span className="text-red-500">*</span>
               </label>
-              <div className="mt-1">
+              <div className="mt-1 relative">
                 {schoolsLoading ? (
                   <div className="flex items-center gap-2 rounded-md border border-gray-300 px-3 py-2 bg-gray-50">
                     <svg className="animate-spin h-4 w-4 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -223,26 +249,61 @@ const SignupPage: React.FC<SignupPageProps> = ({ onSignupSuccess, onSwitchToLogi
                     <p className="text-sm text-yellow-800">{schoolsError}</p>
                   </div>
                 ) : (
-                  <select
-                    id="school"
-                    name="school"
-                    required
-                    value={selectedSchool}
-                    onChange={(e) => {
-                      const name = e.target.value;
-                      setSelectedSchool(name);
-                      const found = schools.find((s) => s.name === name);
-                      setSelectedSchoolId(found ? found.id : null);
-                    }}
-                    className="block w-full appearance-none rounded-md border border-gray-300 px-3 py-2 bg-white shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm text-gray-900 disabled:bg-gray-100"
-                  >
-                    <option value="">— Select a school —</option>
-                    {schools.map((school) => (
-                      <option key={school.id} value={school.name}>
-                        {school.name}
-                      </option>
-                    ))}
-                  </select>
+                  <>
+                    <div className="relative">
+                      <input
+                        id="school-search"
+                        type="text"
+                        placeholder={selectedSchool || "Search and select your school..."}
+                        value={schoolSearch}
+                        onChange={(e) => {
+                          setSchoolSearch(e.target.value);
+                          setShowSchoolDropdown(true);
+                        }}
+                        onFocus={() => setShowSchoolDropdown(true)}
+                        className="block w-full appearance-none rounded-md border border-gray-300 px-3 py-2 placeholder-gray-400 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm"
+                      />
+                      <svg className="absolute right-3 top-2.5 h-5 w-5 text-gray-400 pointer-events-none" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clipRule="evenodd" />
+                      </svg>
+                    </div>
+
+                    {/* Dropdown Results */}
+                    {showSchoolDropdown && (
+                      <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-300 rounded-md shadow-lg z-10 max-h-64 overflow-y-auto">
+                        {filteredSchools.length > 0 ? (
+                          <ul className="py-1">
+                            {filteredSchools.map((school) => (
+                              <li key={school.id}>
+                                <button
+                                  type="button"
+                                  onClick={() => handleSelectSchool(school)}
+                                  className={`w-full text-left px-3 py-2 hover:bg-blue-50 transition-colors ${
+                                    selectedSchool === school.name ? 'bg-blue-100 text-blue-900' : 'text-gray-900'
+                                  }`}
+                                >
+                                  {school.name}
+                                </button>
+                              </li>
+                            ))}
+                          </ul>
+                        ) : (
+                          <div className="px-3 py-2 text-sm text-gray-500">
+                            {schoolSearch ? 'No schools found' : 'Start typing to search schools...'}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Selected School Display */}
+                    {selectedSchool && (
+                      <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded-md">
+                        <p className="text-sm text-blue-900">
+                          <strong>Selected:</strong> {selectedSchool}
+                        </p>
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
             </div>
