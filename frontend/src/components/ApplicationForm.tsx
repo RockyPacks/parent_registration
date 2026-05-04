@@ -348,8 +348,45 @@ const ApplicationForm = React.forwardRef<ApplicationFormHandle, ApplicationFormP
           <FieldRow label="Bank" value={fee.bankName} />
         </div>
 
+        {/* Part F: Supporting Documents */}
+        {documents && documents.length > 0 && (
+          <>
+            <OfficialHeader title="Part F: Supporting Documents Submitted" />
+            <div style={{ border: '1px solid #000', borderBottom: 'none', padding: '10px', fontSize: '11px' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <thead>
+                  <tr style={{ backgroundColor: '#f1f5f9', borderBottom: '1px solid #000' }}>
+                    <th style={{ padding: '6px 8px', textAlign: 'left', fontWeight: 700, fontSize: '10px', borderRight: '1px solid #000' }}>DOCUMENT TYPE</th>
+                    <th style={{ padding: '6px 8px', textAlign: 'left', fontWeight: 700, fontSize: '10px', borderRight: '1px solid #000' }}>FILENAME</th>
+                    <th style={{ padding: '6px 8px', textAlign: 'left', fontWeight: 700, fontSize: '10px' }}>UPLOAD DATE</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {documents.map((doc: any, index: number) => (
+                    <tr key={index} style={{ borderBottom: '1px solid #000', backgroundColor: index % 2 === 0 ? '#ffffff' : '#fafbfc' }}>
+                      <td style={{ padding: '6px 8px', borderRight: '1px solid #000', fontSize: '10px', fontWeight: 500 }}>
+                        {(doc.documentType || doc.document_type || 'Supporting Document')
+                          .replace(/_/g, ' ')
+                          .replace(/([A-Z])/g, ' $1')
+                          .trim()
+                          .toUpperCase()}
+                      </td>
+                      <td style={{ padding: '6px 8px', borderRight: '1px solid #000', fontSize: '10px' }}>
+                        {doc.filename}
+                      </td>
+                      <td style={{ padding: '6px 8px', fontSize: '10px' }}>
+                        {doc.createdAt ? new Date(doc.createdAt).toLocaleDateString('en-ZA') : (doc.created_at ? new Date(doc.created_at).toLocaleDateString('en-ZA') : 'N/A')}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
+
         {/* Declaration */}
-        <OfficialHeader title="Part F: Declaration and Agreement" />
+        <OfficialHeader title="Part G: Declaration and Agreement" />
         <div style={{ border: '1px solid #000', padding: '15px', fontSize: '11px', backgroundColor: '#fcfcfc' }}>
           <p style={{ textAlign: 'justify', lineHeight: '1.4' }}>
             I/We, the undersigned, hereby declare that the particulars furnished in this application form are true and correct. I/We understand that the school policy regarding admissions, discipline, and fees will apply. I/We undertake to adhere to all rules and regulations of the Department of Education and the School Governing Body.

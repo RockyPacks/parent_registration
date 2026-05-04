@@ -12,7 +12,11 @@ DOCUMENT_TYPES: Dict[str, str] = {
     "PAYSLIP": "payslip",
     "BANK_STATEMENT": "bank_statement",
     "ACADEMIC_HISTORY": "academic_history",
-    "TRANSCRIPT": "transcript"
+    "TRANSCRIPT": "transcript",
+    "BIRTH_CERTIFICATE": "birth_certificate",
+    "PARENT_ID": "parent1_id",
+    "SCHOOL_REPORT": "school_report",
+    "IMMUNIZATION_RECORD": "immunization_record"
 }
 
 # Document Type Mappings for Storage Buckets
@@ -22,7 +26,13 @@ DOCUMENT_BUCKET_MAPPING: Dict[str, str] = {
     "payslip": "payslips",
     "bank_statement": "bank_statements",
     "academic_history": "report_card",
-    "transcript": "id_documents"
+    "transcript": "id_documents",
+    # Supporting Documents
+    "birth_certificate": "supporting_documents",
+    "parent1_id": "supporting_documents",
+    "parent2_id": "supporting_documents",
+    "school_report": "supporting_documents",
+    "immunization_record": "supporting_documents"
 }
 
 # Required Documents per Type (currently all require 1)

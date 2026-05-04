@@ -1,10 +1,11 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { UploadCard } from '../UploadCard';
 import StudentInformation from './StudentInformation';
 import ApplicationDetails from './ApplicationDetails';
 import MedicalInformation from './MedicalInformation';
 import FamilyInformation from './FamilyInformation';
 import FeeResponsibility from './FeeResponsibility';
+import SupportingDocuments from './SupportingDocuments';
 import { MedicalIcon, FamilyIcon, FeeIcon } from '../Icons';
 
 interface Step1StudentGuardianProps {
@@ -13,6 +14,7 @@ interface Step1StudentGuardianProps {
   familyData: any; // Now includes nextOfKin data
   feeData: any;
   applicationDetailsData: any;
+  applicationId?: string | null;
   validationErrors: {[key: string]: string};
   savingStatus: 'idle' | 'saving' | 'saved';
   dataLoaded: boolean;
@@ -125,6 +127,7 @@ const Step1StudentGuardian: React.FC<Step1StudentGuardianProps> = ({
   familyData,
   feeData,
   applicationDetailsData,
+  applicationId,
   validationErrors,
   savingStatus,
   dataLoaded,
@@ -133,7 +136,7 @@ const Step1StudentGuardian: React.FC<Step1StudentGuardianProps> = ({
   onStudentDataChange,
   onMedicalDataChange,
   onFamilyDataChange,
-  onNextOfKinDataChange, 
+  onNextOfKinDataChange,
   onFeeDataChange,
   onApplicationDetailsDataChange,
   onSubmitClick,
@@ -144,6 +147,8 @@ const Step1StudentGuardian: React.FC<Step1StudentGuardianProps> = ({
   isFeeResponsibilityCompleted,
   nextOfKinData, // Destructure nextOfKinData here
 }) => {
+  const [supportingDocsCount, setSupportingDocsCount] = useState(0);
+
   const incompleteRequirements = getIncompleteRequirements(
     isStudentInfoCompleted,
     isApplicationDetailsCompleted,
@@ -342,14 +347,34 @@ const Step1StudentGuardian: React.FC<Step1StudentGuardianProps> = ({
             status={isFeeResponsibilityCompleted ? 'completed' : 'not-started'}
             icon={<FeeIcon className="w-8 h-8 text-yellow-400" />}
           >
-            <FeeResponsibility 
-              initialData={feeData} 
-              familyData={{ ...familyData, ...nextOfKinData }} 
-              onDataChange={onFeeDataChange} 
+            <FeeResponsibility
+              initialData={feeData}
+              familyData={{ ...familyData, ...nextOfKinData }}
+              onDataChange={onFeeDataChange}
             />
           </UploadCard>
 
-          {/* Other form sections such as FamilyInformation, FeeResponsibility can be added here similarly with props */}
+          <UploadCard
+            id="supporting-documents"
+            title="Supporting Documents"
+            collapsible={true}
+            defaultOpen={false}
+            status={supportingDocsCount > 0 ? 'in-progress' : 'not-started'}
+            currentCount={supportingDocsCount}
+            requiredCount={6}
+            icon={
+              <div className="w-8 h-8 bg-gradient-to-r from-purple-500 to-purple-600 rounded-full flex items-center justify-center">
+                <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+              </div>
+            }
+          >
+            <SupportingDocuments
+              applicationId={applicationId}
+              onUploadedCountChange={setSupportingDocsCount}
+            />
+          </UploadCard>
         </div>
 
         <div className={`rounded-xl p-6 border shadow-sm mt-6 ${
