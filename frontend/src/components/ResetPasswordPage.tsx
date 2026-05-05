@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { authService } from '../services/auth';
+import { supabase } from '../services/supabase';
 import knitIcon from '../../assets/knit-icon.png';
 import PasswordInput from './ui/PasswordInput';
 
@@ -13,12 +14,43 @@ const ResetPasswordPage: React.FC<ResetPasswordPageProps> = ({ onPasswordReset }
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [sessionReady, setSessionReady] = useState(false);
+  const [sessionError, setSessionError] = useState('');
 
   useEffect(() => {
-    // Clean the recovery token from the URL so a refresh doesn't reuse an expired token
-    if (window.location.hash.includes('type=recovery')) {
+    // Extract tokens from hash and set session manually before cleaning the URL.
+    // With implicit flow, Supabase puts access_token/refresh_token in the hash.
+    const hash = window.location.hash;
+    const params = new URLSearchParams(hash.replace('#', ''));
+    const accessToken = params.get('access_token');
+    const refreshToken = params.get('refresh_token');
+
+    const establishSession = async () => {
+      if (accessToken && refreshToken) {
+        // Explicitly set the session from the URL tokens
+        const { error } = await supabase.auth.setSession({
+          access_token: accessToken,
+          refresh_token: refreshToken,
+        });
+        if (error) {
+          setSessionError('This reset link has expired or already been used. Please request a new one.');
+        } else {
+          setSessionReady(true);
+        }
+      } else {
+        // No tokens in hash — check if there's already an active session
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session) {
+          setSessionReady(true);
+        } else {
+          setSessionError('This reset link has expired or already been used. Please request a new one.');
+        }
+      }
+      // Clean the hash from the URL after we've extracted what we need
       window.history.replaceState({}, document.title, window.location.pathname);
-    }
+    };
+
+    establishSession();
   }, []);
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -67,14 +99,40 @@ const ResetPasswordPage: React.FC<ResetPasswordPageProps> = ({ onPasswordReset }
         <h2 className="text-center text-3xl font-bold tracking-tight text-gray-900">
           Set new password
         </h2>
-        <p className="mt-2 text-center text-sm text-gray-600">
-          Enter your new password below.
-        </p>
+        {sessionReady && !sessionError && (
+          <p className="mt-2 text-center text-sm text-gray-600">
+            Enter your new password below.
+          </p>
+        )}
       </div>
 
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
         <div className="bg-white py-8 px-4 shadow-md sm:rounded-lg sm:px-10">
-          {success ? (
+          {/* Session error - link expired */}
+          {sessionError && (
+            <div className="text-center">
+              <div className="rounded-md bg-red-50 p-4 mb-4">
+                <p className="text-sm font-medium text-red-800">{sessionError}</p>
+              </div>
+              <button
+                onClick={onPasswordReset}
+                className="font-medium text-blue-600 hover:text-blue-500 text-sm"
+              >
+                Back to sign in
+              </button>
+            </div>
+          )}
+
+          {/* Loading while session is being established */}
+          {!sessionReady && !sessionError && (
+            <div className="text-center py-4">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+              <p className="mt-3 text-sm text-gray-600">Verifying reset link...</p>
+            </div>
+          )}
+
+          {/* Success state */}
+          {success && (
             <div className="text-center">
               <div className="rounded-md bg-green-50 p-4 mb-4">
                 <p className="text-sm font-medium text-green-800">
@@ -82,7 +140,10 @@ const ResetPasswordPage: React.FC<ResetPasswordPageProps> = ({ onPasswordReset }
                 </p>
               </div>
             </div>
-          ) : (
+          )}
+
+          {/* Password form - only show when session is ready and not yet succeeded */}
+          {sessionReady && !sessionError && !success && (
           <form className="space-y-6" onSubmit={handleSubmit}>
             {error && (
               <div className="rounded-md bg-red-50 p-4">
@@ -134,7 +195,6 @@ const ResetPasswordPage: React.FC<ResetPasswordPageProps> = ({ onPasswordReset }
               </button>
             </div>
           </form>
-          )}
         </div>
       </div>
     </div>
