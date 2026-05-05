@@ -5,6 +5,8 @@ import MainContent from './src/components/MainContent';
 import Footer from './src/components/Footer';
 import LoginPage from './src/components/LoginPage';
 import SignupPage from './src/components/SignupPage';
+import ForgotPasswordPage from './src/components/ForgotPasswordPage';
+import ResetPasswordPage from './src/components/ResetPasswordPage';
 
 import { EnrollmentData } from './src/services/api';
 import { storage } from './src/utils/storage';
@@ -20,6 +22,11 @@ const getUserKey = (email: string | null, key: string) => email ? `${email}_${ke
 const App: React.FC = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [showSignup, setShowSignup] = useState(false);
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  // Detect password recovery token synchronously before Supabase processes it
+  const [showResetPassword, setShowResetPassword] = useState(
+    () => window.location.hash.includes('type=recovery')
+  );
   const [showEmailConfirmation, setShowEmailConfirmation] = useState(false);
   const [confirmationEmail, setConfirmationEmail] = useState<string>('');
   const [activeStep, setActiveStep] = useState(1);
@@ -76,6 +83,7 @@ const App: React.FC = () => {
 
       authService.initAuthListener(async (user) => {
         console.log("App.tsx: Auth state changed in THIS TAB, user:", !!user, "hasInitialized:", hasInitialized, "isLoadingApplication:", isLoadingApplication);
+
 
         // Skip if we're already loading an application (prevents duplicate calls)
         if (isLoadingApplication) {
@@ -135,6 +143,9 @@ const App: React.FC = () => {
           clearApplicationState(previousUserEmail);
           currentUserEmailRef.current = null;
         }
+      }, () => {
+        // Password recovery event - show reset password page
+        setShowResetPassword(true);
       });
 
       // Note: We no longer need this separate check because initAuthListener handles initial state
@@ -717,6 +728,11 @@ const App: React.FC = () => {
     });
   };
 
+  // Show reset password page regardless of auth state (triggered by recovery email link)
+  if (showResetPassword) {
+    return <ResetPasswordPage onPasswordReset={() => { setShowResetPassword(false); }} />;
+  }
+
   if (!isAuthenticated && authInitialized) {
     return (
       <>
@@ -770,20 +786,17 @@ const App: React.FC = () => {
 
         {showSignup ? (
           <SignupPage onSignupSuccess={handleSignupSuccess} onSwitchToLogin={() => setShowSignup(false)} />
+        ) : showForgotPassword ? (
+          <ForgotPasswordPage onBack={() => setShowForgotPassword(false)} />
         ) : (
-          <LoginPage onLogin={handleLogin} onSwitchToSignup={() => setShowSignup(true)} />
+          <LoginPage onLogin={handleLogin} onSwitchToSignup={() => setShowSignup(true)} onForgotPassword={() => setShowForgotPassword(true)} />
         )}
       </>
     );
-    if (showSignup) {
-      return <SignupPage onSignupSuccess={handleSignupSuccess} onSwitchToLogin={() => setShowSignup(false)} />;
-    } else {
-      return <LoginPage onLogin={handleLogin} onSwitchToSignup={() => setShowSignup(true)} />;
-    }
   }
 
   // Show loading state while auth is initializing or application is loading
-  if (!authInitialized || (isAuthenticated && !applicationInitialized)) {
+  if (!authInitialized || (isAuthenticated && !applicationInitialized && !showResetPassword)) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">

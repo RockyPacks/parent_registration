@@ -16,8 +16,8 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     storage: window.sessionStorage, // Tab-specific storage
     autoRefreshToken: true, // Keep session alive in current tab
     persistSession: true, // Persist in same tab on refresh
-    detectSessionInUrl: true, // Handle email verification links
-    flowType: 'pkce'
+    detectSessionInUrl: true, // Handle email verification and password reset links
+    flowType: 'implicit' // Implicit flow sends #type=recovery in hash, enabling reliable PASSWORD_RECOVERY events
   }
 })
 

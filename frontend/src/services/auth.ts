@@ -128,19 +128,84 @@ class AuthService {
     return !!session;
   }
 
-  // Initialize auth state listener with user-specific session management
-  initAuthListener(callback: (user: AuthUser | null) => void) {
-    let isInitialized = false;
+  async sendPasswordResetEmail(email: string): Promise<void> {
+    // Always use the current origin so the link works on any device/environment
+    const redirectUrl = window.location.origin;
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${redirectUrl}/`,
+    });
+    if (error) {
+      throw new Error(error.message);
+    }
+  }
 
-    // Handle initial session from URL hash (email confirmation)
+  async updatePassword(newPassword: string): Promise<void> {
+    const { error } = await supabase.auth.updateUser({ password: newPassword });
+    if (error) {
+      throw new Error(error.message);
+    }
+  }
+
+  // Initialize auth state listener with user-specific session management
+  initAuthListener(callback: (user: AuthUser | null) => void, onPasswordRecovery?: () => void) {
+    let isInitialized = false;
+    let isRecoverySession = false;
+
+    // With implicit flow, Supabase fires PASSWORD_RECOVERY via onAuthStateChange BEFORE
+    // handleInitialSession's getSession() returns. We register the listener first.
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log("AuthService: Auth state change event:", event, !!session?.user, "(tab-specific)");
+
+      if (event === 'PASSWORD_RECOVERY') {
+        console.log("AuthService: Password recovery event received");
+        isRecoverySession = true;
+        if (onPasswordRecovery) {
+          onPasswordRecovery();
+        }
+        // Mark initialized so handleInitialSession won't double-process
+        isInitialized = true;
+        return;
+      }
+
+      // Skip the initial SIGNED_IN event if we already handled it in handleInitialSession
+      // or if this SIGNED_IN is part of a recovery flow (don't log them in yet)
+      if (event === 'SIGNED_IN' && (!isInitialized || isRecoverySession)) {
+        return;
+      }
+
+      // Only respond to explicit sign in/out events, not token refresh events
+      if (event === 'SIGNED_IN' && session?.user) {
+        const user: AuthUser = {
+          id: session.user.id,
+          email: session.user.email || '',
+          full_name: session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || '',
+        };
+        console.log("AuthService: User signed in (current tab only):", user.email);
+        callback(user);
+      } else if (event === 'SIGNED_OUT') {
+        console.log("AuthService: User signed out (current tab only)");
+        callback(null);
+      }
+      // Ignore TOKEN_REFRESHED and other events to prevent unnecessary reloads
+    });
+
+    // After setting up the listener, check for an existing session (e.g. page refresh)
+    // If PASSWORD_RECOVERY already fired above, isInitialized will be true and we skip login
     const handleInitialSession = async () => {
+      // Small delay to let synchronous onAuthStateChange events (like PASSWORD_RECOVERY) fire first
+      await Promise.resolve();
+      if (isInitialized) {
+        // Already handled by onAuthStateChange (e.g. PASSWORD_RECOVERY)
+        return;
+      }
       try {
         const { data: { session }, error } = await supabase.auth.getSession();
         if (error) {
           console.error("AuthService: Error getting session:", error);
+          callback(null);
+          isInitialized = true;
           return;
         }
-
         if (session?.user) {
           console.log("AuthService: Initial session found for user:", session.user.email);
           const user: AuthUser = {
@@ -161,34 +226,7 @@ class AuthService {
       }
     };
 
-    // Handle initial session first
     handleInitialSession();
-
-    // Then set up the auth state change listener
-    // Note: With sessionStorage, this only affects the current tab
-    supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log("AuthService: Auth state change event:", event, !!session?.user, "(tab-specific)");
-
-      // Skip the initial SIGNED_IN event if we already handled it in handleInitialSession
-      if (event === 'SIGNED_IN' && !isInitialized) {
-        return;
-      }
-
-      // Only respond to explicit sign in/out events, not token refresh events
-      if (event === 'SIGNED_IN' && session?.user) {
-        const user: AuthUser = {
-          id: session.user.id,
-          email: session.user.email || '',
-          full_name: session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || '',
-        };
-        console.log("AuthService: User signed in (current tab only):", user.email);
-        callback(user);
-      } else if (event === 'SIGNED_OUT') {
-        console.log("AuthService: User signed out (current tab only)");
-        callback(null);
-      }
-      // Ignore TOKEN_REFRESHED and other events to prevent unnecessary reloads
-    });
   }
 }
 
