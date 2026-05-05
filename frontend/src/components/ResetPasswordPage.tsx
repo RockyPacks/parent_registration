@@ -195,6 +195,7 @@ const ResetPasswordPage: React.FC<ResetPasswordPageProps> = ({ onPasswordReset }
               </button>
             </div>
           </form>
+          )}
         </div>
       </div>
     </div>
