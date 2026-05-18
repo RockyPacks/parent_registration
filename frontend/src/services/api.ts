@@ -140,6 +140,7 @@ export interface EnrollmentData {
 
 class ApiService {
   private sessionCache: { session: any; timestamp: number } | null = null;
+  private schoolsCache: { data: any; timestamp: number } | null = null;
   private readonly CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 
   private async getCachedSession() {
@@ -607,9 +608,17 @@ class ApiService {
    * @returns List of schools with id and schoolName
    */
   async getSchools(): Promise<{ data: Array<{ id: number, schoolName: string }>, count: number }> {
-    return this.request<{ data: Array<{ id: number, schoolName: string }>, count: number }>('/schools', {
+    const now = Date.now();
+    if (this.schoolsCache && (now - this.schoolsCache.timestamp) < this.CACHE_DURATION) {
+      return this.schoolsCache.data;
+    }
+
+    const result = await this.request<{ data: Array<{ id: number, schoolName: string }>, count: number }>('/schools', {
       authenticated: false
     });
+
+    this.schoolsCache = { data: result, timestamp: now };
+    return result;
   }
 
   /**
