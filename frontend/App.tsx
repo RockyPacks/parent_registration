@@ -211,11 +211,15 @@ const App: React.FC = () => {
               const hasStudentData = appData.student?.surname && appData.student?.firstName;
               const hasFamilyData = hasData(appData.family) && (appData.family?.fatherSurname || appData.family?.motherSurname);
               const hasFeeData = appData.fee?.feePerson;
+              const isSubmittedOrCompleted = appData.status === 'submitted' || appData.status === 'completed';
 
-              console.log("App.tsx: Step 1 check - hasStudentData:", hasStudentData, "hasFamilyData:", hasFamilyData, "hasFeeData:", hasFeeData);
+              console.log("App.tsx: Step 1 check - hasStudentData:", hasStudentData, "hasFamilyData:", hasFamilyData, "hasFeeData:", hasFeeData, "isSubmittedOrCompleted:", isSubmittedOrCompleted);
 
-              if (hasStudentData && hasFamilyData && hasFeeData) {
+              if ((hasStudentData && hasFamilyData && hasFeeData) || isSubmittedOrCompleted) {
                 backendCompletedSteps.push(1);
+                console.log("App.tsx: Step 1 marked as complete (either by data check or application status)");
+              } else {
+                console.log("App.tsx: Step 1 NOT marked as complete. Missing data and status is:", appData.status);
               }
 
               // Check if step 2 data exists (documents).
