@@ -8,6 +8,7 @@ import PasswordInput from './ui/PasswordInput';
 interface SignupPageProps {
   onSignupSuccess: (email: string) => void;
   onSwitchToLogin: () => void;
+  onSwitchToInquiry?: () => void;
 }
 
 interface School {
@@ -15,7 +16,7 @@ interface School {
   name: string;
 }
 
-const SignupPage: React.FC<SignupPageProps> = ({ onSignupSuccess, onSwitchToLogin }) => {
+const SignupPage: React.FC<SignupPageProps> = ({ onSignupSuccess, onSwitchToLogin, onSwitchToInquiry }) => {
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
@@ -344,11 +345,23 @@ const SignupPage: React.FC<SignupPageProps> = ({ onSignupSuccess, onSwitchToLogi
               Already have an account?{' '}
               <button
                 onClick={onSwitchToLogin}
-                className="font-medium text-blue-600 hover:text-blue-500"
+                className="font-medium text-blue-600 hover:text-blue-500 cursor-pointer"
               >
                 Sign in
               </button>
             </p>
+            {onSwitchToInquiry && (
+              <p className="mt-4 text-xs text-gray-500 max-w-xs mx-auto leading-relaxed border-t border-gray-100 pt-3">
+                Just want to express initial interest without completing a full multi-step application?{' '}
+                <button
+                  type="button"
+                  onClick={onSwitchToInquiry}
+                  className="font-bold text-purple-600 hover:text-purple-500 cursor-pointer block mt-1 mx-auto"
+                >
+                  Submit a quick school inquiry &rarr;
+                </button>
+              </p>
+            )}
           </div>
         </div>
       </div>

@@ -7,6 +7,7 @@ import LoginPage from './src/components/LoginPage';
 import SignupPage from './src/components/SignupPage';
 import ForgotPasswordPage from './src/components/ForgotPasswordPage';
 import ResetPasswordPage from './src/components/ResetPasswordPage';
+import { InquiryPage } from './src/components/InquiryPage';
 
 import { EnrollmentData } from './src/services/api';
 import { storage } from './src/utils/storage';
@@ -23,6 +24,7 @@ const App: React.FC = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [showSignup, setShowSignup] = useState(false);
   const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [showPublicInquiry, setShowPublicInquiry] = useState(false);
   // Detect password recovery token synchronously before Supabase processes it
   const [showResetPassword, setShowResetPassword] = useState(
     () => window.location.hash.includes('type=recovery')
@@ -732,6 +734,29 @@ const App: React.FC = () => {
     });
   };
 
+  // Support both standard pathname (/inquiry/school_uuid) and hash routing (/#/inquiry/school_uuid)
+  const getInquirySchoolId = (): string | null => {
+    const path = window.location.pathname;
+    const pathMatch = path.match(/^\/inquiry\/([a-zA-Z0-9-]+)/);
+    if (pathMatch) return pathMatch[1];
+
+    const hash = window.location.hash;
+    const hashMatch = hash.match(/^#\/inquiry\/([a-zA-Z0-9-]+)/) || hash.match(/^#inquiry\/([a-zA-Z0-9-]+)/);
+    if (hashMatch) return hashMatch[1];
+
+    return null;
+  };
+
+  const inquirySchoolId = getInquirySchoolId();
+
+  if (inquirySchoolId) {
+    return <InquiryPage schoolId={inquirySchoolId} />;
+  }
+
+  if (showPublicInquiry) {
+    return <InquiryPage onBackToLogin={() => setShowPublicInquiry(false)} />;
+  }
+
   // Show reset password page regardless of auth state (triggered by recovery email link)
   if (showResetPassword) {
     return <ResetPasswordPage onPasswordReset={() => { setShowResetPassword(false); }} />;
@@ -789,11 +814,20 @@ const App: React.FC = () => {
         )}
 
         {showSignup ? (
-          <SignupPage onSignupSuccess={handleSignupSuccess} onSwitchToLogin={() => setShowSignup(false)} />
+          <SignupPage 
+            onSignupSuccess={handleSignupSuccess} 
+            onSwitchToLogin={() => setShowSignup(false)} 
+            onSwitchToInquiry={() => { setShowSignup(false); setShowPublicInquiry(true); }}
+          />
         ) : showForgotPassword ? (
           <ForgotPasswordPage onBack={() => setShowForgotPassword(false)} />
         ) : (
-          <LoginPage onLogin={handleLogin} onSwitchToSignup={() => setShowSignup(true)} onForgotPassword={() => setShowForgotPassword(true)} />
+          <LoginPage 
+            onLogin={handleLogin} 
+            onSwitchToSignup={() => setShowSignup(true)} 
+            onForgotPassword={() => setShowForgotPassword(true)} 
+            onSwitchToInquiry={() => setShowPublicInquiry(true)}
+          />
         )}
       </>
     );
