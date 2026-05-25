@@ -9,6 +9,15 @@ import { useToast } from '../../hooks/useToast';
 import Footer from '../Footer';
 import { validateSAID } from '../../utils/saIdValidator';
 
+const MOLO_CLASS_NAME_OPTIONS = [
+  'Empress of Menen',
+  'Frances Gqoba',
+  'Sibulelo Mashale',
+  'Thandeka Nonkasana',
+  'Nosiseko Dlakavu',
+  'Amanirenas of Kush',
+];
+
 interface StudentInformationProps {
   initialData?: any;
   onDataChange?: (data: any) => void;
@@ -153,12 +162,12 @@ const StudentInformation: React.FC<StudentInformationProps> = ({ initialData, on
         break;
       case 'previousGrade':
         if (!value) {
-          error = 'Previous Grade is required';
+          error = 'Previous Class Name is required';
         }
         break;
       case 'gradeAppliedFor':
         if (!value) {
-          error = 'Grade Applied For is required';
+          error = 'Class Name Applied For is required';
         }
         break;
       case 'previousSchool':
@@ -357,49 +366,33 @@ const StudentInformation: React.FC<StudentInformationProps> = ({ initialData, on
           />
           <SelectField
             id="previousGrade"
-            label="Previous Grade"
+            label="Previous Class Name"
             required
             value={formData.previousGrade}
             onChange={(e) => handleInputChange('previousGrade', e.target.value)}
             error={errors.previousGrade}
           >
-            <option value="">Select Grade</option>
-            <option value="Grade R">Grade R</option>
-            <option value="Grade 1">Grade 1</option>
-            <option value="Grade 2">Grade 2</option>
-            <option value="Grade 3">Grade 3</option>
-            <option value="Grade 4">Grade 4</option>
-            <option value="Grade 5">Grade 5</option>
-            <option value="Grade 6">Grade 6</option>
-            <option value="Grade 7">Grade 7</option>
-            <option value="Grade 8">Grade 8</option>
-            <option value="Grade 9">Grade 9</option>
-            <option value="Grade 10">Grade 10</option>
-            <option value="Grade 11">Grade 11</option>
-            <option value="Grade 12">Grade 12</option>
+            <option value="">Select Class Name</option>
+            {MOLO_CLASS_NAME_OPTIONS.map((className) => (
+              <option key={className} value={className}>
+                {className}
+              </option>
+            ))}
           </SelectField>
           <SelectField
             id="gradeAppliedFor"
-            label="Grade Applied For"
+            label="Class Name Applied For"
             required
             value={formData.gradeAppliedFor}
             onChange={(e) => handleInputChange('gradeAppliedFor', e.target.value)}
             error={errors.gradeAppliedFor}
           >
-            <option value="">Select Grade</option>
-            <option value="Grade R">Grade R</option>
-            <option value="Grade 1">Grade 1</option>
-            <option value="Grade 2">Grade 2</option>
-            <option value="Grade 3">Grade 3</option>
-            <option value="Grade 4">Grade 4</option>
-            <option value="Grade 5">Grade 5</option>
-            <option value="Grade 6">Grade 6</option>
-            <option value="Grade 7">Grade 7</option>
-            <option value="Grade 8">Grade 8</option>
-            <option value="Grade 9">Grade 9</option>
-            <option value="Grade 10">Grade 10</option>
-            <option value="Grade 11">Grade 11</option>
-            <option value="Grade 12">Grade 12</option>
+            <option value="">Select Class Name</option>
+            {MOLO_CLASS_NAME_OPTIONS.map((className) => (
+              <option key={className} value={className}>
+                {className}
+              </option>
+            ))}
           </SelectField>
           <div className="md:col-span-2">
             <InputField
