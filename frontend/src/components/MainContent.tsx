@@ -234,8 +234,8 @@ const MainContent: React.FC<MainContentProps> = (props) => {
     if (!studentData?.dob) errors.studentDob = 'Date of birth is required';
     if (!studentData?.gender) errors.studentGender = 'Gender is required';
     if (!studentData?.homeLanguage) errors.studentHomeLanguage = 'Home language is required';
-    if (!studentData?.previousGrade) errors.studentPreviousGrade = 'Previous grade is required';
-    if (!studentData?.gradeAppliedFor) errors.studentGradeAppliedFor = 'Grade applied for is required';
+    if (!studentData?.previousGrade) errors.studentPreviousGrade = 'Previous class name is required';
+    if (!studentData?.gradeAppliedFor) errors.studentGradeAppliedFor = 'Class name applied for is required';
     if (!studentData?.previousSchool?.trim()) errors.studentPreviousSchool = 'Previous school is required';
 
     const hasFatherInfo = familyData?.fatherSurname?.trim() ||
