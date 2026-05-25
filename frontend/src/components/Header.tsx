@@ -1,69 +1,60 @@
-
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import knitIcon from '../../assets/knit-icon.png';
 
 interface HeaderProps {
-  title?: string;
-  subtitle?: string;
-  lastSaved?: string;
-  showAutoSave?: boolean;
   onLogout?: () => void;
-  onNavigate?: (view: 'enrollment') => void;
+  onNavigate?: (view: 'enrollment' | 'payment-confirmation') => void;
   currentView?: 'enrollment' | 'payment-confirmation';
   userName?: string;
   userEmail?: string;
   schoolName?: string;
 }
 
+const SELECTED_SCHOOL_LOGO_KEY = 'selectedSchoolLogo';
+const SELECTED_SCHOOL_NAME_KEY = 'selectedSchoolName';
+
 const Header: React.FC<HeaderProps> = ({
-  title,
-  subtitle = "Student Enrollment Application",
-  lastSaved = "2 minutes ago",
-  showAutoSave = true,
   onLogout,
-  onNavigate,
-  currentView = 'enrollment',
-  userName,
-  userEmail,
   schoolName
 }) => {
-  const displayTitle = schoolName ? schoolName : "Knit.";
-  const displaySubtitle = schoolName ? `powered by Knit · ${subtitle}` : subtitle;
+  const [logo, setLogo] = useState(knitIcon);
+  const [displayName, setDisplayName] = useState(schoolName || 'Knit');
+
+  useEffect(() => {
+    const savedLogo = localStorage.getItem(SELECTED_SCHOOL_LOGO_KEY);
+    const savedSchoolName = localStorage.getItem(SELECTED_SCHOOL_NAME_KEY);
+
+    if (savedLogo) setLogo(savedLogo);
+    if (savedSchoolName) setDisplayName(savedSchoolName);
+    else if (schoolName) setDisplayName(schoolName);
+  }, [schoolName]);
 
   return (
-    <header className="fixed top-0 left-0 md:left-[25%] right-0 z-50 bg-white border-b border-gray-200 p-2 md:p-3 lg:p-4 flex justify-between items-center shadow-sm md:rounded-t-lg">
-      <div className="flex items-center gap-2 md:gap-4">
-        <img src={knitIcon} alt="Knit Icon" className="h-6 w-6 md:h-8 md:w-8 object-contain" />
-        <div>
-          <h1 className="text-lg md:text-xl font-bold text-gray-800">{displayTitle}</h1>
-          <p className="text-xs md:text-sm text-gray-500">{displaySubtitle}</p>
-        </div>
-      </div>
-      <div className="flex items-center gap-2 md:gap-3">
-        {onNavigate && (
-          <button
-            onClick={() => onNavigate('enrollment')}
-            className={`px-2 md:px-3 py-1 md:py-2 text-xs md:text-sm font-medium rounded-md transition-colors ${
-              currentView === 'enrollment'
-                ? 'text-blue-600 bg-blue-50'
-                : 'text-gray-700 hover:text-blue-600 hover:bg-gray-50'
-            }`}
-          >
-            Enrollment
-          </button>
-        )}
-
-        {userName && (
-          <div className="hidden md:flex flex-col items-end mr-2">
-            <span className="text-sm font-medium text-gray-800">{userName}</span>
-            <span className="text-xs text-gray-500">{userEmail}</span>
+        <header className="sticky top-0 z-50 bg-white border-b border-gray-200 shadow-sm md:ml-[25%]">
+        <div className="h-16 px-5 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="w-11 h-11 rounded-xl bg-white border border-gray-200 shadow-sm flex items-center justify-center overflow-hidden">
+            <img
+              src={logo}
+              alt={`${displayName} logo`}
+              className="w-9 h-9 object-contain"
+            />
           </div>
-        )}
+
+          <div>
+            <h1 className="text-base font-bold text-slate-900 leading-tight">
+              {displayName}
+            </h1>
+            <p className="text-xs text-slate-500">
+              powered by Knit · Student Enrollment Application
+            </p>
+          </div>
+        </div>
 
         {onLogout && (
           <button
             onClick={onLogout}
-            className="ml-2 md:ml-4 px-3 md:px-4 py-1 md:py-2 text-xs md:text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors"
+            className="px-4 py-2 text-sm font-semibold text-white bg-red-500 rounded-lg hover:bg-red-600 transition-colors"
           >
             Logout
           </button>
