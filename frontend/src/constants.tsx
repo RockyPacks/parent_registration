@@ -123,7 +123,7 @@ export const financingOptionsData = [
 
 export const qualifications = [
   'South African Citizen',
-  'Grade 12 or equivalent',
+  'Completed previous class level or equivalent',
   'Minimum academic requirements',
   'Financial need assessment',
 ];
@@ -144,19 +144,12 @@ export const SCHOOL_TYPES = [
 ];
 
 export const GRADES = [
-  { value: 'gradeR', label: 'Grade R' },
-  { value: 'grade1', label: 'Grade 1' },
-  { value: 'grade2', label: 'Grade 2' },
-  { value: 'grade3', label: 'Grade 3' },
-  { value: 'grade4', label: 'Grade 4' },
-  { value: 'grade5', label: 'Grade 5' },
-  { value: 'grade6', label: 'Grade 6' },
-  { value: 'grade7', label: 'Grade 7' },
-  { value: 'grade8', label: 'Grade 8' },
-  { value: 'grade9', label: 'Grade 9' },
-  { value: 'grade10', label: 'Grade 10' },
-  { value: 'grade11', label: 'Grade 11' },
-  { value: 'grade12', label: 'Grade 12' },
+  { value: 'empress_of_menen', label: 'Empress of Menen' },
+  { value: 'frances_gqoba', label: 'Frances Gqoba' },
+  { value: 'sibulelo_mashale', label: 'Sibulelo Mashale' },
+  { value: 'thandeka_nonkasana', label: 'Thandeka Nonkasana' },
+  { value: 'nosiseko_dlakavu', label: 'Nosiseko Dlakavu' },
+  { value: 'amanirenas_of_kush', label: 'Amanirenas of Kush' },
 ];
 
 export const SUBJECTS = [
