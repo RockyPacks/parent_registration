@@ -286,15 +286,15 @@ export const ReviewSubmitStep: React.FC<ReviewSubmitStepProps> = ({ currentData,
                     <InfoItem label="Gender" value={summaryData.student.gender} isRequired={false} placeholder="Gender" />
                     <InfoItem label="ID Number" value={summaryData.student.idNumber} isRequired={false} placeholder="ID Number" />
                     <InfoItem label="Home Language" value={summaryData.student.homeLanguage} isRequired={false} placeholder="Home Language" />
-                    <InfoItem label="Previous Grade" value={summaryData.student.previousGrade} isRequired={false} placeholder="Previous Grade" />
-                    <InfoItem label="Grade Applied For" value={summaryData.student.gradeAppliedFor} isRequired={false} placeholder="Grade Applied For" />
+                    <InfoItem label="Previous Class Name" value={summaryData.student.previousGrade} isRequired={false} placeholder="Previous Class Name" />
+                    <InfoItem label="Class Name Applied For" value={summaryData.student.gradeAppliedFor} isRequired={false} placeholder="Class Name Applied For" />
                     <InfoItem label="Previous School" value={summaryData.student.previousSchool} isRequired={false} placeholder="Previous School" />
                   </div>
                   <div className="space-y-4">
                     <h3 className="font-semibold text-gray-700">Application Details</h3>
                     <InfoItem label="Proposed Start Term" value={summaryData.applicationDetails?.proposedStartTerm} isRequired={true} placeholder="Please choose..." />
                     <InfoItem label="Year" value={summaryData.applicationDetails?.year} isRequired={true} placeholder="Please choose..." />
-                    <InfoItem label="Grade/Class Applying For" value={summaryData.applicationDetails?.gradeApplyingFor} isRequired={true} placeholder="Please choose..." />
+                    <InfoItem label="Class Name Applying For" value={summaryData.applicationDetails?.gradeApplyingFor} isRequired={true} placeholder="Please choose..." />
                     <InfoItem label="Proposed Start Date" value={summaryData.applicationDetails?.proposedStartDate} isRequired={false} placeholder="Choose date" />
                   </div>
                   <div className="space-y-4">
@@ -363,7 +363,7 @@ export const ReviewSubmitStep: React.FC<ReviewSubmitStepProps> = ({ currentData,
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-4">
                   <InfoItem label="Previous School" value={summaryData.academicHistory[0]?.schoolName} isRequired={true} placeholder="Enter school name" />
                   <InfoItem label="School Type" value={summaryData.academicHistory[0]?.schoolType} isRequired={true} placeholder="e.g., Public" />
-                  <InfoItem label="Last Grade Completed" value={summaryData.academicHistory[0]?.lastGradeCompleted} isRequired={true} placeholder="e.g., Grade 12" />
+                  <InfoItem label="Last Class Completed" value={summaryData.academicHistory[0]?.lastGradeCompleted} isRequired={true} placeholder="e.g., Amanirenas of Kush" />
                   <InfoItem label="Academic Year Completed" value={summaryData.academicHistory[0]?.academicYearCompleted} isRequired={true} placeholder="e.g., 2023" />
                   <InfoItem label="Reason for Leaving" value={summaryData.academicHistory[0]?.reasonForLeaving} isRequired={false} placeholder="Reason for leaving" />
                   <InfoItem label="Principal's Name" value={summaryData.academicHistory[0]?.principalName} isRequired={false} placeholder="Principal's name" />
