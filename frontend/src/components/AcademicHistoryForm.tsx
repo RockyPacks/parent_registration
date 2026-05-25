@@ -183,7 +183,7 @@ const AcademicHistoryForm: React.FC<AcademicHistoryFormProps> = ({ applicationId
     const requiredFields = [
       { key: 'schoolName', label: 'School Name' },
       { key: 'schoolType', label: 'School Type' },
-      { key: 'lastGradeCompleted', label: 'Last Grade Completed' },
+      { key: 'lastGradeCompleted', label: 'Last Class Completed' },
       { key: 'academicYearCompleted', label: 'Academic Year Completed' }
     ];
 
@@ -417,7 +417,7 @@ const AcademicHistoryForm: React.FC<AcademicHistoryFormProps> = ({ applicationId
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <Input label="School Name" name="schoolName" value={formData.schoolName} onChange={handleChange} placeholder="Enter school name" required />
                   <Select label="School Type" name="schoolType" value={formData.schoolType} onChange={handleChange} options={SCHOOL_TYPES} placeholder="Select school type" required />
-                  <Select label="Last Grade Completed" name="lastGradeCompleted" value={formData.lastGradeCompleted} onChange={handleChange} options={GRADES} placeholder="Select grade" required />
+                  <Select label="Last Class Completed" name="lastGradeCompleted" value={formData.lastGradeCompleted} onChange={handleChange} options={GRADES} placeholder="Select class name" required />
                   <Select
                     label="Academic Year Completed"
                     name="academicYearCompleted"
