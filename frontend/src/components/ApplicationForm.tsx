@@ -270,8 +270,8 @@ const ApplicationForm = React.forwardRef<ApplicationFormHandle, ApplicationFormP
           <FieldRow label="Date of Birth" value={student.dob} />
           <FieldRow label="Gender" value={student.gender} />
           <FieldRow label="Home Language" value={student.homeLanguage} />
-          <FieldRow label="Grade Applying For" value={student.gradeAppliedFor} />
-          <FieldRow label="Grade Last Comp." value={student.previousGrade} />
+          <FieldRow label="Class Name Applying For" value={student.gradeAppliedFor} />
+          <FieldRow label="Last Class Completed" value={student.previousGrade} />
           <FieldRow label="Previous School" value={student.previousSchool} fullWidth={true} />
           <FieldRow label="Email Address" value={student.email} />
           <FieldRow label="Phone Number" value={student.phone} />
