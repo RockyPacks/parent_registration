@@ -250,7 +250,7 @@ class EnrollmentRepository(BaseRepository):
             existing = self.supabase.table("parents").select("*").eq("application_id", application_id).execute()
             existing_parents = {p.get("relationship"): p for p in (existing.data or [])}
             
-            def upsert_parent(relationship, surname, first_name, id_number, mobile, email):
+            def upsert_parent(relationship, surname, first_name, id_number, mobile, email, whatsapp=None):
                 if not surname and not first_name:
                     return
                 data = {
@@ -261,6 +261,7 @@ class EnrollmentRepository(BaseRepository):
                     "id_number": id_number,
                     "mobile": mobile,
                     "email": email,
+                    "whatsapp": whatsapp,
                     "is_primary": False
                 }
                 if user_id:
@@ -279,7 +280,8 @@ class EnrollmentRepository(BaseRepository):
                 family_data.father_first_name,
                 family_data.father_id_number,
                 family_data.father_mobile,
-                family_data.father_email
+                family_data.father_email,
+                whatsapp=getattr(family_data, 'father_whatsapp', None)
             )
             
             upsert_parent(
@@ -288,7 +290,8 @@ class EnrollmentRepository(BaseRepository):
                 family_data.mother_first_name,
                 family_data.mother_id_number,
                 family_data.mother_mobile,
-                family_data.mother_email
+                family_data.mother_email,
+                whatsapp=getattr(family_data, 'mother_whatsapp', None)
             )
             
             # Save Next of Kin as Guardian if provided
@@ -298,7 +301,8 @@ class EnrollmentRepository(BaseRepository):
                 family_data.next_of_kin_first_name,
                 family_data.next_of_kin_id_number,
                 family_data.next_of_kin_mobile,
-                family_data.next_of_kin_email
+                family_data.next_of_kin_email,
+                whatsapp=getattr(family_data, 'next_of_kin_whatsapp', None)
             )
 
         except Exception as e:
@@ -465,6 +469,7 @@ class EnrollmentRepository(BaseRepository):
             if family_data.father_first_name is not None: father_data["first_name"] = family_data.father_first_name
             if family_data.father_id_number is not None: father_data["id_number"] = family_data.father_id_number
             if family_data.father_mobile is not None: father_data["mobile"] = family_data.father_mobile
+            if getattr(family_data, 'father_whatsapp', None) is not None: father_data["whatsapp"] = family_data.father_whatsapp
             if family_data.father_email is not None: father_data["email"] = family_data.father_email
             
             if father_data:
@@ -485,6 +490,7 @@ class EnrollmentRepository(BaseRepository):
             if family_data.mother_first_name is not None: mother_data["first_name"] = family_data.mother_first_name
             if family_data.mother_id_number is not None: mother_data["id_number"] = family_data.mother_id_number
             if family_data.mother_mobile is not None: mother_data["mobile"] = family_data.mother_mobile
+            if getattr(family_data, 'mother_whatsapp', None) is not None: mother_data["whatsapp"] = family_data.mother_whatsapp
             if family_data.mother_email is not None: mother_data["email"] = family_data.mother_email
             
             if mother_data:
@@ -505,6 +511,7 @@ class EnrollmentRepository(BaseRepository):
             if family_data.next_of_kin_first_name is not None: guardian_data["first_name"] = family_data.next_of_kin_first_name
             if family_data.next_of_kin_id_number is not None: guardian_data["id_number"] = family_data.next_of_kin_id_number
             if family_data.next_of_kin_mobile is not None: guardian_data["mobile"] = family_data.next_of_kin_mobile
+            if getattr(family_data, 'next_of_kin_whatsapp', None) is not None: guardian_data["whatsapp"] = family_data.next_of_kin_whatsapp
             if family_data.next_of_kin_email is not None: guardian_data["email"] = family_data.next_of_kin_email
             
             if guardian_data:
@@ -612,12 +619,14 @@ class EnrollmentRepository(BaseRepository):
                         family_data["father_first_name"] = row.get("first_name")
                         family_data["father_id_number"] = row.get("id_number")
                         family_data["father_mobile"] = row.get("mobile")
+                        family_data["father_whatsapp"] = row.get("whatsapp")
                         family_data["father_email"] = row.get("email")
                     elif rel == "Mother":
                         family_data["mother_surname"] = row.get("surname")
                         family_data["mother_first_name"] = row.get("first_name")
                         family_data["mother_id_number"] = row.get("id_number")
                         family_data["mother_mobile"] = row.get("mobile")
+                        family_data["mother_whatsapp"] = row.get("whatsapp")
                         family_data["mother_email"] = row.get("email")
                         
             # Add next of kin data from separate table if available, for the UI
@@ -627,6 +636,7 @@ class EnrollmentRepository(BaseRepository):
                 family_data["next_of_kin_first_name"] = nok.get("first_name")
                 family_data["next_of_kin_relationship"] = nok.get("relationship")
                 family_data["next_of_kin_mobile"] = nok.get("mobile_number") or nok.get("mobile")
+                family_data["next_of_kin_whatsapp"] = nok.get("whatsapp")
                 family_data["next_of_kin_email"] = nok.get("email_address") or nok.get("email")
 
             return {

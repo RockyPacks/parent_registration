@@ -19,11 +19,13 @@ const FamilyInformation: React.FC<FamilyInformationProps> = ({ initialFamilyData
     fatherFirstName: '',
     fatherIdNumber: '',
     fatherMobile: '',
+    fatherWhatsapp: '',
     fatherEmail: '',
     motherSurname: '',
     motherFirstName: '',
     motherIdNumber: '',
     motherMobile: '',
+    motherWhatsapp: '',
     motherEmail: '',
     ...initialFamilyData
   });
@@ -33,6 +35,7 @@ const FamilyInformation: React.FC<FamilyInformationProps> = ({ initialFamilyData
     nextOfKinFirstName: '',
     nextOfKinRelationship: '',
     nextOfKinMobile: '',
+    nextOfKinWhatsapp: '',
     nextOfKinEmail: '',
     nextOfKinIdNumber: '',
     nextOfKinPhone: '',
@@ -84,16 +87,19 @@ const FamilyInformation: React.FC<FamilyInformationProps> = ({ initialFamilyData
     fatherFirstName: '',
     fatherIdNumber: '',
     fatherMobile: '',
+    fatherWhatsapp: '',
     fatherEmail: '',
     motherSurname: '',
     motherFirstName: '',
     motherIdNumber: '',
     motherMobile: '',
+    motherWhatsapp: '',
     motherEmail: '',
     nextOfKinSurname: '',
     nextOfKinFirstName: '',
     nextOfKinRelationship: '',
     nextOfKinMobile: '',
+    nextOfKinWhatsapp: '',
     nextOfKinEmail: '',
     nextOfKinIdNumber: '' // Added missing nextOfKinIdNumber
   });
@@ -176,6 +182,13 @@ const FamilyInformation: React.FC<FamilyInformationProps> = ({ initialFamilyData
         if (!value.trim()) {
           error = 'Mobile number is required';
         } else if (!/^(\+27|0)[6-8][0-9]{8}$/.test(value)) {
+          error = 'Please enter a valid South African mobile number';
+        }
+        break;
+      case 'fatherWhatsapp':
+      case 'motherWhatsapp':
+      case 'nextOfKinWhatsapp':
+        if (value.trim() && !/^(\+27|0)[6-8][0-9]{8}$/.test(value)) {
           error = 'Please enter a valid South African mobile number';
         }
         break;
@@ -291,6 +304,14 @@ const FamilyInformation: React.FC<FamilyInformationProps> = ({ initialFamilyData
                   placeholder="+27 or 0XXXXXXXXX"
                 />
               <InputField
+                  id="fatherWhatsapp"
+                  label="WhatsApp Number"
+                  value={familyFormData.fatherWhatsapp}
+                  onChange={(e) => handleInputChange('fatherWhatsapp', e.target.value)}
+                  error={(errors as any).fatherWhatsapp}
+                  placeholder="+27 or 0XXXXXXXXX (optional)"
+                />
+              <InputField
                   id="fatherEmail"
                   label="Email Address"
                   required
@@ -355,6 +376,14 @@ const FamilyInformation: React.FC<FamilyInformationProps> = ({ initialFamilyData
                   placeholder="+27 or 0XXXXXXXXX"
                 />
               <InputField
+                  id="motherWhatsapp"
+                  label="WhatsApp Number"
+                  value={familyFormData.motherWhatsapp}
+                  onChange={(e) => handleInputChange('motherWhatsapp', e.target.value)}
+                  error={(errors as any).motherWhatsapp}
+                  placeholder="+27 or 0XXXXXXXXX (optional)"
+                />
+              <InputField
                   id="motherEmail"
                   label="Email Address"
                   required
@@ -413,6 +442,14 @@ const FamilyInformation: React.FC<FamilyInformationProps> = ({ initialFamilyData
                 onChange={(e) => handleInputChange('nextOfKinMobile', e.target.value)}
                 error={errors.nextOfKinMobile}
                 placeholder="+27 or 0XXXXXXXXX"
+              />
+              <InputField
+                id="nextOfKinWhatsapp"
+                label="WhatsApp Number"
+                value={nextOfKinFormData.nextOfKinWhatsapp}
+                onChange={(e) => handleInputChange('nextOfKinWhatsapp', e.target.value)}
+                error={(errors as any).nextOfKinWhatsapp}
+                placeholder="+27 or 0XXXXXXXXX (optional)"
               />
               <div className="md:col-span-2">
                 <InputField

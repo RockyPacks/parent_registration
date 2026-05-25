@@ -12,10 +12,11 @@ interface HeaderProps {
   currentView?: 'enrollment' | 'payment-confirmation';
   userName?: string;
   userEmail?: string;
+  schoolName?: string;
 }
 
 const Header: React.FC<HeaderProps> = ({
-  title = "Knit.",
+  title,
   subtitle = "Student Enrollment Application",
   lastSaved = "2 minutes ago",
   showAutoSave = true,
@@ -23,15 +24,19 @@ const Header: React.FC<HeaderProps> = ({
   onNavigate,
   currentView = 'enrollment',
   userName,
-  userEmail
+  userEmail,
+  schoolName
 }) => {
+  const displayTitle = schoolName ? schoolName : "Knit.";
+  const displaySubtitle = schoolName ? `powered by Knit · ${subtitle}` : subtitle;
+
   return (
     <header className="fixed top-0 left-0 md:left-[25%] right-0 z-50 bg-white border-b border-gray-200 p-2 md:p-3 lg:p-4 flex justify-between items-center shadow-sm md:rounded-t-lg">
       <div className="flex items-center gap-2 md:gap-4">
         <img src={knitIcon} alt="Knit Icon" className="h-6 w-6 md:h-8 md:w-8 object-contain" />
         <div>
-          <h1 className="text-lg md:text-xl font-bold text-gray-800">{title}</h1>
-          <p className="text-xs md:text-sm text-gray-500">{subtitle}</p>
+          <h1 className="text-lg md:text-xl font-bold text-gray-800">{displayTitle}</h1>
+          <p className="text-xs md:text-sm text-gray-500">{displaySubtitle}</p>
         </div>
       </div>
       <div className="flex items-center gap-2 md:gap-3">

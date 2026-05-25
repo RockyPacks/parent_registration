@@ -157,12 +157,14 @@ class FamilyInfo(BaseModel):
     father_first_name: Optional[str] = Field(None, validation_alias=AliasChoices('father_first_name', 'fatherFirstName'), max_length=100, description="Father's first name")
     father_id_number: Optional[str] = Field(None, validation_alias=AliasChoices('father_id_number', 'fatherIdNumber'), pattern=r'^\d{13}$', description="Father's ID number")
     father_mobile: Optional[str] = Field(None, validation_alias=AliasChoices('father_mobile', 'fatherMobile'), pattern=r'^\+?[\d\s\-\(\)]+$', description="Father's mobile number")
+    father_whatsapp: Optional[str] = Field(None, validation_alias=AliasChoices('father_whatsapp', 'fatherWhatsapp'), pattern=r'^\+?[\d\s\-\(\)]+$', description="Father's WhatsApp number")
     father_email: Optional[str] = Field(None, validation_alias=AliasChoices('father_email', 'fatherEmail'), description="Father's email address")
 
     mother_surname: Optional[str] = Field(None, validation_alias=AliasChoices('mother_surname', 'motherSurname'), max_length=100, description="Mother's surname")
     mother_first_name: Optional[str] = Field(None, validation_alias=AliasChoices('mother_first_name', 'motherFirstName'), max_length=100, description="Mother's first name")
     mother_id_number: Optional[str] = Field(None, validation_alias=AliasChoices('mother_id_number', 'motherIdNumber'), pattern=r'^\d{13}$', description="Mother's ID number")
     mother_mobile: Optional[str] = Field(None, validation_alias=AliasChoices('mother_mobile', 'motherMobile'), pattern=r'^\+?[\d\s\-\(\)]+$', description="Mother's mobile number")
+    mother_whatsapp: Optional[str] = Field(None, validation_alias=AliasChoices('mother_whatsapp', 'motherWhatsapp'), pattern=r'^\+?[\d\s\-\(\)]+$', description="Mother's WhatsApp number")
     mother_email: Optional[str] = Field(None, validation_alias=AliasChoices('mother_email', 'motherEmail'), description="Mother's email address")
 
     next_of_kin_surname: Optional[str] = Field(None, validation_alias=AliasChoices('next_of_kin_surname', 'nextOfKinSurname'), max_length=100, description="Next of kin's surname")
@@ -170,6 +172,7 @@ class FamilyInfo(BaseModel):
     next_of_kin_id_number: Optional[str] = Field(None, validation_alias=AliasChoices('next_of_kin_id_number', 'nextOfKinIdNumber'), pattern=r'^\d{13}$', description="Next of kin's ID number")
     next_of_kin_relationship: Optional[str] = Field(None, validation_alias=AliasChoices('next_of_kin_relationship', 'nextOfKinRelationship'), max_length=50, description="Next of kin's relationship")
     next_of_kin_mobile: Optional[str] = Field(None, validation_alias=AliasChoices('next_of_kin_mobile', 'nextOfKinMobile'), pattern=r'^\+?[\d\s\-\(\)]+$', description="Next of kin's mobile number")
+    next_of_kin_whatsapp: Optional[str] = Field(None, validation_alias=AliasChoices('next_of_kin_whatsapp', 'nextOfKinWhatsapp'), pattern=r'^\+?[\d\s\-\(\)]+$', description="Next of kin's WhatsApp number")
     next_of_kin_email: Optional[str] = Field(None, validation_alias=AliasChoices('next_of_kin_email', 'nextOfKinEmail'), description="Next of kin's email address")
 
     model_config = ConfigDict(populate_by_name=True)
@@ -177,6 +180,7 @@ class FamilyInfo(BaseModel):
     @field_validator(
         'father_id_number', 'mother_id_number', 'next_of_kin_id_number',
         'father_mobile', 'mother_mobile', 'next_of_kin_mobile',
+        'father_whatsapp', 'mother_whatsapp', 'next_of_kin_whatsapp',
         mode='before'
     )
     @classmethod
@@ -207,12 +211,14 @@ class FamilyInfoPartial(BaseModel):
     father_first_name: Optional[str] = Field(None, validation_alias=AliasChoices('father_first_name', 'fatherFirstName'), max_length=100, description="Father's first name")
     father_id_number: Optional[str] = Field(None, validation_alias=AliasChoices('father_id_number', 'fatherIdNumber'), pattern=r'^\d{13}$', description="Father's ID number")
     father_mobile: Optional[str] = Field(None, validation_alias=AliasChoices('father_mobile', 'fatherMobile'), pattern=r'^\+?[\d\s\-\(\)]+$', description="Father's mobile number")
+    father_whatsapp: Optional[str] = Field(None, validation_alias=AliasChoices('father_whatsapp', 'fatherWhatsapp'), pattern=r'^\+?[\d\s\-\(\)]+$', description="Father's WhatsApp number")
     father_email: Optional[str] = Field(None, validation_alias=AliasChoices('father_email', 'fatherEmail'), description="Father's email address")
 
     mother_surname: Optional[str] = Field(None, validation_alias=AliasChoices('mother_surname', 'motherSurname'), max_length=100, description="Mother's surname")
     mother_first_name: Optional[str] = Field(None, validation_alias=AliasChoices('mother_first_name', 'motherFirstName'), max_length=100, description="Mother's first name")
     mother_id_number: Optional[str] = Field(None, validation_alias=AliasChoices('mother_id_number', 'motherIdNumber'), pattern=r'^\d{13}$', description="Mother's ID number")
     mother_mobile: Optional[str] = Field(None, validation_alias=AliasChoices('mother_mobile', 'motherMobile'), pattern=r'^\+?[\d\s\-\(\)]+$', description="Mother's mobile number")
+    mother_whatsapp: Optional[str] = Field(None, validation_alias=AliasChoices('mother_whatsapp', 'motherWhatsapp'), pattern=r'^\+?[\d\s\-\(\)]+$', description="Mother's WhatsApp number")
     mother_email: Optional[str] = Field(None, validation_alias=AliasChoices('mother_email', 'motherEmail'), description="Mother's email address")
 
     next_of_kin_surname: Optional[str] = Field(None, validation_alias=AliasChoices('next_of_kin_surname', 'nextOfKinSurname'), max_length=100, description="Next of kin's surname")
@@ -220,6 +226,7 @@ class FamilyInfoPartial(BaseModel):
     next_of_kin_id_number: Optional[str] = Field(None, validation_alias=AliasChoices('next_of_kin_id_number', 'nextOfKinIdNumber'), pattern=r'^\d{13}$', description="Next of kin's ID number")
     next_of_kin_relationship: Optional[str] = Field(None, validation_alias=AliasChoices('next_of_kin_relationship', 'nextOfKinRelationship'), max_length=50, description="Next of kin's relationship")
     next_of_kin_mobile: Optional[str] = Field(None, validation_alias=AliasChoices('next_of_kin_mobile', 'nextOfKinMobile'), pattern=r'^\+?[\d\s\-\(\)]+$', description="Next of kin's mobile number")
+    next_of_kin_whatsapp: Optional[str] = Field(None, validation_alias=AliasChoices('next_of_kin_whatsapp', 'nextOfKinWhatsapp'), pattern=r'^\+?[\d\s\-\(\)]+$', description="Next of kin's WhatsApp number")
     next_of_kin_email: Optional[str] = Field(None, validation_alias=AliasChoices('next_of_kin_email', 'nextOfKinEmail'), description="Next of kin's email address")
 
     model_config = ConfigDict(populate_by_name=True)
@@ -227,6 +234,7 @@ class FamilyInfoPartial(BaseModel):
     @field_validator(
         'father_id_number', 'mother_id_number', 'next_of_kin_id_number',
         'father_mobile', 'mother_mobile', 'next_of_kin_mobile',
+        'father_whatsapp', 'mother_whatsapp', 'next_of_kin_whatsapp',
         mode='before'
     )
     @classmethod
@@ -599,6 +607,7 @@ class NextOfKinCreate(BaseModel):
     email_address: str = Field(..., validation_alias=AliasChoices('email_address', 'emailAddress'), description="Email address")
     phone_number: Optional[str] = Field(None, validation_alias=AliasChoices('phone_number', 'phoneNumber'), max_length=20, description="Alternative phone number")
     alternate_mobile: Optional[str] = Field(None, validation_alias=AliasChoices('alternate_mobile', 'alternateMobile'), max_length=20, description="Alternate mobile number")
+    whatsapp: Optional[str] = Field(None, max_length=20, description="WhatsApp number")
     physical_address: Optional[str] = Field(None, validation_alias=AliasChoices('physical_address', 'physicalAddress'), max_length=500, description="Physical address")
 
     model_config = ConfigDict(populate_by_name=True)
@@ -614,6 +623,7 @@ class NextOfKinUpdate(BaseModel):
     email_address: Optional[str] = Field(None)
     phone_number: Optional[str] = Field(None, max_length=20)
     alternate_mobile: Optional[str] = Field(None, max_length=20)
+    whatsapp: Optional[str] = Field(None, max_length=20)
     physical_address: Optional[str] = Field(None, max_length=500)
 
 
@@ -629,6 +639,7 @@ class NextOfKinResponse(BaseModel):
     email_address: str
     phone_number: Optional[str]
     alternate_mobile: Optional[str]
+    whatsapp: Optional[str] = None
     physical_address: Optional[str]
     created_at: Optional[datetime]
     updated_at: Optional[datetime]
@@ -644,6 +655,7 @@ class NextOfKinPartial(BaseModel):
     email_address: Optional[str] = Field(None, validation_alias=AliasChoices('email_address', 'emailAddress'))
     phone_number: Optional[str] = Field(None, validation_alias=AliasChoices('phone_number', 'phoneNumber'), max_length=20)
     alternate_mobile: Optional[str] = Field(None, validation_alias=AliasChoices('alternate_mobile', 'alternateMobile'), max_length=20)
+    whatsapp: Optional[str] = Field(None, max_length=20)
     physical_address: Optional[str] = Field(None, validation_alias=AliasChoices('physical_address', 'physicalAddress'), max_length=500)
 
     model_config = ConfigDict(populate_by_name=True)
