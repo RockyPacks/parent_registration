@@ -40,31 +40,31 @@ const DOCUMENT_FIELDS: DocFieldDef[] = [
   {
     key: 'birth_certificate',
     label: "Student's Unabridged Birth Certificate",
-    optional: true,
-    acceptMimes: IMAGE_MIMES,
-    acceptAttr: '.jpg,.jpeg,.png',
-    acceptLabel: 'JPG, JPEG, PNG',
+    optional: false,
+    acceptMimes: MIXED_MIMES,
+    acceptAttr: '.jpg,.jpeg,.png,.pdf,.doc,.docx',
+    acceptLabel: 'JPG, JPEG, PNG, PDF, DOC, DOCX',
   },
   {
     key: 'parent1_id',
     label: 'Parent / Guardian 1 ID or Passport',
-    optional: true,
-    acceptMimes: IMAGE_MIMES,
-    acceptAttr: '.jpg,.jpeg,.png',
-    acceptLabel: 'JPG, JPEG, PNG',
+    optional: false,
+    acceptMimes: MIXED_MIMES,
+    acceptAttr: '.jpg,.jpeg,.png,.pdf,.doc,.docx',
+    acceptLabel: 'JPG, JPEG, PNG, PDF, DOC, DOCX',
   },
   {
     key: 'parent2_id',
     label: 'Parent / Guardian 2 ID or Passport',
-    optional: true,
-    acceptMimes: IMAGE_MIMES,
-    acceptAttr: '.jpg,.jpeg,.png',
-    acceptLabel: 'JPG, JPEG, PNG',
+    optional: false,
+    acceptMimes: MIXED_MIMES,
+    acceptAttr: '.jpg,.jpeg,.png,.pdf,.doc,.docx',
+    acceptLabel: 'JPG, JPEG, PNG, PDF, DOC, DOCX',
   },
   {
     key: 'school_report',
     label: 'School Report',
-    optional: true,
+    optional: false,
     acceptMimes: MIXED_MIMES,
     acceptAttr: '.jpg,.jpeg,.png,.pdf,.doc,.docx',
     acceptLabel: 'JPG, JPEG, PNG, PDF, DOC, DOCX',
@@ -72,7 +72,7 @@ const DOCUMENT_FIELDS: DocFieldDef[] = [
   {
     key: 'proof_of_address',
     label: 'Proof of Address',
-    optional: true,
+    optional: false,
     acceptMimes: MIXED_MIMES,
     acceptAttr: '.jpg,.jpeg,.png,.pdf,.doc,.docx',
     acceptLabel: 'JPG, JPEG, PNG, PDF, DOC, DOCX',
@@ -80,7 +80,7 @@ const DOCUMENT_FIELDS: DocFieldDef[] = [
   {
     key: 'immunization_record',
     label: 'Student Immunization Record',
-    optional: true,
+    optional: false,
     acceptMimes: MIXED_MIMES,
     acceptAttr: '.jpg,.jpeg,.png,.pdf,.doc,.docx',
     acceptLabel: 'JPG, JPEG, PNG, PDF, DOC, DOCX',
@@ -191,8 +191,10 @@ const SupportingDocuments: React.FC<SupportingDocumentsProps> = ({
               <label className="block text-sm font-medium text-gray-700">
                 {docField.label}
               </label>
-              {docField.optional && (
+              {docField.optional ? (
                 <span className="text-xs text-gray-400">(Optional)</span>
+              ) : (
+                <span className="text-xs text-red-500">(Required)</span>
               )}
             </div>
 

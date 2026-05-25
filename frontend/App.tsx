@@ -43,6 +43,7 @@ const App: React.FC = () => {
   const [applicationInitialized, setApplicationInitialized] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [applicationStatus, setApplicationStatus] = useState<string | null>(null);
+  const [schoolName, setSchoolName] = useState<string | null>(null);
 
 
   const steps = useMemo(() => [
@@ -178,6 +179,9 @@ const App: React.FC = () => {
           console.log("App.tsx: Application ID from backend:", initialAppId);
           setApplicationId(initialAppId);
           setApplicationStatus(appDataResponse.status);
+          if ((appDataResponse as any).schoolName) {
+            setSchoolName((appDataResponse as any).schoolName);
+          }
 
           // Restore other user-specific state
           const userActiveStepKey = getUserKey(userEmail, 'activeStep');
@@ -614,6 +618,7 @@ const App: React.FC = () => {
     setApplicationInitialized(false);
     setIsAuthenticated(false);
     setUserName(null);
+    setSchoolName(null);
 
     // Clear all relevant items from localStorage using user-specific keys if email is provided
     if (email) {
@@ -856,6 +861,7 @@ const App: React.FC = () => {
         currentView={currentView}
         userName={userName || undefined}
         userEmail={userEmail || undefined}
+        schoolName={schoolName || undefined}
       />
       <div className="min-h-screen bg-gray-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
