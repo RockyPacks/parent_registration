@@ -587,8 +587,8 @@ class ApiService {
   }
 
   /**
-   * Get school fees for a specific grade
-   * @param grade - Grade level (e.g., 'Grade R', 'Grade 1', 'Grade 10')
+   * Get school fees for a specific class name
+   * @param grade - Class name
    * @returns SchoolFees object with fee structure
    */
   async getSchoolFees(grade: string): Promise<SchoolFees> {

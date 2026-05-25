@@ -17,7 +17,7 @@ const SUPPORTED_PLAN_TITLES = new Set([
 
 interface Step4FeeAgreementProps {
   applicationId?: string | null;
-  grade?: string; // Grade passed down from parent state
+  grade?: string; // Class name passed down from parent state
   onFeeAgreementComplete?: () => void;
   onStepChange?: (step: number) => void;
   onStepComplete?: (stepNumber: number) => void;
@@ -51,28 +51,28 @@ const Step4FeeAgreement: React.FC<Step4FeeAgreementProps> = ({
     onDataChangeRef.current = onDataChange;
   }, [onDataChange]);
 
-  // Fetch fees based on the student's grade
+  // Fetch fees based on the student's class name
   useEffect(() => {
     const fetchFees = async () => {
-      // Prioritize the grade passed via props, fallback to fetching from application
+      // Prioritize the class name passed via props, fallback to fetching from application
       let grade = passedGrade;
 
-      console.log('Step4FeeAgreement: Fetching fees. Grade from props:', grade);
+      console.log('Step4FeeAgreement: Fetching fees. Class name from props:', grade);
 
       if (!grade && applicationId) {
         try {
-          console.log('Step4FeeAgreement: Grade not in props, fetching application...');
+          console.log('Step4FeeAgreement: Class name not in props, fetching application...');
           const appData = await apiService.getApplication(applicationId);
           grade = appData.student?.gradeAppliedFor;
-          console.log('Step4FeeAgreement: Grade fetched from backend:', grade);
+          console.log('Step4FeeAgreement: Class name fetched from backend:', grade);
         } catch (err) {
-          console.error('Step4FeeAgreement: Failed to fetch application for grade:', err);
+          console.error('Step4FeeAgreement: Failed to fetch application for class name:', err);
         }
       }
 
       if (!grade) {
         setLoading(false);
-        setError('Grade information not found. Please complete student information first.');
+        setError('Class name information not found. Please complete student information first.');
         return;
       }
 
@@ -80,7 +80,7 @@ const Step4FeeAgreement: React.FC<Step4FeeAgreementProps> = ({
         setLoading(true);
         setError(null);
 
-        // 2. Get Fees for that grade
+        // 2. Get Fees for that class name
         const feeData = await apiService.getSchoolFees(grade);
         setFees(feeData);
       } catch (err: any) {

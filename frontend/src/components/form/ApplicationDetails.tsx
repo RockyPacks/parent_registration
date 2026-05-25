@@ -2,6 +2,15 @@ import React, { useState, useEffect, useRef } from 'react';
 import SelectField from '../ui/SelectField';
 import DatePickerField from '../ui/DatePickerField';
 
+const MOLO_CLASS_NAME_OPTIONS = [
+  'Empress of Menen',
+  'Frances Gqoba',
+  'Sibulelo Mashale',
+  'Thandeka Nonkasana',
+  'Nosiseko Dlakavu',
+  'Amanirenas of Kush',
+];
+
 interface ApplicationDetailsProps {
   initialData?: any;
   onDataChange?: (data: any) => void;
@@ -79,7 +88,7 @@ const ApplicationDetails: React.FC<ApplicationDetailsProps> = ({ initialData, on
         break;
       case 'gradeApplyingFor':
         if (!value || (typeof value === 'string' && value.trim().length === 0)) {
-          error = 'Grade/Class Applying For is required';
+          error = 'Class Name Applying For is required';
         }
         break;
       case 'proposedStartDate':
@@ -109,22 +118,7 @@ const ApplicationDetails: React.FC<ApplicationDetailsProps> = ({ initialData, on
   const getCurrentYear = () => new Date().getFullYear();
   const years = Array.from({ length: 5 }, (_, i) => getCurrentYear() + i);
 
-  // Grade options (common South African grades)
-  const gradeOptions = [
-    'Grade R (Reception)',
-    'Grade 1',
-    'Grade 2',
-    'Grade 3',
-    'Grade 4',
-    'Grade 5',
-    'Grade 6',
-    'Grade 7',
-    'Grade 8',
-    'Grade 9',
-    'Grade 10',
-    'Grade 11',
-    'Grade 12',
-  ];
+  const classNameOptions = MOLO_CLASS_NAME_OPTIONS;
 
   // Term options
   const termOptions = ['Term 1', 'Term 2', 'Term 3', 'Term 4'];
@@ -168,16 +162,16 @@ const ApplicationDetails: React.FC<ApplicationDetailsProps> = ({ initialData, on
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <SelectField
           id="gradeApplyingFor"
-          label="Grade/Class Applying For"
+          label="Class Name Applying For"
           required
           value={formData.gradeApplyingFor}
           onChange={(e) => handleFieldChange('gradeApplyingFor', e.target.value)}
           error={errors.gradeApplyingFor}
         >
           <option value="">Please choose...</option>
-          {gradeOptions.map((grade) => (
-            <option key={grade} value={grade}>
-              {grade}
+          {classNameOptions.map((className) => (
+            <option key={className} value={className}>
+              {className}
             </option>
           ))}
         </SelectField>

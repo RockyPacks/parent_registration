@@ -20,6 +20,23 @@ interface ApplicationSummary {
 // Helper to generate user-specific localStorage keys
 const getUserKey = (email: string | null, key: string) => email ? `${email}_${key}` : key;
 
+// Public registration routes are school-scoped.
+// Example: /signup/molo-mhlaba-tennyson
+const getSignupSchoolSlug = (): string | null => {
+  const path = window.location.pathname;
+  const pathMatch = path.match(/^\/signup\/([a-zA-Z0-9-]+)/);
+  if (pathMatch) return pathMatch[1];
+
+  const hash = window.location.hash;
+  const hashMatch =
+    hash.match(/^#\/signup\/([a-zA-Z0-9-]+)/) ||
+    hash.match(/^#signup\/([a-zA-Z0-9-]+)/);
+
+  return hashMatch ? hashMatch[1] : null;
+};
+
+const SELECTED_SCHOOL_SLUG_KEY = 'selectedSchoolSlug';
+
 const App: React.FC = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [showSignup, setShowSignup] = useState(false);
@@ -44,6 +61,19 @@ const App: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [applicationStatus, setApplicationStatus] = useState<string | null>(null);
   const [schoolName, setSchoolName] = useState<string | null>(null);
+  const [selectedSchoolSlug, setSelectedSchoolSlug] = useState<string | null>(() => {
+    const signupSlug = getSignupSchoolSlug();
+    if (signupSlug) {
+      storage.set(SELECTED_SCHOOL_SLUG_KEY, signupSlug);
+      sessionStorage.setItem(SELECTED_SCHOOL_SLUG_KEY, signupSlug);
+      return signupSlug;
+    }
+
+    return (
+      sessionStorage.getItem(SELECTED_SCHOOL_SLUG_KEY) ||
+      storage.get(SELECTED_SCHOOL_SLUG_KEY, null)
+    );
+  });
 
 
   const steps = useMemo(() => [
@@ -59,6 +89,21 @@ const App: React.FC = () => {
     { number: 5, title: 'Declaration', subtitle: 'Terms & conditions' },
     { number: 6, title: 'Review & Submit', subtitle: 'Final review' },
   ], []);
+
+  useEffect(() => {
+    const signupSlug = getSignupSchoolSlug();
+
+    if (signupSlug) {
+      setSelectedSchoolSlug(signupSlug);
+      storage.set(SELECTED_SCHOOL_SLUG_KEY, signupSlug);
+      sessionStorage.setItem(SELECTED_SCHOOL_SLUG_KEY, signupSlug);
+
+      // A school-specific signup URL must always open signup, not logout/sign-out.
+      setShowSignup(true);
+      setShowForgotPassword(false);
+      setShowPublicInquiry(false);
+    }
+  }, []);
 
   useEffect(() => {
     // Check if user is already authenticated on app load
@@ -106,7 +151,9 @@ const App: React.FC = () => {
             currentUserEmailRef.current = user.email;
             isLoadingApplication = true;
             try {
-              await loadUserApplication(user.email, user.user_metadata);
+              // Auth user metadata can be exposed under different keys depending on auth client/version;
+              // cast to any and try common variants to avoid TypeScript errors while preserving runtime data.
+              await loadUserApplication(user.email, (user as any).user_metadata || (user as any).userMetadata || {});
             } finally {
               isLoadingApplication = false;
             }
@@ -128,15 +175,14 @@ const App: React.FC = () => {
 
         setIsAuthenticated(!!user);
         setUserEmail(newUserEmail);
-        setUserName(user?.full_name || null);
-
         if (user && !previousUserEmail) {
           // User just logged in - load their application
           console.log("App.tsx: User logged in, loading application");
           currentUserEmailRef.current = newUserEmail;
           isLoadingApplication = true;
           try {
-            await loadUserApplication(newUserEmail!, user.user_metadata);
+            // Try both possible metadata property names to be compatible with different auth types/versions
+            await loadUserApplication(newUserEmail!, (user as any).user_metadata || (user as any).userMetadata || {});
           } finally {
             isLoadingApplication = false;
           }
@@ -381,8 +427,7 @@ const App: React.FC = () => {
                   bankName: appData.fee.bankName || '',
                   branchCode: appData.fee.branchCode || '',
                   accountNumber: appData.fee.accountNumber || '',
-                  accountType: appData.fee.accountType || '',
-                  selectedPlan: appData.fee.selectedPlan || ''
+                  accountType: appData.fee.accountType || ''
                 };
               }
 
@@ -590,11 +635,21 @@ const App: React.FC = () => {
   // Active step is now managed purely through React state and localStorage
 
   const handleLogin = () => {
+    if (selectedSchoolSlug) {
+      storage.set(SELECTED_SCHOOL_SLUG_KEY, selectedSchoolSlug);
+      sessionStorage.setItem(SELECTED_SCHOOL_SLUG_KEY, selectedSchoolSlug);
+    }
+
     setIsAuthenticated(true);
     setShowSignup(false);
   };
 
   const handleSignupSuccess = (email: string) => {
+    if (selectedSchoolSlug) {
+      storage.set(SELECTED_SCHOOL_SLUG_KEY, selectedSchoolSlug);
+      sessionStorage.setItem(SELECTED_SCHOOL_SLUG_KEY, selectedSchoolSlug);
+    }
+
     setShowSignup(false);
     setShowEmailConfirmation(true);
     setConfirmationEmail(email);
@@ -823,6 +878,7 @@ const App: React.FC = () => {
             onSignupSuccess={handleSignupSuccess} 
             onSwitchToLogin={() => setShowSignup(false)} 
             onSwitchToInquiry={() => { setShowSignup(false); setShowPublicInquiry(true); }}
+            initialSchoolSlug={selectedSchoolSlug}
           />
         ) : showForgotPassword ? (
           <ForgotPasswordPage onBack={() => setShowForgotPassword(false)} />
