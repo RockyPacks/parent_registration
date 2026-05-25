@@ -1,6 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
 import knitIcon from '../../assets/knit-icon.png';
 
+const MOLO_CLASS_NAME_OPTIONS = [
+  'Empress of Menen',
+  'Frances Gqoba',
+  'Sibulelo Mashale',
+  'Thandeka Nonkasana',
+  'Nosiseko Dlakavu',
+  'Amanirenas of Kush',
+];
 interface InquiryPageProps {
   schoolId?: string | null;
   onBackToLogin?: () => void;
@@ -184,9 +192,9 @@ export const InquiryPage: React.FC<InquiryPageProps> = ({ schoolId: initialSchoo
       newErrors.email = 'Invalid email address format';
     }
 
-    // Grade validation
+    // Class name validation
     if (!form.grade) {
-      newErrors.grade = 'Grade is required';
+      newErrors.grade = 'Class Name is required';
     }
 
     // Academic Year validation
@@ -573,11 +581,11 @@ export const InquiryPage: React.FC<InquiryPageProps> = ({ schoolId: initialSchoo
                 </div>
               </div>
 
-              {/* Row 2: Grade + Academic Year (2-Column) */}
+              {/* Row 2: Class Name + Academic Year (2-Column) */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="flex flex-col gap-1.5">
                   <label htmlFor="grade" className="text-gray-700 uppercase tracking-widest text-[11px] font-bold select-none" style={{ letterSpacing: '0.5px' }}>
-                    Grade Applying For
+                    Class Name Applying For
                   </label>
                   <select
                     id="grade"
@@ -591,10 +599,9 @@ export const InquiryPage: React.FC<InquiryPageProps> = ({ schoolId: initialSchoo
                         : 'border-gray-300 focus:border-blue-500 focus:ring-blue-100'
                     }`}
                   >
-                    <option value="">Select Grade</option>
-                    <option value="Grade R">Grade R</option>
-                    {Array.from({ length: 12 }, (_, i) => `Grade ${i + 1}`).map((g) => (
-                      <option key={g} value={g}>{g}</option>
+                    <option value="">Select Class Name</option>
+                    {MOLO_CLASS_NAME_OPTIONS.map((className) => (
+                      <option key={className} value={className}>{className}</option>
                     ))}
                   </select>
                   {errors.grade && (
