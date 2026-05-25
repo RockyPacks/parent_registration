@@ -41,7 +41,95 @@ const getBucketName = (documentType: string): string => {
   return DOCUMENT_TYPE_TO_BUCKET[documentType] || "documents";
 };
 
-const initialCategories: Record<string, DocumentCategory> = {
+const REQUIRED_DOCUMENT_CONFIG = {
+  proofOfAddress: {
+    requiredCount: 1,
+    types: ['proof_of_address', 'proof_of_addresses'],
+    missingMessage: 'Proof of Address is required. Please upload a utility bill, lease agreement, or official document showing your residential address.'
+  },
+  idDocuments: {
+    requiredCount: 1,
+    types: ['id_document', 'id_documents', 'parent-guardian-id'],
+    missingMessage: 'Parent ID is required. Please upload a government-issued identity document for the parent/guardian.'
+  },
+  bankStatements: {
+    requiredCount: 1,
+    types: ['bank_statement', 'bank_statements'],
+    missingMessage: 'Bank Statement is required. Please upload a recent bank statement so the document analyser can run financial and gambling/risk checks.'
+  }
+} as const;
+
+const DEFAULT_REQUIRED_DOCUMENT_CONFIG = {
+  proofOfAddress: {
+    requiredCount: 1,
+    types: ['proof_of_address', 'proof_of_addresses'],
+    missingMessage: 'Proof of Address is required. Please upload a utility bill, lease agreement, or official document showing your residential address.'
+  },
+  idDocuments: {
+    requiredCount: 2,
+    types: ['id_document', 'id_documents', 'learner-birth-certificate', 'parent-guardian-id'],
+    missingMessage: 'Identity Documents are required. Please upload the required ID documents.'
+  },
+  payslips: {
+    requiredCount: 3,
+    types: ['payslip', 'payslips', 'latest-payslip', 'previous-payslip', 'third-payslip'],
+    missingMessage: 'Payslip Documents are required. Please upload the required payslips or proof of income.'
+  },
+  bankStatements: {
+    requiredCount: 1,
+    types: ['bank_statement', 'bank_statements'],
+    missingMessage: 'Bank Statement is required. Please upload the required bank statement.'
+  }
+} as const;
+
+const OPTIONAL_DOCUMENT_CONFIG = {
+  payslips: {
+    requiredCount: 0,
+    types: ['payslip', 'payslips', 'latest-payslip', 'previous-payslip', 'third-payslip']
+  }
+} as const;
+
+const DOCUMENT_CATEGORY_CONFIG = {
+  ...REQUIRED_DOCUMENT_CONFIG,
+  ...OPTIONAL_DOCUMENT_CONFIG
+};
+
+const moloInitialCategories: Record<string, DocumentCategory> = {
+  proofOfAddress: {
+    id: 'proofOfAddress',
+    title: 'Proof of Address',
+    status: CategoryStatus.NotStarted,
+    files: [],
+    required: true,
+    description: 'Compulsory: Upload a utility bill, lease agreement, municipal account, or official document showing your residential address.'
+  },
+  idDocuments: {
+    id: 'idDocuments',
+    title: 'Parent ID',
+    status: CategoryStatus.NotStarted,
+    files: [],
+    required: true,
+    description: 'Compulsory: Upload a government-issued identity document for the parent/guardian.'
+  },
+  bankStatements: {
+    id: 'bankStatements',
+    title: 'Bank Statement',
+    status: CategoryStatus.NotStarted,
+    files: [],
+    required: true,
+    description: 'Compulsory: Upload a recent bank statement for financial verification and document analyser gambling/risk checks.'
+  },
+  payslips: {
+    id: 'payslips',
+    title: 'Payslip Documents',
+    status: CategoryStatus.NotStarted,
+    files: [],
+    required: false,
+    description: 'Optional: Upload payslips or proof of income if requested by the school.'
+  }
+};
+
+const defaultInitialCategories: Record<string, DocumentCategory> = {
   proofOfAddress: {
     id: 'proofOfAddress',
     title: 'Proof of Address',
@@ -72,10 +160,9 @@ const initialCategories: Record<string, DocumentCategory> = {
     files: [],
     required: true,
     description: 'Upload 3 months of recent bank statements for affordability assessment and verification purposes.'
-  },
-
-
+  }
 };
+
 
 
 interface DocumentUploadCenterProps {
@@ -93,7 +180,15 @@ export const DocumentUploadCenter: React.FC<DocumentUploadCenterProps> = ({
   onBack,
   onDocumentsChange
 }) => {
-  const [categories, setCategories] = useState<Record<string, DocumentCategory>>(initialCategories);
+  const selectedSchoolName = typeof window !== 'undefined' ? (localStorage.getItem('selectedSchoolName') || '') : '';
+  const useMoloDocumentRules = /molo|mhlaba|tennyson|shaba/i.test(selectedSchoolName);
+  const selectedRequiredDocumentConfig = useMoloDocumentRules ? REQUIRED_DOCUMENT_CONFIG : DEFAULT_REQUIRED_DOCUMENT_CONFIG;
+  const selectedDocumentCategoryConfig = useMoloDocumentRules
+    ? DOCUMENT_CATEGORY_CONFIG
+    : DEFAULT_REQUIRED_DOCUMENT_CONFIG;
+  const getInitialCategoriesForSchool = () => useMoloDocumentRules ? moloInitialCategories : defaultInitialCategories;
+
+  const [categories, setCategories] = useState<Record<string, DocumentCategory>>(() => getInitialCategoriesForSchool());
   const [activeCategory, setActiveCategory] = useState<string>('proofOfAddress');
   const [uploadedFiles, setUploadedFiles] = useState<any[]>([]);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
@@ -117,7 +212,7 @@ export const DocumentUploadCenter: React.FC<DocumentUploadCenterProps> = ({
     // Clear all documents when user changes
     if (currentUserId !== userId) {
       setUploadedFiles([]);
-      setCategories(initialCategories);
+      setCategories(getInitialCategoriesForSchool());
       setCurrentUserId(userId);
     }
 
@@ -127,7 +222,7 @@ export const DocumentUploadCenter: React.FC<DocumentUploadCenterProps> = ({
     } else {
       // Clear any cached uploaded files
       setUploadedFiles([]);
-      setCategories(initialCategories);
+      setCategories(getInitialCategoriesForSchool());
     }
   }, [applicationId, userId]);
 
@@ -145,22 +240,9 @@ export const DocumentUploadCenter: React.FC<DocumentUploadCenterProps> = ({
     setCategories(prev => {
       const updated = { ...prev };
       Object.keys(updated).forEach(categoryId => {
-        const requirements = {
-          proofOfAddress: 1,
-          idDocuments: 2,
-          payslips: 3,
-          bankStatements: 1
-        };
-        const required = requirements[categoryId as keyof typeof requirements] || 1;
-
-        // More robust mapping that handles both singular and plural forms
-        const mapping: Record<string, string[]> = {
-          'proofOfAddress': ['proof_of_address', 'proof_of_addresses'],
-          'idDocuments': ['id_document', 'id_documents', 'learner-birth-certificate', 'parent-guardian-id'],
-          'payslips': ['payslip', 'payslips', 'latest-payslip', 'previous-payslip', 'third-payslip'],
-          'bankStatements': ['bank_statement', 'bank_statements']
-        };
-        const types = mapping[categoryId] || [];
+        const categoryConfig = selectedDocumentCategoryConfig[categoryId as keyof typeof selectedDocumentCategoryConfig];
+        const required = categoryConfig?.requiredCount ?? 1;
+        const types = categoryConfig?.types ? [...categoryConfig.types] : [];
 
         // Filter uploaded files for this category
         const categoryApiFiles = uploadedFiles.filter(file => {
@@ -173,7 +255,7 @@ export const DocumentUploadCenter: React.FC<DocumentUploadCenterProps> = ({
         updated[categoryId] = {
           ...updated[categoryId],
           files: categoryFiles,
-          status: categoryFiles.length >= required ? CategoryStatus.Completed : categoryFiles.length > 0 ? CategoryStatus.InProgress : CategoryStatus.NotStarted
+          status: required === 0 ? (categoryFiles.length > 0 ? CategoryStatus.Completed : CategoryStatus.NotStarted) : categoryFiles.length >= required ? CategoryStatus.Completed : categoryFiles.length > 0 ? CategoryStatus.InProgress : CategoryStatus.NotStarted
         };
       });
       return updated;
@@ -188,26 +270,10 @@ export const DocumentUploadCenter: React.FC<DocumentUploadCenterProps> = ({
 
   const checkCompletionStatus = async () => {
     try {
-      // Immediate UI feedback based on local state (categories already updated from uploadedFiles)
-      const catList = Object.values(categories);
-      const isLocalComplete = catList.length > 0 && catList.every((category: DocumentCategory) => category.status === CategoryStatus.Completed);
-
-      // Update UI state immediately
-      if (isLocalComplete) {
-        setIsComplete(true);
-      } else {
-        // Still check backend summary if available
-        if (applicationId) {
-          try {
-            const summary = await apiService.getUploadSummary(applicationId);
-            setIsComplete(summary && summary.completed_categories >= 4);
-          } catch (e) {
-            setIsComplete(false); // Fallback to current local state
-          }
-        } else {
-          setIsComplete(false);
-        }
-      }
+      // Immediate UI feedback based on the compulsory documents only.
+      // Molo Mhlaba requires: Parent ID, Proof of Address and Bank Statement.
+      const isLocalComplete = getMissingRequiredDocumentMessages().length === 0;
+      setIsComplete(isLocalComplete);
     } catch (error) {
       console.warn("checkCompletionStatus local check failed:", error);
     }
@@ -374,24 +440,54 @@ export const DocumentUploadCenter: React.FC<DocumentUploadCenterProps> = ({
 
 
 
-  const isAllRequiredComplete = async (): Promise<boolean> => {
-    try {
-      const currentApplicationId = applicationId;
-      if (!currentApplicationId) {
-        return false;
+  const getMissingRequiredDocumentMessages = (): string[] => {
+    return Object.entries(selectedRequiredDocumentConfig).reduce<string[]>((messages, [categoryId, config]) => {
+      const fileCount = getCategoryFileCount(categoryId);
+      if (fileCount < config.requiredCount) {
+        messages.push(config.missingMessage);
       }
-      // Use the new upload summary API for completion tracking
-      const summary = await apiService.getUploadSummary(currentApplicationId);
-      // Wait a tick for the categories checking loop above to also happen
-      if (summary && summary.completed_categories >= 4) {
-        return true;
-      }
+      return messages;
+    }, []);
+  };
+
+  const validateRequiredDocuments = (): boolean => {
+    const missingMessages = getMissingRequiredDocumentMessages();
+
+    if (missingMessages.length > 0) {
+      setErrorMessage(`Please upload all compulsory documents before continuing: ${missingMessages.join(' ')}`);
+      setTimeout(() => setErrorMessage(null), 8000);
       return false;
-    } catch (error) {
-      // Fallback to local category checking
-      const catList = Object.values(categories);
-      return catList.length > 0 && catList.every((category: DocumentCategory) => category.status === CategoryStatus.Completed);
     }
+
+    return true;
+  };
+
+  const completeDocumentsAndContinue = async () => {
+    if (!applicationId) {
+      setErrorMessage('No application ID available. Please complete the enrollment form first.');
+      setTimeout(() => setErrorMessage(null), 5000);
+      return;
+    }
+
+    if (!validateRequiredDocuments()) {
+      return;
+    }
+
+    try {
+      await apiService.completeDocumentUpload(applicationId);
+      setSuccessMessage('Document upload completed successfully. Bank statements will be processed by the document analyser for financial and gambling/risk checks.');
+      setTimeout(() => setSuccessMessage(null), 3000);
+      await checkCompletionStatus();
+      onDocumentUploadComplete && onDocumentUploadComplete();
+    } catch (error: any) {
+      const errorMsg = 'Failed to complete document upload: ' + (error.message || 'Network error');
+      setErrorMessage(errorMsg);
+      setTimeout(() => setErrorMessage(null), 5000);
+    }
+  };
+
+  const isAllRequiredComplete = async (): Promise<boolean> => {
+    return getMissingRequiredDocumentMessages().length === 0;
   };
 
   const handleFileDelete = useCallback(async (fileId: string) => {
@@ -439,14 +535,8 @@ export const DocumentUploadCenter: React.FC<DocumentUploadCenterProps> = ({
 
   // Helper function to get actual file count for a category
   const getCategoryFileCount = (categoryId: string) => {
-    const mapping: Record<string, string[]> = {
-      'proofOfAddress': ['proof_of_address', 'proof_of_addresses'],
-      'idDocuments': ['id_document', 'id_documents', 'learner-birth-certificate', 'parent-guardian-id'],
-      'payslips': ['payslip', 'payslips', 'latest-payslip', 'previous-payslip', 'third-payslip'],
-      'bankStatements': ['bank_statement', 'bank_statements']
-    };
-
-    const types = mapping[categoryId] || [];
+    const categoryConfig = selectedDocumentCategoryConfig[categoryId as keyof typeof selectedDocumentCategoryConfig];
+    const types = categoryConfig?.types ? [...categoryConfig.types] : [];
     return uploadedFiles.filter(file => {
       const docType = file.documentType?.toLowerCase() || file.document_type?.toLowerCase() || '';
       return types.includes(docType);
@@ -454,14 +544,11 @@ export const DocumentUploadCenter: React.FC<DocumentUploadCenterProps> = ({
   };
 
   const getUpdatedStatus = (categoryId: string, fileCount: number): CategoryStatus => {
-    const requirements = {
-      proofOfAddress: 1,
-      idDocuments: 2,
-      payslips: 3,
-      bankStatements: 1
-    };
-
-    const required = requirements[categoryId as keyof typeof requirements] || 1;
+    const categoryConfig = selectedDocumentCategoryConfig[categoryId as keyof typeof selectedDocumentCategoryConfig];
+    const required = categoryConfig?.requiredCount ?? 1;
+    if (required === 0) {
+      return fileCount > 0 ? CategoryStatus.Completed : CategoryStatus.NotStarted;
+    }
     return fileCount >= required ? CategoryStatus.Completed : CategoryStatus.InProgress;
   };
 
@@ -507,7 +594,7 @@ export const DocumentUploadCenter: React.FC<DocumentUploadCenterProps> = ({
         <div className="bg-white/60 backdrop-blur-sm rounded-2xl p-6 mb-8 border border-white/40 shadow-sm">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold text-gray-800">Upload Progress</h2>
-            <span className="text-sm text-gray-500">{categoryList.filter(cat => cat.status === CategoryStatus.Completed).length} of {categoryList.length} categories completed</span>
+            <span className="text-sm text-gray-500">{Object.keys(selectedRequiredDocumentConfig).filter(categoryId => getCategoryFileCount(categoryId) >= selectedRequiredDocumentConfig[categoryId as keyof typeof selectedRequiredDocumentConfig].requiredCount).length} of {Object.keys(selectedRequiredDocumentConfig).length} compulsory documents uploaded</span>
           </div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {categoryList.map((category) => (
@@ -588,11 +675,11 @@ export const DocumentUploadCenter: React.FC<DocumentUploadCenterProps> = ({
             <p className="text-sm text-gray-600 mb-4">{categories.proofOfAddress.description}</p>
             <div className="space-y-3">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Utility Bill/Municipal Account</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Utility Bill/Municipal Account <span className="text-red-600">*</span></label>
                 <FileUpload onFileUpload={(file) => handleFileUpload('proofOfAddress', file, 'proof_of_address')} variant="button" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Bank Statement</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Bank Statement <span className="text-red-600">*</span></label>
                 <FileUpload onFileUpload={(file) => handleFileUpload('proofOfAddress', file, 'proof_of_address')} variant="button" />
               </div>
               <div>
@@ -606,7 +693,7 @@ export const DocumentUploadCenter: React.FC<DocumentUploadCenterProps> = ({
           </UploadCard>
 
           <UploadCard
-            title="Identity Documents"
+            title={useMoloDocumentRules ? "Parent ID" : "Identity Documents"}
             required
             icon={<UploadCloudIcon />}
             collapsible={true}
@@ -614,11 +701,12 @@ export const DocumentUploadCenter: React.FC<DocumentUploadCenterProps> = ({
             status={categories.idDocuments.status === CategoryStatus.Completed ? 'completed' :
               categories.idDocuments.status === CategoryStatus.InProgress ? 'in-progress' : 'not-started'}
             currentCount={getCategoryFileCount('idDocuments')}
-            requiredCount={2}
+            requiredCount={useMoloDocumentRules ? 1 : 2}
           >
+            <p className="text-sm text-gray-600 mb-4">{categories.idDocuments.description}</p>
             <div className="space-y-3">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Parent/Guardian ID Copy</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Parent/Guardian ID Copy <span className="text-red-600">*</span></label>
                 <FileUpload onFileUpload={(file) => handleFileUpload('idDocuments', file, 'id_document')} variant="button" />
               </div>
               <div>
@@ -641,14 +729,14 @@ export const DocumentUploadCenter: React.FC<DocumentUploadCenterProps> = ({
 
           <UploadCard
             title="Payslip Documents"
-            required
+            required={!useMoloDocumentRules}
             icon={<UploadCloudIcon />}
             collapsible={true}
             defaultOpen={false}
             status={categories.payslips.status === CategoryStatus.Completed ? 'completed' :
               categories.payslips.status === CategoryStatus.InProgress ? 'in-progress' : 'not-started'}
             currentCount={getCategoryFileCount('payslips')}
-            requiredCount={3}
+            requiredCount={useMoloDocumentRules ? 0 : 3}
           >
             <p className="text-sm text-gray-600 mb-4">{categories.payslips.description}</p>
             <div className="space-y-3">
@@ -671,7 +759,7 @@ export const DocumentUploadCenter: React.FC<DocumentUploadCenterProps> = ({
           </UploadCard>
 
           <UploadCard
-            title="Bank Statements"
+            title={useMoloDocumentRules ? "Bank Statement" : "Bank Statements"}
             required
             icon={<UploadCloudIcon />}
             collapsible={true}
@@ -684,12 +772,12 @@ export const DocumentUploadCenter: React.FC<DocumentUploadCenterProps> = ({
             <p className="text-sm text-gray-600 mb-4">{categories.bankStatements.description}</p>
             <div className="space-y-3">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">3 Months Bank Statements</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Bank Statement <span className="text-red-600">*</span></label>
                 <FileUpload onFileUpload={(file) => handleFileUpload('bankStatements', file, 'bank_statement')} variant="button" />
               </div>
             </div>
             <div className="mt-4 bg-blue-50 text-blue-800 text-sm p-3 rounded-md border border-blue-200">
-              Bank statements help us assess your financial stability and determine appropriate payment plans.
+              Bank statements are compulsory and will be checked by the document analyser for financial verification, including gambling/risk checks.
             </div>
             {categories.bankStatements.files.map(file => (
               <FileItem key={file.id} file={file} onDelete={() => handleFileDelete(file.id)} />
@@ -745,33 +833,7 @@ export const DocumentUploadCenter: React.FC<DocumentUploadCenterProps> = ({
           <div className="mt-8">
             <div className="mb-6">
               <button
-                onClick={async () => {
-                  if (!applicationId) {
-                    setErrorMessage('No application ID available. Please complete the enrollment form first.');
-                    setTimeout(() => setErrorMessage(null), 5000);
-                    return;
-                  }
-
-                  try {
-                    const currentApplicationId = applicationId;
-                    if (!currentApplicationId) {
-                      setErrorMessage('No application ID available. Please complete step 1 first.');
-                      setTimeout(() => setErrorMessage(null), 5000);
-                      return;
-                    }
-                    await apiService.completeDocumentUpload(currentApplicationId);
-                    setSuccessMessage('Document upload completed successfully!');
-                    setTimeout(() => setSuccessMessage(null), 3000);
-                    // Refresh completion status after successful backend completion
-                    await checkCompletionStatus();
-                    // Proceed to next section after successful completion
-                    onDocumentUploadComplete && onDocumentUploadComplete();
-                  } catch (error: any) {
-                    const errorMsg = 'Failed to complete document upload: ' + (error.message || 'Network error');
-                    setErrorMessage(errorMsg);
-                    setTimeout(() => setErrorMessage(null), 5000);
-                  }
-                }}
+                onClick={completeDocumentsAndContinue}
                 disabled={!isComplete}
                 className={`w-full py-3 px-6 rounded-lg font-medium shadow-sm transition-all duration-200 ${isComplete
                   ? 'bg-gradient-to-r from-green-500 to-teal-500 text-white hover:from-green-600 hover:to-teal-600'
@@ -791,34 +853,13 @@ export const DocumentUploadCenter: React.FC<DocumentUploadCenterProps> = ({
             </div>
             <ActionButtons
               disabled={!isComplete}
-              onContinue={async () => {
-                const currentApplicationId = applicationId;
-                if (!currentApplicationId) {
-                  setErrorMessage('No application ID available. Please complete step 1 first.');
-                  setTimeout(() => setErrorMessage(null), 5000);
-                  return;
-                }
-
-                try {
-                  await apiService.completeDocumentUpload(currentApplicationId);
-                  setSuccessMessage('Document upload completed successfully!');
-                  setTimeout(() => setSuccessMessage(null), 3000);
-                  // Refresh completion status after successful backend completion
-                  await checkCompletionStatus();
-                  onDocumentUploadComplete && onDocumentUploadComplete();
-                } catch (error: any) {
-                  const errorMsg = 'Failed to complete document upload: ' + (error.message || 'Network error');
-                  setErrorMessage(errorMsg);
-                  setTimeout(() => setErrorMessage(null), 5000);
-                  // Still proceed to next step even if backend fails
-                  onDocumentUploadComplete && onDocumentUploadComplete();
-                }
-              }}
+              onContinue={completeDocumentsAndContinue}
             />
             <Footer
               onBack={onBack}
               onSave={() => { }}
-              onNext={onDocumentUploadComplete}
+              onNext={completeDocumentsAndContinue}
+              disabled={!isComplete}
               showBack={true}
               showSave={false}
               showNext={true}
