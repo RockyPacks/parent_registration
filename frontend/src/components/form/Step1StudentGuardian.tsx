@@ -65,8 +65,8 @@ const getDetailedMissingFields = (studentData: any, applicationDetailsData: any,
   if (!studentData?.gender) studentMissing.push('Gender');
   if (!studentData?.homeLanguage) studentMissing.push('Home Language');
   if (!studentData?.idNumber || !/^\d{13}$/.test(studentData.idNumber)) studentMissing.push('ID Number');
-  if (!studentData?.previousGrade) studentMissing.push('Previous Grade');
-  if (!studentData?.gradeAppliedFor) studentMissing.push('Grade Applied For');
+  if (!studentData?.previousGrade) studentMissing.push('Previous Class Name');
+  if (!studentData?.gradeAppliedFor) studentMissing.push('Class Name Applied For');
   if (!studentData?.previousSchool || studentData.previousSchool.trim().length < 3) studentMissing.push('Previous School');
   if (studentMissing.length > 0) {
     missingFields.push({ section: 'Student Information', fields: studentMissing });
@@ -75,7 +75,7 @@ const getDetailedMissingFields = (studentData: any, applicationDetailsData: any,
   const applicationDetailsMissing: string[] = [];
   if (!applicationDetailsData?.proposedStartTerm) applicationDetailsMissing.push('Proposed Start Term');
   if (!applicationDetailsData?.year) applicationDetailsMissing.push('Year');
-  if (!applicationDetailsData?.gradeApplyingFor) applicationDetailsMissing.push('Grade/Class Applying For');
+  if (!applicationDetailsData?.gradeApplyingFor) applicationDetailsMissing.push('Class Name Applying For');
   if (applicationDetailsData?.proposedStartDate) {
     const startDate = new Date(applicationDetailsData.proposedStartDate);
     const today = new Date();
@@ -158,7 +158,7 @@ const Step1StudentGuardian: React.FC<Step1StudentGuardianProps> = ({
   );
   
   const detailedMissingFields = getDetailedMissingFields(studentData, applicationDetailsData, medicalData, familyData, feeData);
-  const canProceed = incompleteRequirements.length === 0 && supportingDocsCount >= 6;
+  const canProceed = incompleteRequirements.length === 0;
   
   const handleSubmitClick = () => {
     if (!canProceed) {
@@ -357,10 +357,9 @@ const Step1StudentGuardian: React.FC<Step1StudentGuardianProps> = ({
           <UploadCard
             id="supporting-documents"
             title="Supporting Documents"
-            required
             collapsible={true}
             defaultOpen={false}
-            status={supportingDocsCount >= 6 ? 'completed' : supportingDocsCount > 0 ? 'in-progress' : 'not-started'}
+            status={supportingDocsCount > 0 ? 'in-progress' : 'not-started'}
             currentCount={supportingDocsCount}
             requiredCount={6}
             icon={
@@ -409,17 +408,6 @@ const Step1StudentGuardian: React.FC<Step1StudentGuardianProps> = ({
                         </ul>
                       </div>
                     ))}
-                    {supportingDocsCount < 6 && (
-                      <div className="mb-3 last:mb-0">
-                        <p className="text-sm font-medium text-amber-700 mb-1">Supporting Documents:</p>
-                        <ul className="text-sm text-amber-600 space-y-1 ml-4">
-                          <li className="flex items-start">
-                            <span className="mr-2 text-amber-500">•</span>
-                            <span>{6 - supportingDocsCount} of 6 required document{6 - supportingDocsCount !== 1 ? 's' : ''} still need to be uploaded</span>
-                          </li>
-                        </ul>
-                      </div>
-                    )}
                   </div>
                 </div>
               </div>
