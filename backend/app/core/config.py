@@ -1,6 +1,6 @@
 from pathlib import Path
 from pydantic_settings import BaseSettings
-from pydantic import Field
+from pydantic import Field, field_validator
 
 class Settings(BaseSettings):
     # Supabase Configuration
@@ -18,6 +18,23 @@ class Settings(BaseSettings):
     debug: bool = False
     secret_key: str = "your-secret-key-here"
     frontend_url: str = "http://localhost:3000"
+
+    # Experian PVS-E Configuration
+    experian_uat_base_url: str = "https://apis-uat.experian.co.za:9443/PvseService"
+    experian_prod_base_url: str = "https://apis.experian.co.za:9443/PvseService"
+    experian_username: str = ""
+    experian_password: str = ""
+    experian_subscriber_code: str = "35052-REA"
+    experian_accuracy_threshold: int = 65
+    experian_timeout_seconds: int = 60
+    experian_environment: str = "uat"
+
+    @field_validator("debug", mode="before")
+    @classmethod
+    def parse_debug(cls, value):
+        if isinstance(value, str) and value.lower() in {"release", "production", "prod"}:
+            return False
+        return value
 
     model_config = {
         "env_file": str(Path(__file__).resolve().parents[2] / ".env"),

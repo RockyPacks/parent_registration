@@ -5,6 +5,7 @@ import ApplicationDetails from './ApplicationDetails';
 import MedicalInformation from './MedicalInformation';
 import FamilyInformation from './FamilyInformation';
 import FeeResponsibility from './FeeResponsibility';
+import IdentityVerification from './IdentityVerification';
 import SupportingDocuments from './SupportingDocuments';
 import { MedicalIcon, FamilyIcon, FeeIcon } from '../Icons';
 
@@ -26,12 +27,14 @@ interface Step1StudentGuardianProps {
   onNextOfKinDataChange: (data: any) => void; // Add this prop
   onFeeDataChange: (data: any) => void;
   onApplicationDetailsDataChange: (data: any) => void;
+  onIdentityVerificationChange: (data: any) => void;
   onSubmitClick: () => void;
   isStudentInfoCompleted: boolean;
   isApplicationDetailsCompleted: boolean;
   isMedicalInfoCompleted: boolean;
   isFamilyInfoCompleted: boolean;
   isFeeResponsibilityCompleted: boolean;
+  isIdentityVerificationCompleted: boolean;
   nextOfKinData: any; // Add nextOfKinData to the interface
 }
 
@@ -40,7 +43,8 @@ const getIncompleteRequirements = (
   isApplicationDetailsCompleted: boolean,
   isMedicalCompleted: boolean,
   isFamilyCompleted: boolean,
-  isFeeCompleted: boolean
+  isFeeCompleted: boolean,
+  isIdentityVerificationCompleted: boolean
 ): string[] => {
   const incomplete: string[] = [];
   if (!isStudentCompleted) incomplete.push('Student Information');
@@ -48,11 +52,19 @@ const getIncompleteRequirements = (
   if (!isMedicalCompleted) incomplete.push('Medical & Learner Health Details');
   if (!isFamilyCompleted) incomplete.push('Family Information (at least one parent)');
   if (!isFeeCompleted) incomplete.push('Fee Responsibility');
+  if (!isIdentityVerificationCompleted) incomplete.push('Identity Verification');
   return incomplete;
 };
 
 // Get detailed missing fields for better error messages
-const getDetailedMissingFields = (studentData: any, applicationDetailsData: any, medicalData: any, familyData: any, feeData: any) => {
+const getDetailedMissingFields = (
+  studentData: any,
+  applicationDetailsData: any,
+  medicalData: any,
+  familyData: any,
+  feeData: any,
+  isIdentityVerificationCompleted: boolean
+) => {
   const missingFields: { section: string; fields: string[] }[] = [];
   
   // Student Information required fields
@@ -107,6 +119,10 @@ const getDetailedMissingFields = (studentData: any, applicationDetailsData: any,
   if (feeMissing.length > 0) {
     missingFields.push({ section: 'Fee Responsibility', fields: feeMissing });
   }
+
+  if (!isIdentityVerificationCompleted) {
+    missingFields.push({ section: 'Identity Verification', fields: ['Successful parent identity verification'] });
+  }
   
   // Medical Information required fields
   const medicalMissing: string[] = [];
@@ -139,12 +155,14 @@ const Step1StudentGuardian: React.FC<Step1StudentGuardianProps> = ({
   onNextOfKinDataChange,
   onFeeDataChange,
   onApplicationDetailsDataChange,
+  onIdentityVerificationChange,
   onSubmitClick,
   isStudentInfoCompleted,
   isApplicationDetailsCompleted,
   isMedicalInfoCompleted,
   isFamilyInfoCompleted,
   isFeeResponsibilityCompleted,
+  isIdentityVerificationCompleted,
   nextOfKinData, // Destructure nextOfKinData here
 }) => {
   const [supportingDocsCount, setSupportingDocsCount] = useState(0);
@@ -154,10 +172,18 @@ const Step1StudentGuardian: React.FC<Step1StudentGuardianProps> = ({
     isApplicationDetailsCompleted,
     isMedicalInfoCompleted,
     isFamilyInfoCompleted,
-    isFeeResponsibilityCompleted
+    isFeeResponsibilityCompleted,
+    isIdentityVerificationCompleted
   );
   
-  const detailedMissingFields = getDetailedMissingFields(studentData, applicationDetailsData, medicalData, familyData, feeData);
+  const detailedMissingFields = getDetailedMissingFields(
+    studentData,
+    applicationDetailsData,
+    medicalData,
+    familyData,
+    feeData,
+    isIdentityVerificationCompleted
+  );
   const canProceed = incompleteRequirements.length === 0;
   
   const handleSubmitClick = () => {
@@ -170,7 +196,8 @@ const Step1StudentGuardian: React.FC<Step1StudentGuardianProps> = ({
           'Application Details': 'application-details',
           'Medical & Learner Health Details': 'medical-information',
           'Family Information': 'family-information',
-          'Fee Responsibility': 'fee-responsibility'
+          'Fee Responsibility': 'fee-responsibility',
+          'Identity Verification': 'identity-verification'
         };
         const elementId = sectionMap[firstIncompleteSection];
         const element = document.getElementById(elementId);
@@ -351,6 +378,28 @@ const Step1StudentGuardian: React.FC<Step1StudentGuardianProps> = ({
               initialData={feeData}
               familyData={{ ...familyData, ...nextOfKinData }}
               onDataChange={onFeeDataChange}
+            />
+          </UploadCard>
+
+          <UploadCard
+            id="identity-verification"
+            title="Identity Verification"
+            required
+            collapsible={true}
+            defaultOpen={false}
+            status={isIdentityVerificationCompleted ? 'completed' : 'not-started'}
+            icon={
+              <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-cyan-600 rounded-full flex items-center justify-center">
+                <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.25-4.5A11.953 11.953 0 0112 2.25c-2.29 0-4.44.64-6.25 1.75A11.953 11.953 0 003 10c0 5.25 3.438 9.7 8.18 11.22a2.62 2.62 0 001.64 0C17.562 19.7 21 15.25 21 10c0-1.54-.292-3.012-.75-4.5z" />
+                </svg>
+              </div>
+            }
+          >
+            <IdentityVerification
+              applicationId={applicationId}
+              feeData={feeData}
+              onStatusChange={onIdentityVerificationChange}
             />
           </UploadCard>
 

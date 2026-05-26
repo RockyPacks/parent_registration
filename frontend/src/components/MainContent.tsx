@@ -88,6 +88,7 @@ const MainContent: React.FC<MainContentProps> = (props) => {
   const [medicalData, setMedicalData] = useState<any>({});
   const [familyData, setFamilyData] = useState<any>({});
   const [feeData, setFeeData] = useState<any>({});
+  const [identityVerificationStatus, setIdentityVerificationStatus] = useState<any>({ result: 'not_started', verified: false });
   const [applicationDetailsData, setApplicationDetailsData] = useState<any>({});
   const [validationErrors, setValidationErrors] = useState<{ [key: string]: string }>({});
   const [isSubmitting, setIsSubmitting] = useState(isSubmittingProp || false);
@@ -204,6 +205,10 @@ const MainContent: React.FC<MainContentProps> = (props) => {
       feeData?.branchCode?.trim() &&
       feeData?.accountNumber?.trim();
   }, [feeData]);
+
+  const isIdentityVerificationCompleted = useMemo(() => {
+    return identityVerificationStatus?.verified === true || identityVerificationStatus?.result === 'passed';
+  }, [identityVerificationStatus]);
 
   const isApplicationDetailsCompleted = useMemo(() => {
     const hasRequiredFields = applicationDetailsData?.proposedStartTerm &&
@@ -422,6 +427,10 @@ const MainContent: React.FC<MainContentProps> = (props) => {
     });
   }, [getUserKey]);
 
+  const handleIdentityVerificationChange = useCallback((data: any) => {
+    setIdentityVerificationStatus(data || { result: 'not_started', verified: false });
+  }, []);
+
   const handleApplicationDetailsDataChange = useCallback((data: any) => {
     setApplicationDetailsData(prevData => {
       const newData = { ...prevData, ...data };
@@ -515,6 +524,12 @@ const MainContent: React.FC<MainContentProps> = (props) => {
       return;
     }
 
+    if (!isIdentityVerificationCompleted) {
+      console.error('MainContent: Submission blocked - Identity verification incomplete');
+      addToast('Please complete identity verification before submitting.', 'error');
+      return;
+    }
+
     if (!isApplicationDetailsCompleted) {
       console.error('MainContent: Submission blocked - Application details incomplete');
       addToast('Please complete the Application Details section before submitting.', 'error');
@@ -579,6 +594,12 @@ const MainContent: React.FC<MainContentProps> = (props) => {
 
       if (!isFeeResponsibilityCompleted) {
         addToast('Please complete all required Fee Responsibility fields.', 'error');
+        setIsSubmitting(false);
+        return;
+      }
+
+      if (!isIdentityVerificationCompleted) {
+        addToast('Please complete identity verification before continuing.', 'error');
         setIsSubmitting(false);
         return;
       }
@@ -671,7 +692,7 @@ const MainContent: React.FC<MainContentProps> = (props) => {
       addToast(errorMsg, 'error');
       setIsSubmitting(false);
     }
-  }, [applicationId, applicationInitialized, studentData, medicalData, familyData, feeData, applicationDetailsData, onStepChange, onStepComplete, addToast, isStudentInfoCompleted, isFamilyInfoCompleted, isFeeResponsibilityCompleted, isApplicationDetailsCompleted, nextOfKinData, localCompletedSteps, getUserKey]);
+  }, [applicationId, applicationInitialized, studentData, medicalData, familyData, feeData, applicationDetailsData, onStepChange, onStepComplete, addToast, isStudentInfoCompleted, isFamilyInfoCompleted, isFeeResponsibilityCompleted, isIdentityVerificationCompleted, isApplicationDetailsCompleted, nextOfKinData, localCompletedSteps, getUserKey]);
 
   const handleCombinedSubmitClick = useCallback(() => {
     handleCombinedSubmit();
@@ -682,13 +703,14 @@ const MainContent: React.FC<MainContentProps> = (props) => {
       const hasStudentData = isStudentInfoCompleted;
       const hasFamilyData = isFamilyInfoCompleted;
       const hasFeeData = isFeeResponsibilityCompleted;
+      const hasIdentityVerification = isIdentityVerificationCompleted;
       const hasApplicationDetailsData = isApplicationDetailsCompleted;
       const isStep1Completed = completedSteps.includes(1);
-      if (hasStudentData && hasFamilyData && hasFeeData && hasApplicationDetailsData && !isStep1Completed) {
+      if (hasStudentData && hasFamilyData && hasFeeData && hasIdentityVerification && hasApplicationDetailsData && !isStep1Completed) {
         onStepComplete && onStepComplete(1);
       }
     }
-  }, [isStudentInfoCompleted, isFamilyInfoCompleted, isFeeResponsibilityCompleted, isApplicationDetailsCompleted, activeStep, dataLoaded, applicationInitialized, completedSteps, onStepComplete]);
+  }, [isStudentInfoCompleted, isFamilyInfoCompleted, isFeeResponsibilityCompleted, isIdentityVerificationCompleted, isApplicationDetailsCompleted, activeStep, dataLoaded, applicationInitialized, completedSteps, onStepComplete]);
 
   // Show global loading state while application data is being synchronized
   if (!applicationInitialized) {
@@ -725,12 +747,14 @@ const MainContent: React.FC<MainContentProps> = (props) => {
             onNextOfKinDataChange={handleNextOfKinDataChange}
             onFeeDataChange={handleFeeDataChange}
             onApplicationDetailsDataChange={handleApplicationDetailsDataChange}
+            onIdentityVerificationChange={handleIdentityVerificationChange}
             onSubmitClick={handleCombinedSubmitClick}
             isStudentInfoCompleted={isStudentInfoCompleted}
             isApplicationDetailsCompleted={isApplicationDetailsCompleted}
             isMedicalInfoCompleted={isMedicalInfoCompleted}
             isFamilyInfoCompleted={isFamilyInfoCompleted}
             isFeeResponsibilityCompleted={isFeeResponsibilityCompleted}
+            isIdentityVerificationCompleted={isIdentityVerificationCompleted}
             nextOfKinData={nextOfKinData} // Pass nextOfKinData here
           />
         </Suspense>

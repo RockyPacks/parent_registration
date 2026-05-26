@@ -138,6 +138,34 @@ export interface EnrollmentData {
   next_of_kin?: any;
 }
 
+export interface PvseAnswerOption {
+  answerId: string;
+  answerText: string;
+}
+
+export interface PvseQuestion {
+  questionId: string;
+  questionText: string;
+  answers: PvseAnswerOption[];
+}
+
+export interface PvseStartResponse {
+  transactionId: string;
+  result: string;
+  questions: PvseQuestion[];
+  message: string;
+}
+
+export interface PvseStatusResponse {
+  transactionId?: string;
+  result: string;
+  score?: number | null;
+  threshold?: number | null;
+  lockedUntil?: string | null;
+  verified: boolean;
+  message: string;
+}
+
 class ApiService {
   private sessionCache: { session: any; timestamp: number } | null = null;
   private schoolsCache: { data: any; timestamp: number } | null = null;
@@ -628,6 +656,30 @@ class ApiService {
    */
   async getFinancingSelection(applicationId: string): Promise<any> {
     return this.request(`/financing/selection/${applicationId}`);
+  }
+
+  async getPvseStatus(applicationId: string): Promise<PvseStatusResponse> {
+    return this.request<PvseStatusResponse>(`/pvse/status/${applicationId}`);
+  }
+
+  async startPvseVerification(applicationId: string): Promise<PvseStartResponse> {
+    return this.request<PvseStartResponse>('/pvse/start', {
+      method: 'POST',
+      body: JSON.stringify({ application_id: applicationId }),
+    });
+  }
+
+  async submitPvseAnswers(
+    transactionId: string,
+    answers: Array<{ questionId: string; answerId: string }>
+  ): Promise<PvseStatusResponse> {
+    return this.request<PvseStatusResponse>('/pvse/submit', {
+      method: 'POST',
+      body: JSON.stringify(toSnakeCase({
+        transactionId,
+        answers,
+      })),
+    });
   }
 }
 
