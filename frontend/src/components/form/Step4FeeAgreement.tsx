@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import FeeAgreement from './FeeAgreement';
 import Footer from '../Footer';
-import { apiService, SchoolFees } from '../../services/api';
+import { apiService, SchoolFees, SchoolConfig } from '../../services/api';
 import { useToast } from '../../hooks/useToast';
 
 const DEFAULT_PLAN = 'Pay Once Per Year';
@@ -42,6 +42,7 @@ const Step4FeeAgreement: React.FC<Step4FeeAgreementProps> = ({
     return DEFAULT_PLAN;
   });
   const [fees, setFees] = useState<SchoolFees | null>(null);
+  const [schoolConfig, setSchoolConfig] = useState<SchoolConfig | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { addToast } = useToast();
@@ -80,8 +81,30 @@ const Step4FeeAgreement: React.FC<Step4FeeAgreementProps> = ({
         setLoading(true);
         setError(null);
 
+        const savedSchoolName = localStorage.getItem('selectedSchoolName') || '';
+        const n = savedSchoolName.toLowerCase();
+        const schoolKey = (n.includes('maseala') || n.includes('maseal')) ? 'MASEALA_PROG_001' : undefined;
+
+        // Fetch school config (bank details, branding) for registered schools
+        if (schoolKey) {
+          try {
+            const config = await apiService.getSchoolConfig(schoolKey);
+            setSchoolConfig(config);
+          } catch {
+            // Non-fatal: fall back to hardcoded defaults in FeeAgreement
+            console.warn('Could not fetch school config for', schoolKey);
+          }
+        }
+
+        // Handle Grade 12 Maseala — contract-based, no public fee
+        if (schoolKey === 'MASEALA_PROG_001' && grade === 'Grade 12') {
+          setError('Grade 12 fees are by contract. Please contact the school directly for a fee quote.');
+          setLoading(false);
+          return;
+        }
+
         // 2. Get Fees for that class name
-        const feeData = await apiService.getSchoolFees(grade);
+        const feeData = await apiService.getSchoolFees(grade, schoolKey);
         setFees(feeData);
       } catch (err: any) {
         console.error('Failed to load fees:', err);
@@ -260,6 +283,7 @@ const Step4FeeAgreement: React.FC<Step4FeeAgreementProps> = ({
             onSelectPlan={setSelectedPlan}
             onBack={() => onStepChange && onStepChange(3)}
             fees={fees}
+            schoolConfig={schoolConfig}
           />
         ) : null}
       </div>

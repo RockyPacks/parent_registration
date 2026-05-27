@@ -6,6 +6,7 @@ browser for the active transaction and answers are proxied to Experian, but
 neither questions nor answers are stored.
 """
 
+import asyncio
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
 import logging
@@ -58,7 +59,18 @@ class PvseService:
                 detail=f"Identity verification is not configured: {', '.join(missing)}",
             )
 
+    _RETRY_ON_STATUS: Dict[int, float] = {
+        504: 5.0,   # timeout → retry after 5 s
+        503: 10.0,  # network/unavailable → retry after 10 s
+    }
+
     async def _post_request_result(self, payload: Dict[str, Any]) -> Dict[str, Any]:
+        """Call Experian once; on retryable HTTP status, wait and try a second time."""
+        return await self._post_request_result_attempt(payload, is_retry=False)
+
+    async def _post_request_result_attempt(
+        self, payload: Dict[str, Any], *, is_retry: bool
+    ) -> Dict[str, Any]:
         self._require_config()
         url = f"{self._base_url()}/RequestResult"
         safe_payload_keys = sorted(payload.keys())
@@ -74,13 +86,18 @@ class PvseService:
                         "Content-Type": "application/json",
                         "Accept": "application/json",
                     },
-                    auth=(settings.experian_username, settings.experian_password),
                 )
         except httpx.TimeoutException as exc:
-            logger.warning("Experian PVS-E request timed out")
+            logger.warning("Experian PVS-E request timed out (retry=%s)", is_retry)
+            if not is_retry:
+                await asyncio.sleep(self._RETRY_ON_STATUS[504])
+                return await self._post_request_result_attempt(payload, is_retry=True)
             raise HTTPException(status_code=504, detail="Identity verification is taking longer than expected. Please try again.") from exc
         except httpx.RequestError as exc:
-            logger.warning("Experian PVS-E network error: %s", exc.__class__.__name__)
+            logger.warning("Experian PVS-E network error: %s (retry=%s)", exc.__class__.__name__, is_retry)
+            if not is_retry:
+                await asyncio.sleep(self._RETRY_ON_STATUS[503])
+                return await self._post_request_result_attempt(payload, is_retry=True)
             raise HTTPException(status_code=503, detail="Identity verification could not be reached. Please try again.") from exc
 
         try:
@@ -105,6 +122,9 @@ class PvseService:
                 response.status_code,
                 self._redact_provider_body(body),
             )
+            if not is_retry:
+                await asyncio.sleep(self._RETRY_ON_STATUS[503])
+                return await self._post_request_result_attempt(payload, is_retry=True)
             raise HTTPException(status_code=503, detail="Identity verification is temporarily unavailable. Please try again later.")
 
         return body
@@ -219,14 +239,15 @@ class PvseService:
 
         return {
             "id_number": parent_id_number,
-            # Swap first_name and surname for Experian payload
-            "first_name": parent_surname,  # Surname is the given name for Experian
-            "surname": parent_first_name,  # First name is the family name for Experian
+            "first_name": parent_first_name,
+            "surname": parent_surname,
         }
 
     async def start_verification(self, application_id: str, user_id: str) -> Dict[str, Any]:
         parent = self._get_fee_payer(application_id, user_id)
         payload = {
+            "Username": settings.experian_username,
+            "Password": settings.experian_password,
             "SubscriberCode": settings.experian_subscriber_code,
             "ClientConsent": "Y",
             "IDNumber": parent["id_number"],
@@ -267,6 +288,8 @@ class PvseService:
             return self._status_response(existing)
 
         payload = {
+            "Username": settings.experian_username,
+            "Password": settings.experian_password,
             "TransactionID": transaction_id,
             "ClientConsent": True,
             "Answers": [
@@ -306,6 +329,19 @@ class PvseService:
                 "message": "Please complete identity verification to continue.",
             }
         return self._status_response(latest)
+
+    def admin_unblock_parent(self, parent_id: str, admin_user_id: str, reason: str) -> Dict[str, Any]:
+        """Hard-unlock a parent that has been blocked (hard_locked). Requires admin permission."""
+        unblocked = self.repository.admin_unblock(parent_id, admin_user_id, reason)
+        if not unblocked:
+            raise HTTPException(status_code=404, detail="No hard-locked verification found for this parent.")
+        logger.info(
+            "Admin %s unblocked parent %s — reason: %s",
+            admin_user_id,
+            parent_id,
+            reason,
+        )
+        return {"unblocked": True, "parent_id": parent_id, "message": "Parent identity verification has been unblocked."}
 
     @staticmethod
     def _message_for_result(result: str) -> str:

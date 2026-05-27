@@ -7,7 +7,7 @@ from typing import List
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
 
-from app.core.security import get_current_user
+from app.core.security import get_current_user, require_permission
 from app.services.pvse_service import pvse_service
 
 router = APIRouter(prefix="/pvse", tags=["pvse"])
@@ -25,6 +25,11 @@ class AnswerSelection(BaseModel):
 class SubmitAnswersRequest(BaseModel):
     transaction_id: str = Field(..., min_length=1)
     answers: List[AnswerSelection] = Field(..., min_length=1)
+
+
+class AdminUnblockRequest(BaseModel):
+    parent_id: str = Field(..., min_length=1)
+    reason: str = Field(..., min_length=1, max_length=500)
 
 
 @router.post("/start")
@@ -53,3 +58,27 @@ async def get_identity_verification_status(
     current_user: dict = Depends(get_current_user),
 ):
     return pvse_service.get_status(application_id, current_user.get("id"))
+
+
+# ──────────────────────────── Admin endpoints ────────────────────────────────
+
+@router.post("/admin/unblock")
+async def admin_unblock_parent(
+    request: AdminUnblockRequest,
+    current_user: dict = Depends(require_permission("pvseublock")),
+):
+    """Unblock a hard-locked parent. Requires the 'pvseublock' permission."""
+    return pvse_service.admin_unblock_parent(
+        request.parent_id,
+        current_user.get("id"),
+        request.reason,
+    )
+
+
+@router.get("/admin/locked")
+async def list_hard_locked_parents(
+    current_user: dict = Depends(require_permission("pvseublock")),
+):
+    """List all currently hard-locked parent verifications."""
+    return pvse_service.repository.list_hard_locked()
+

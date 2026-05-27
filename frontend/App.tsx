@@ -9,7 +9,7 @@ import ForgotPasswordPage from './src/components/ForgotPasswordPage';
 import ResetPasswordPage from './src/components/ResetPasswordPage';
 import { InquiryPage } from './src/components/InquiryPage';
 
-import { EnrollmentData } from './src/services/api';
+import { EnrollmentData, apiService } from './src/services/api';
 import { storage } from './src/utils/storage';
 
 interface ApplicationSummary {
@@ -217,7 +217,6 @@ const App: React.FC = () => {
         }
 
         console.log("App.tsx: Fetching application details from backend for user:", userEmail);
-        const { apiService } = await import('./src/services/api');
         const appDataResponse = await apiService.initiateApplication();
         const initialAppId = appDataResponse.applicationId;
 
@@ -236,11 +235,10 @@ const App: React.FC = () => {
 
           const savedCurrentView = storage.get(userCurrentViewKey, 'enrollment');
 
-          // Load existing application data from backend first to determine actual completed steps
+          // Use nested full application data from the initiateApplication response
           try {
             console.log("App.tsx: Loading application data for:", initialAppId);
-            const { apiService } = await import('./src/services/api');
-            let appData = await apiService.getApplication(initialAppId);
+            let appData = (appDataResponse as any).application;
 
             // Determine completed steps based on actual backend data
             const backendCompletedSteps: number[] = [];
@@ -257,7 +255,6 @@ const App: React.FC = () => {
 
             if (appData) {
               console.log("App.tsx: Application data loaded successfully");
-              console.log("App.tsx: Raw appData:", JSON.stringify(appData, null, 2));
 
               // Check if step 1 data exists - must have actual student data with required fields
               const hasStudentData = appData.student?.surname && appData.student?.firstName;
@@ -439,7 +436,6 @@ const App: React.FC = () => {
               const hasActualData = (obj: any) => obj && Object.values(obj).some(val => val !== null && val !== undefined && val !== '');
 
               if (appData.student?.surname || appData.student?.firstName) {
-                console.log("App.tsx: Saving non-empty student data to localStorage:", JSON.stringify(enrollmentData.student));
                 storage.set(getUserKey(userEmail, 'studentData'), enrollmentData.student);
               } else {
                 console.log("App.tsx: Backend student data is empty or missing, not overwriting localStorage");
@@ -704,7 +700,6 @@ const App: React.FC = () => {
     setIsSubmitting(true);
     try {
       // Submit enrollment data to backend using the API service
-      const { apiService } = await import('./src/services/api');
       const result = await apiService.submitEnrollment(data);
 
       setEnrollmentData(data);
@@ -790,6 +785,20 @@ const App: React.FC = () => {
         storage.set(getUserKey(userEmail, 'completedSteps'), newSteps); // Save the clean array
         console.log(`App.tsx: Step ${stepNumber} marked as complete. All completed steps:`, newSteps);
       }
+      return newSteps;
+    });
+  };
+
+  const handleCompletedStepsChange = (newSteps: number[]) => {
+    setCompletedSteps(prev => {
+      // Avoid infinite loop if equal
+      if (prev.length === newSteps.length && prev.every(s => newSteps.includes(s))) {
+        return prev;
+      }
+      if (userEmail) {
+        storage.set(getUserKey(userEmail, 'completedSteps'), newSteps);
+      }
+      console.log('App.tsx: Dynamically updated completed steps to:', newSteps);
       return newSteps;
     });
   };
@@ -940,6 +949,7 @@ const App: React.FC = () => {
                   setActiveStep(step);
                 }}
                 onStepComplete={handleStepComplete}
+                onCompletedStepsChange={handleCompletedStepsChange}
                 completedSteps={completedSteps}
                 userEmail={userEmail}
               />

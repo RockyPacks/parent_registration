@@ -8,15 +8,7 @@ import { StudentIcon } from '../Icons';
 import { useToast } from '../../hooks/useToast';
 import Footer from '../Footer';
 import { validateSAID } from '../../utils/saIdValidator';
-
-const MOLO_CLASS_NAME_OPTIONS = [
-  'Empress of Menen',
-  'Frances Gqoba',
-  'Sibulelo Mashale',
-  'Thandeka Nonkasana',
-  'Nosiseko Dlakavu',
-  'Amanirenas of Kush',
-];
+import { getActiveSchoolType, getGradeConfig } from '../../utils/storage';
 
 interface StudentInformationProps {
   initialData?: any;
@@ -26,6 +18,7 @@ interface StudentInformationProps {
 
 const StudentInformation: React.FC<StudentInformationProps> = ({ initialData, onDataChange, onNext }) => {
   const { addToast } = useToast();
+  const { options: gradeOptions, label: gradeLabelSingular } = getGradeConfig(getActiveSchoolType());
   const [formData, setFormData] = useState(() => {
     const initialFormData = {
       surname: '',
@@ -162,12 +155,12 @@ const StudentInformation: React.FC<StudentInformationProps> = ({ initialData, on
         break;
       case 'previousGrade':
         if (!value) {
-          error = 'Previous Class Name is required';
+          error = `Previous ${gradeLabelSingular} is required`;
         }
         break;
       case 'gradeAppliedFor':
         if (!value) {
-          error = 'Class Name Applied For is required';
+          error = `${gradeLabelSingular} Applied For is required`;
         }
         break;
       case 'previousSchool':
@@ -366,31 +359,31 @@ const StudentInformation: React.FC<StudentInformationProps> = ({ initialData, on
           />
           <SelectField
             id="previousGrade"
-            label="Previous Class Name"
+            label={`Previous ${gradeLabelSingular}`}
             required
             value={formData.previousGrade}
             onChange={(e) => handleInputChange('previousGrade', e.target.value)}
             error={errors.previousGrade}
           >
-            <option value="">Select Class Name</option>
-            {MOLO_CLASS_NAME_OPTIONS.map((className) => (
-              <option key={className} value={className}>
-                {className}
+            <option value="">Select {gradeLabelSingular}</option>
+            {gradeOptions.map((option) => (
+              <option key={option} value={option}>
+                {option}
               </option>
             ))}
           </SelectField>
           <SelectField
             id="gradeAppliedFor"
-            label="Class Name Applied For"
+            label={`${gradeLabelSingular} Applied For`}
             required
             value={formData.gradeAppliedFor}
             onChange={(e) => handleInputChange('gradeAppliedFor', e.target.value)}
             error={errors.gradeAppliedFor}
           >
-            <option value="">Select Class Name</option>
-            {MOLO_CLASS_NAME_OPTIONS.map((className) => (
-              <option key={className} value={className}>
-                {className}
+            <option value="">Select {gradeLabelSingular}</option>
+            {gradeOptions.map((option) => (
+              <option key={option} value={option}>
+                {option}
               </option>
             ))}
           </SelectField>

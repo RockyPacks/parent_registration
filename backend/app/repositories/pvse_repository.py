@@ -3,7 +3,7 @@ Repository for Experian PVS-E identity verification transaction metadata.
 """
 
 from datetime import datetime, timezone
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 import logging
 
 from app.db.supabase_client import supabase_service
@@ -122,6 +122,70 @@ class PvseRepository:
             .execute()
         )
         return result.data[0] if result.data else update_data
+
+    def admin_unblock(self, parent_id: str, admin_user_id: str, reason: str) -> Optional[Dict[str, Any]]:
+        """Clear hard_locked result for all transactions tied to the given parent_id."""
+        self._check_supabase()
+        # Find all hard-locked rows for this parent
+        rows = (
+            self.supabase.table(self.table_name)
+            .select("id,transaction_id,user_id")
+            .eq("parent_id", parent_id)
+            .eq("result", "hard_locked")
+            .execute()
+        )
+        if not rows.data:
+            return None
+        now = datetime.now(timezone.utc).isoformat()
+        updated = (
+            self.supabase.table(self.table_name)
+            .update({"result": "failed", "locked_until": None, "updated_at": now})
+            .eq("parent_id", parent_id)
+            .eq("result", "hard_locked")
+            .execute()
+        )
+        self.create_audit_event(
+            parent_id=parent_id,
+            event_type="admin_unblock",
+            performed_by=admin_user_id,
+            note=reason,
+        )
+        return updated.data[0] if updated.data else rows.data[0]
+
+    def create_audit_event(
+        self,
+        parent_id: str,
+        event_type: str,
+        performed_by: str,
+        note: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        self._check_supabase()
+        data = {
+            "parent_id": parent_id,
+            "event_type": event_type,
+            "performed_by": performed_by,
+            "note": note,
+            "created_at": datetime.now(timezone.utc).isoformat(),
+        }
+        try:
+            result = self.supabase.table("pvse_audit_events").insert(data).execute()
+        except APIError:
+            # Audit table may not exist yet — log and continue; don't fail the main flow
+            logger.warning("pvse_audit_events table not found; audit event not recorded")
+            return data
+        return result.data[0] if result.data else data
+
+    def list_hard_locked(self) -> List[Dict[str, Any]]:
+        """Return all currently hard-locked parent verifications (admin use)."""
+        self._check_supabase()
+        result = (
+            self.supabase.table(self.table_name)
+            .select("parent_id,user_id,transaction_id,created_at,updated_at")
+            .eq("result", "hard_locked")
+            .order("updated_at", desc=True)
+            .execute()
+        )
+        return result.data or []
 
 
 pvse_repository = PvseRepository()

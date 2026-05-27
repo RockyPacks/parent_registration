@@ -4,6 +4,7 @@ from app.core.config import settings
 import logging
 import jwt
 import time
+from typing import Callable
 
 logger = logging.getLogger(__name__)
 
@@ -93,3 +94,35 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(securit
             detail="Invalid authentication credentials",
             headers={"WWW-Authenticate": "Bearer"},
         )
+
+
+def require_permission(permission: str) -> Callable:
+    """
+    Return a FastAPI dependency that verifies the current user holds *permission*.
+
+    Permissions are read from the Supabase JWT's ``app_metadata.permissions`` list
+    (a string array) and from the top-level ``role`` claim.  An admin service-role
+    token (role == 'service_role') is also accepted.
+    """
+    async def _guard(current_user: dict = Depends(get_current_user)) -> dict:
+        role = current_user.get("role", "")
+        if role in ("service_role",):
+            return current_user
+
+        # Check app_metadata.permissions (set via Supabase admin / custom claims)
+        user_metadata = current_user.get("user_metadata") or {}
+        app_metadata = current_user.get("app_metadata") or {}
+        permissions: list = (
+            app_metadata.get("permissions")
+            or user_metadata.get("permissions")
+            or []
+        )
+        if permission in permissions:
+            return current_user
+
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Permission '{permission}' is required.",
+        )
+
+    return _guard

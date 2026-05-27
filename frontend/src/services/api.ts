@@ -74,6 +74,21 @@ export interface SchoolFees {
   updatedAt: string;
 }
 
+export interface SchoolConfig {
+  id: string;
+  name: string;
+  short_name: string | null;
+  school_key: string;
+  email: string | null;
+  bank_name: string | null;
+  account_holder: string | null;
+  account_number: string | null;
+  branch_code: string | null;
+  branch_name: string | null;
+  payment_reference_format: string | null;
+  active: boolean;
+}
+
 export interface EnrollmentData {
   application_id: string;
   student: {
@@ -619,8 +634,14 @@ class ApiService {
    * @param grade - Class name
    * @returns SchoolFees object with fee structure
    */
-  async getSchoolFees(grade: string): Promise<SchoolFees> {
-    return this.request<SchoolFees>(`/fees/?grade=${encodeURIComponent(grade)}`);
+  async getSchoolFees(grade: string, schoolKey?: string): Promise<SchoolFees> {
+    const params = new URLSearchParams({ grade });
+    if (schoolKey) params.append('school_key', schoolKey);
+    return this.request<SchoolFees>(`/fees/?${params.toString()}`);
+  }
+
+  async getSchoolConfig(schoolKey: string): Promise<SchoolConfig> {
+    return this.request<SchoolConfig>(`/schools/config/${encodeURIComponent(schoolKey)}`);
   }
 
   /**
@@ -679,6 +700,30 @@ class ApiService {
         transactionId,
         answers,
       })),
+    });
+  }
+
+  async adminPvseListLocked(): Promise<Array<{
+    parentId: string;
+    userId: string;
+    transactionId: string;
+    createdAt: string;
+    updatedAt: string;
+  }>> {
+    const raw = await this.request<any[]>('/pvse/admin/locked');
+    return (raw || []).map((r) => ({
+      parentId: r.parent_id,
+      userId: r.user_id,
+      transactionId: r.transaction_id,
+      createdAt: r.created_at,
+      updatedAt: r.updated_at,
+    }));
+  }
+
+  async adminPvseUnblock(parentId: string, reason: string): Promise<{ unblocked: boolean; message: string }> {
+    return this.request('/pvse/admin/unblock', {
+      method: 'POST',
+      body: JSON.stringify({ parent_id: parentId, reason }),
     });
   }
 }

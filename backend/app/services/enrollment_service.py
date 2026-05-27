@@ -78,10 +78,12 @@ class EnrollmentService:
                 status = existing_app.get('status', ApplicationStatus.IN_PROGRESS)
                 school_name = existing_app.get('school_name')
                 logger.info(f"Found existing application {application_id} for user {user_id}")
+                full_app_data = self.repository.get_full_application(application_id, user_id, application=existing_app)
                 return {
                     "application_id": application_id,
                     "status": status,
                     "school_name": school_name,
+                    "application": full_app_data,
                 }
             else:
                 # Extract school info from user metadata (set during signup)
@@ -103,10 +105,13 @@ class EnrollmentService:
                     f"Created new application {application_id} for user {user_id} "
                     f"(school: {school_name})"
                 )
+                new_app = self.repository.get_application_by_id_and_user(application_id, user_id)
+                full_app_data = self.repository.get_full_application(application_id, user_id, application=new_app)
                 return {
                     "application_id": application_id,
                     "status": ApplicationStatus.IN_PROGRESS,
                     "school_name": school_name,
+                    "application": full_app_data,
                 }
         except Exception as e:
             logger.error(f"Failed to get or create application for user {user_id}: {str(e)}")
@@ -321,7 +326,7 @@ class EnrollmentService:
                 # We can also check if the app exists to return a 404 vs 403, but a 404 is often better for security.
                 raise HTTPException(status_code=404, detail="Application not found or access denied")
  
-            application_data = self.repository.get_full_application(application_id, user_id)
+            application_data = self.repository.get_full_application(application_id, user_id, application=app_check)
 
             return ApplicationResponse(**application_data)
         except HTTPException:
