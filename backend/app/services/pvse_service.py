@@ -79,12 +79,15 @@ class PvseService:
 
         try:
             async with httpx.AsyncClient(timeout=settings.experian_timeout_seconds) as client:
+                username_val = settings.experian_username.upper() if settings.experian_username else ""
                 response = await client.post(
                     url,
                     json=payload,
                     headers={
                         "Content-Type": "application/json",
                         "Accept": "application/json",
+                        "Username": username_val,
+                        "Password": settings.experian_password or "",
                     },
                 )
         except httpx.TimeoutException as exc:
@@ -246,7 +249,7 @@ class PvseService:
     async def start_verification(self, application_id: str, user_id: str) -> Dict[str, Any]:
         parent = self._get_fee_payer(application_id, user_id)
         payload = {
-            "Username": settings.experian_username,
+            "Username": settings.experian_username.upper() if settings.experian_username else "",
             "Password": settings.experian_password,
             "SubscriberCode": settings.experian_subscriber_code,
             "ClientConsent": True,
@@ -288,7 +291,7 @@ class PvseService:
             return self._status_response(existing)
 
         payload = {
-            "Username": settings.experian_username,
+            "Username": settings.experian_username.upper() if settings.experian_username else "",
             "Password": settings.experian_password,
             "TransactionID": transaction_id,
             "ClientConsent": True,
