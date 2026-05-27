@@ -148,7 +148,7 @@ class TestEnrollmentService:
         # Assert
         assert result.id == application_id
         assert result.status == ApplicationStatus.IN_PROGRESS
-        self.service.repository.get_full_application.assert_called_once_with(application_id)
+        self.service.repository.get_full_application.assert_called_once_with(application_id, user_id, application={"id": application_id})
 
     def test_get_application_not_found(self):
         """Test application retrieval when application doesn't exist"""

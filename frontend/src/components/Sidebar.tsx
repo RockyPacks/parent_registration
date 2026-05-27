@@ -123,9 +123,9 @@ const Sidebar: React.FC<SidebarProps> = ({ steps, activeStep, onStepClick, compl
         <ul className="space-y-2">
           {steps.map((step) => {
             const status = getStepStatus(step.number);
-            // Check if step 6 can be accessed - requires steps 1-5 to be completed
-            const isStep6Locked = step.number === 6 && ![1, 2, 3, 4, 5].every(s => completedSteps.includes(s));
-            const isClickable = !isStep6Locked;
+            // Allow all steps to be clickable and viewed at any time
+            const isStep6Locked = false;
+            const isClickable = true;
             
             return (
               <li

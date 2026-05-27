@@ -2,7 +2,45 @@ import React from 'react';
 import AffordabilityCard from '../AffordabilityCard';
 import FinancingOptions from '../FinancingOptions';
 import InfoSection from '../InfoSection';
-import { SchoolFees } from '../../services/api';
+import { SchoolFees, SchoolConfig } from '../../services/api';
+
+const SELECTED_SCHOOL_NAME_KEY = 'selectedSchoolName';
+
+interface BankDetails {
+  bankName: string;
+  accountName: string;
+  accountNumber: string;
+  branchCode: string;
+  email: string;
+}
+
+/** Hardcoded fallback — only used when school is not registered in schools table */
+const getBankDetails = (schoolName: string): BankDetails => {
+  if (schoolName.toLowerCase().includes('maseala') || schoolName.toLowerCase().includes('maseal')) {
+    return {
+      bankName: 'NEDBANK',
+      accountName: 'Maseala Independent Schools',
+      accountNumber: '1203 251 815',
+      branchCode: '198765',
+      email: 'finance@maseala.co.za',
+    };
+  }
+  return {
+    bankName: 'Standard Bank',
+    accountName: 'School Name Trust Account',
+    accountNumber: '123 456 7890',
+    branchCode: '051001',
+    email: 'finance@school.co.za',
+  };
+};
+
+const bankDetailsFromConfig = (config: SchoolConfig): BankDetails => ({
+  bankName: config.bank_name ?? 'N/A',
+  accountName: config.account_holder ?? config.name,
+  accountNumber: config.account_number ?? 'N/A',
+  branchCode: config.branch_code ?? 'N/A',
+  email: config.email ?? 'finance@school.co.za',
+});
 
 interface FeeAgreementProps {
   applicationId?: string | null;
@@ -10,9 +48,13 @@ interface FeeAgreementProps {
   onSelectPlan: (plan: string) => void;
   onBack?: () => void;
   fees: SchoolFees;
+  schoolConfig?: SchoolConfig | null;
 }
 
-const FeeAgreement: React.FC<FeeAgreementProps> = ({ applicationId, selectedPlan, onSelectPlan, onBack, fees }) => {
+const FeeAgreement: React.FC<FeeAgreementProps> = ({ applicationId, selectedPlan, onSelectPlan, onBack, fees, schoolConfig }) => {
+  const bankDetails = schoolConfig
+    ? bankDetailsFromConfig(schoolConfig)
+    : getBankDetails(localStorage.getItem(SELECTED_SCHOOL_NAME_KEY) || '');
   return (
     <div className="font-sans text-gray-800">
       <div className="container mx-auto px-3 sm:px-4 md:px-6 lg:px-8 py-8 md:py-12">
@@ -47,19 +89,19 @@ const FeeAgreement: React.FC<FeeAgreementProps> = ({ applicationId, selectedPlan
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                 <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
                   <p className="text-sm text-gray-500 mb-1">Bank Name</p>
-                  <p className="text-lg font-semibold text-gray-900">Standard Bank</p>
+                  <p className="text-lg font-semibold text-gray-900">{bankDetails.bankName}</p>
                 </div>
                 <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
                   <p className="text-sm text-gray-500 mb-1">Account Name</p>
-                  <p className="text-lg font-semibold text-gray-900">School Name Trust Account</p>
+                  <p className="text-lg font-semibold text-gray-900">{bankDetails.accountName}</p>
                 </div>
                 <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
                   <p className="text-sm text-gray-500 mb-1">Account Number</p>
-                  <p className="text-lg font-semibold text-gray-900">123 456 7890</p>
+                  <p className="text-lg font-semibold text-gray-900">{bankDetails.accountNumber}</p>
                 </div>
                 <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
                   <p className="text-sm text-gray-500 mb-1">Branch Code</p>
-                  <p className="text-lg font-semibold text-gray-900">051001</p>
+                  <p className="text-lg font-semibold text-gray-900">{bankDetails.branchCode}</p>
                 </div>
               </div>
 
@@ -88,7 +130,7 @@ const FeeAgreement: React.FC<FeeAgreementProps> = ({ applicationId, selectedPlan
                     <p className="text-sm font-semibold text-blue-800 mb-1">Important Note</p>
                     <p className="text-sm text-blue-700">
                       After making your payment, please upload proof of payment in Step 2 (Document Upload) or email it to 
-                      <a href="mailto:finance@school.co.za" className="font-semibold underline ml-1">finance@school.co.za</a>
+                      <a href={`mailto:${bankDetails.email}`} className="font-semibold underline ml-1">{bankDetails.email}</a>
                     </p>
                   </div>
                 </div>

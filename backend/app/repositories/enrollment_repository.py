@@ -573,13 +573,14 @@ class EnrollmentRepository(BaseRepository):
             logger.error(f"Failed to save partial fee data for application {application_id}: {str(e)}")
             raise ExternalServiceError("Database", "Failed to save fee responsibility information")
 
-    def get_full_application(self, application_id: str, user_id: str) -> Dict[str, Any]:
+    def get_full_application(self, application_id: str, user_id: str, application: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """
         Get complete application with all related data and verify ownership.
 
         Args:
             application_id: Application ID to retrieve
             user_id: User ID for ownership verification
+            application: Optional pre-fetched application dictionary to avoid redundant ownership checks
 
         Returns:
             Complete application data with all sections
@@ -588,26 +589,37 @@ class EnrollmentRepository(BaseRepository):
             ExternalServiceError: If database operation fails
         """
         try:
-            # Use the ownership-verified method
-            application = self.get_application_by_id_and_user(application_id, user_id)
+            # Use the ownership-verified method if not already provided
+            if not application:
+                application = self.get_application_by_id_and_user(application_id, user_id)
             if not application:
                 # If application is not found or not owned by the user, return empty or raise specific error
                 # Based on get_application in service, a 403/404 will be raised there.
                 # Here we return empty if it's not found/owned.
                 return {}
 
-            # Get related data
-            student_result = self.supabase.table("students").select("*").eq("application_id", application_id).execute()
-            medical_result = self.supabase.table("medical_info").select("*").eq("application_id", application_id).execute()
-            family_result = self.supabase.table("parents").select("*").eq("application_id", application_id).execute()
-            fee_result = self.supabase.table("fee_responsibility").select("*").eq("application_id", application_id).execute()
-            academic_history_result = self.supabase.table("academic_history").select("*").eq("application_id", application_id).execute()
-            # Use uploaded_files table for file storage
-            documents_result = self.supabase.table("uploaded_files").select("*").eq("application_id", application_id).execute()
-            # financing_result = self.supabase.table("financing_selections").select("*").eq("application_id", application_id).execute()  # Table removed
-            declaration_result = self.supabase.table("declarations").select("*").eq("application_id", application_id).execute()
-            # Get next of kin data from separate table
-            next_of_kin_result = self.supabase.table("next_of_kin").select("*").eq("application_id", application_id).execute()
+            from concurrent.futures import ThreadPoolExecutor
+
+            # Query related data in parallel to resolve N+1 sequential database REST waterfall
+            tables = [
+                "students", "medical_info", "parents", "fee_responsibility",
+                "academic_history", "uploaded_files", "declarations", "next_of_kin"
+            ]
+
+            def fetch_table(table_name: str):
+                return self.supabase.table(table_name).select("*").eq("application_id", application_id).execute()
+
+            with ThreadPoolExecutor(max_workers=len(tables)) as executor:
+                results = list(executor.map(fetch_table, tables))
+
+            student_result = results[0]
+            medical_result = results[1]
+            family_result = results[2]
+            fee_result = results[3]
+            academic_history_result = results[4]
+            documents_result = results[5]
+            declaration_result = results[6]
+            next_of_kin_result = results[7]
 
             # Extract normalized family data into denormalized format for UI
             family_data = {}

@@ -174,3 +174,31 @@ async def create_prospect(school_id: str, prospect: ProspectCreate):
         if "violates" in error_msg.lower() or "invalid" in error_msg.lower():
             raise HTTPException(status_code=400, detail=f"Invalid field values: {error_msg}")
         raise HTTPException(status_code=500, detail=f"Failed to submit inquiry: {error_msg}")
+
+@router.get("/schools/config/{school_key}", response_model=dict)
+async def get_school_config(school_key: str):
+    """
+    Return school-specific config (bank details, branding) from the main schools table.
+    Looked up by school_key (e.g. 'MASEALA_PROG_001').
+    Public endpoint — no auth required.
+    """
+    try:
+        if not supabase_service:
+            raise HTTPException(status_code=500, detail="Database connection not available")
+
+        result = supabase_service.table("schools")\
+            .select("id, name, short_name, school_key, email, bank_name, account_holder, account_number, branch_code, branch_name, payment_reference_format, active")\
+            .eq("school_key", school_key)\
+            .eq("active", True)\
+            .limit(1)\
+            .execute()
+
+        if not result.data or len(result.data) == 0:
+            raise HTTPException(status_code=404, detail=f"No active school found for key '{school_key}'")
+
+        return result.data[0]
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error fetching school config for key '{school_key}': {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to fetch school configuration")

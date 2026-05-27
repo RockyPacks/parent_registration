@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import knitIcon from '../../assets/knit-icon.png';
+import moloMhlabaTennysonLogo from '../../assets/molo-mhlaba-tennyson-logo.png';
 
 interface HeaderProps {
   onLogout?: () => void;
@@ -10,8 +11,15 @@ interface HeaderProps {
   schoolName?: string;
 }
 
-const SELECTED_SCHOOL_LOGO_KEY = 'selectedSchoolLogo';
 const SELECTED_SCHOOL_NAME_KEY = 'selectedSchoolName';
+
+const getSchoolLogo = (name: string): string => {
+  const n = name.toLowerCase();
+  if (n.includes('molo') || n.includes('mhlaba') || n.includes('tennyson')) {
+    return moloMhlabaTennysonLogo;
+  }
+  return knitIcon;
+};
 
 const Header: React.FC<HeaderProps> = ({
   onLogout,
@@ -21,12 +29,10 @@ const Header: React.FC<HeaderProps> = ({
   const [displayName, setDisplayName] = useState(schoolName || 'Knit');
 
   useEffect(() => {
-    const savedLogo = localStorage.getItem(SELECTED_SCHOOL_LOGO_KEY);
     const savedSchoolName = localStorage.getItem(SELECTED_SCHOOL_NAME_KEY);
-
-    if (savedLogo) setLogo(savedLogo);
-    if (savedSchoolName) setDisplayName(savedSchoolName);
-    else if (schoolName) setDisplayName(schoolName);
+    const resolvedName = savedSchoolName || schoolName || 'Knit';
+    setDisplayName(resolvedName);
+    setLogo(getSchoolLogo(resolvedName));
   }, [schoolName]);
 
   return (
