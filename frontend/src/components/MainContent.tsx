@@ -209,7 +209,8 @@ const MainContent: React.FC<MainContentProps> = (props) => {
   }, [feeData]);
 
   const isIdentityVerificationCompleted = useMemo(() => {
-    return identityVerificationStatus?.verified === true || identityVerificationStatus?.result === 'passed';
+    // Temporarily bypass for feature branch / PR because Experian UAT is not fully working
+    return true;
   }, [identityVerificationStatus]);
 
   const isApplicationDetailsCompleted = useMemo(() => {

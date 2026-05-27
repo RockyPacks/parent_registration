@@ -381,6 +381,7 @@ const Step1StudentGuardian: React.FC<Step1StudentGuardianProps> = ({
             />
           </UploadCard>
 
+          {/*
           <UploadCard
             id="identity-verification"
             title="Identity Verification"
@@ -402,6 +403,7 @@ const Step1StudentGuardian: React.FC<Step1StudentGuardianProps> = ({
               onStatusChange={onIdentityVerificationChange}
             />
           </UploadCard>
+          */}
 
           <UploadCard
             id="supporting-documents"
