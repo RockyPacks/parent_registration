@@ -22,7 +22,7 @@ interface Step6ReviewSubmitStepProps {
   declarationData: any;
   documentsData: any[];
   isSubmitted?: boolean;
-  onSubmit: () => void;
+  onSubmit: () => Promise<boolean>;
   nextOfKinData: any;
   onStepChange: (step: number) => void; 
   onStepComplete: (stepNumbers: number | number[]) => void; // Allow single or array
@@ -261,18 +261,20 @@ const Step6ReviewSubmitStep: React.FC<Step6ReviewSubmitStepProps> = ({
     onStepChange && onStepChange(stepNumber);
   };
 
-  const handleSubmitAndShowConfirmation = () => {
+  const handleSubmitAndShowConfirmation = async () => {
     console.log('Step6ReviewSubmitStep: handleSubmitAndShowConfirmation called');
     // Always use the real applicationId from props
     if (!applicationId) {
       return;
     }
-    setGeneratedApplicationId(applicationId);
-    setShowConfirmationCard(true);
-
-    // Call onSubmit to trigger backend submission and mark step 6 as complete in MainContent
+    
+    // Call onSubmit to trigger backend submission and get success status
     console.log('Step6ReviewSubmitStep: Calling onSubmit to submit application to backend');
-    onSubmit();
+    const success = await onSubmit();
+    if (success) {
+      setGeneratedApplicationId(applicationId);
+      setShowConfirmationCard(true);
+    }
   };
 
   return (

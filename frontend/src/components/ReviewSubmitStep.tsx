@@ -286,15 +286,15 @@ export const ReviewSubmitStep: React.FC<ReviewSubmitStepProps> = ({ currentData,
                     <InfoItem label="Gender" value={summaryData.student.gender} isRequired={false} placeholder="Gender" />
                     <InfoItem label="ID Number" value={summaryData.student.idNumber} isRequired={false} placeholder="ID Number" />
                     <InfoItem label="Home Language" value={summaryData.student.homeLanguage} isRequired={false} placeholder="Home Language" />
-                    <InfoItem label="Previous Class Name" value={summaryData.student.previousGrade} isRequired={false} placeholder="Previous Class Name" />
-                    <InfoItem label="Class Name Applied For" value={summaryData.student.gradeAppliedFor} isRequired={false} placeholder="Class Name Applied For" />
+                    <InfoItem label="Previous Grade / Class" value={summaryData.student.previousGrade} isRequired={false} placeholder="Previous Grade / Class" />
+                    <InfoItem label="Grade / Class Applied For" value={summaryData.student.gradeAppliedFor} isRequired={false} placeholder="Grade / Class Applied For" />
                     <InfoItem label="Previous School" value={summaryData.student.previousSchool} isRequired={false} placeholder="Previous School" />
                   </div>
                   <div className="space-y-4">
                     <h3 className="font-semibold text-gray-700">Application Details</h3>
                     <InfoItem label="Proposed Start Term" value={summaryData.applicationDetails?.proposedStartTerm} isRequired={true} placeholder="Please choose..." />
                     <InfoItem label="Year" value={summaryData.applicationDetails?.year} isRequired={true} placeholder="Please choose..." />
-                    <InfoItem label="Class Name Applying For" value={summaryData.applicationDetails?.gradeApplyingFor} isRequired={true} placeholder="Please choose..." />
+                    <InfoItem label="Grade / Class Applying For" value={summaryData.applicationDetails?.gradeApplyingFor} isRequired={true} placeholder="Please choose..." />
                     <InfoItem label="Proposed Start Date" value={summaryData.applicationDetails?.proposedStartDate} isRequired={false} placeholder="Choose date" />
                   </div>
                   <div className="space-y-4">

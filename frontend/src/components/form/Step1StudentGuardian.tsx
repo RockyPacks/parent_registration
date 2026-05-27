@@ -87,7 +87,7 @@ const getDetailedMissingFields = (
   const applicationDetailsMissing: string[] = [];
   if (!applicationDetailsData?.proposedStartTerm) applicationDetailsMissing.push('Proposed Start Term');
   if (!applicationDetailsData?.year) applicationDetailsMissing.push('Year');
-  if (!applicationDetailsData?.gradeApplyingFor) applicationDetailsMissing.push('Class Name Applying For');
+  if (!applicationDetailsData?.gradeApplyingFor) applicationDetailsMissing.push('Grade/Class Applying For');
   if (applicationDetailsData?.proposedStartDate) {
     const startDate = new Date(applicationDetailsData.proposedStartDate);
     const today = new Date();

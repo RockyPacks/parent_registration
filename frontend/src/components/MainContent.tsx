@@ -27,6 +27,7 @@ interface MainContentProps {
   onDeclarationComplete?: () => void;
   onStepChange?: (step: number) => void;
   onStepComplete?: (stepNumber: number) => void;
+  onCompletedStepsChange?: (completedSteps: number[]) => void;
   completedSteps?: number[];
   userEmail?: string | null;
 }
@@ -44,6 +45,7 @@ const MainContent: React.FC<MainContentProps> = (props) => {
     onDeclarationComplete,
     onStepChange,
     onStepComplete,
+    onCompletedStepsChange,
     completedSteps = [],
     userEmail = null,
   } = props;
@@ -202,8 +204,8 @@ const MainContent: React.FC<MainContentProps> = (props) => {
       feeData?.relationship &&
       feeData?.feeTermsAccepted &&
       feeData?.bankName?.trim() &&
-      feeData?.branchCode?.trim() &&
-      feeData?.accountNumber?.trim();
+      (feeData?.branchCode !== undefined && feeData?.branchCode !== null && String(feeData.branchCode).trim() !== '') &&
+      (feeData?.accountNumber !== undefined && feeData?.accountNumber !== null && String(feeData.accountNumber).trim() !== '');
   }, [feeData]);
 
   const isIdentityVerificationCompleted = useMemo(() => {
@@ -229,6 +231,30 @@ const MainContent: React.FC<MainContentProps> = (props) => {
 
     return !Number.isNaN(startDate.getTime()) && startDate >= today;
   }, [applicationDetailsData]);
+
+  const isAcademicHistoryCompleted = useMemo(() => {
+    return !!(academicHistoryData?.schoolName?.trim() &&
+      academicHistoryData?.schoolType?.trim() &&
+      academicHistoryData?.lastGradeCompleted?.trim() &&
+      (academicHistoryData?.academicYearCompleted !== undefined && academicHistoryData?.academicYearCompleted !== null && String(academicHistoryData.academicYearCompleted).trim() !== '') &&
+      academicHistoryData?.reportCardUrl?.trim());
+  }, [academicHistoryData]);
+
+  const isFeeAgreementCompleted = useMemo(() => {
+    return !!financingData?.plan;
+  }, [financingData]);
+
+  const isDeclarationCompleted = useMemo(() => {
+    return !!(declarationData?.signed === true && declarationData?.fullName?.trim());
+  }, [declarationData]);
+
+  const isDocumentsCompleted = useMemo(() => {
+    const uploadedDocTypes = new Set(
+      documentsData.map(f => f.documentType || f.document_type).filter(Boolean)
+    );
+    const requiredDocTypes = ['proof_of_address', 'id_document', 'payslip', 'bank_statement'];
+    return requiredDocTypes.every(t => uploadedDocTypes.has(t));
+  }, [documentsData]);
 
   const validationErrorsMemo = useMemo(() => {
     const errors: { [key: string]: string } = {};
@@ -497,43 +523,31 @@ const MainContent: React.FC<MainContentProps> = (props) => {
     });
   }, [getUserKey]);
 
-  const handleFinalSubmit = async () => {
+  const handleFinalSubmit = async (): Promise<boolean> => {
     if (!applicationId) {
       addToast('No application ID found. Please try again.', 'error');
-      return;
+      return false;
     }
 
     console.log('MainContent: Starting final application submission...');
     
-    // CRITICAL: Validate required fields before final submission to avoid 422 errors
-    if (!isStudentInfoCompleted) {
-      console.error('MainContent: Submission blocked - Student info incomplete');
-      addToast('Please complete all required Student Information fields before submitting.', 'error');
-      return;
-    }
-    
-    if (!isFamilyInfoCompleted) {
-      console.error('MainContent: Submission blocked - Family info incomplete');
-      addToast('Please provide at least one parent\'s full information before submitting.', 'error');
-      return;
-    }
+    // CRITICAL: Validate all required fields across all steps before final submission to avoid backend validation errors
+    const errors: string[] = [];
+    if (!isStudentInfoCompleted) errors.push('Student Information (Step 1)');
+    if (!isMedicalInfoCompleted) errors.push('Medical Information (Step 1)');
+    if (!isFamilyInfoCompleted) errors.push('Family Information (Step 1)');
+    if (!isFeeResponsibilityCompleted) errors.push('Fee Responsibility Details (Step 1)');
+    if (!isIdentityVerificationCompleted) errors.push('Identity Verification (Step 1)');
+    if (!isApplicationDetailsCompleted) errors.push('Application Details (Step 1)');
+    if (!isDocumentsCompleted) errors.push('All Required Documents (Step 2)');
+    if (!isAcademicHistoryCompleted) errors.push('Academic History & Report Card (Step 3)');
+    if (!isFeeAgreementCompleted) errors.push('Fee Agreement Plan (Step 4)');
+    if (!isDeclarationCompleted) errors.push('Declaration Signature (Step 5)');
 
-    if (!isFeeResponsibilityCompleted) {
-      console.error('MainContent: Submission blocked - Fee info incomplete');
-      addToast('Please complete the Fee Responsibility section before submitting.', 'error');
-      return;
-    }
-
-    if (!isIdentityVerificationCompleted) {
-      console.error('MainContent: Submission blocked - Identity verification incomplete');
-      addToast('Please complete identity verification before submitting.', 'error');
-      return;
-    }
-
-    if (!isApplicationDetailsCompleted) {
-      console.error('MainContent: Submission blocked - Application details incomplete');
-      addToast('Please complete the Application Details section before submitting.', 'error');
-      return;
+    if (errors.length > 0) {
+      console.error('MainContent: Submission blocked - Incomplete fields:', errors);
+      addToast(`Please complete the following required sections before submitting:\n${errors.join(', ')}`, 'error');
+      return false;
     }
 
     setIsSubmitting(true);
@@ -565,10 +579,12 @@ const MainContent: React.FC<MainContentProps> = (props) => {
       // ONLY mark step 6 as complete after successful backend submission
       console.log('MainContent: Marking step 6 as complete');
       onStepComplete && onStepComplete(6);
+      return true;
     } catch (error: any) {
       const errorMsg = error?.message || 'Failed to submit application. Please try again.';
       addToast(errorMsg, 'error');
       console.error('MainContent: Application submission failed:', error);
+      return false;
     } finally {
       setIsSubmitting(false);
     }
@@ -698,19 +714,79 @@ const MainContent: React.FC<MainContentProps> = (props) => {
     handleCombinedSubmit();
   }, [handleCombinedSubmit]);
 
+  // Dynamically synchronize completed steps with the parent App component based on actual data completion
   useEffect(() => {
-    if (activeStep === 1 && dataLoaded && applicationInitialized) {
-      const hasStudentData = isStudentInfoCompleted;
-      const hasFamilyData = isFamilyInfoCompleted;
-      const hasFeeData = isFeeResponsibilityCompleted;
-      const hasIdentityVerification = isIdentityVerificationCompleted;
-      const hasApplicationDetailsData = isApplicationDetailsCompleted;
-      const isStep1Completed = completedSteps.includes(1);
-      if (hasStudentData && hasFamilyData && hasFeeData && hasIdentityVerification && hasApplicationDetailsData && !isStep1Completed) {
-        onStepComplete && onStepComplete(1);
+    if (!applicationInitialized || !dataLoaded) return;
+
+    const dynamicCompletedSteps: number[] = [];
+
+    // Step 1: Student, Medical, Family, Fee Responsibility, ID Verification, and App Details
+    if (isStudentInfoCompleted && isMedicalInfoCompleted && isFamilyInfoCompleted && isFeeResponsibilityCompleted && isIdentityVerificationCompleted && isApplicationDetailsCompleted) {
+      dynamicCompletedSteps.push(1);
+    }
+
+    // Step 2: Documents
+    if (isDocumentsCompleted) {
+      dynamicCompletedSteps.push(2);
+    }
+
+    // Step 3: Academic History
+    if (isAcademicHistoryCompleted) {
+      dynamicCompletedSteps.push(3);
+    }
+
+    // Step 4: Fee Agreement
+    if (isFeeAgreementCompleted) {
+      dynamicCompletedSteps.push(4);
+    }
+
+    // Step 5: Declaration
+    if (isDeclarationCompleted) {
+      dynamicCompletedSteps.push(5);
+    }
+
+    // Step 6: Review & Submit (only complete if application is submitted or completed)
+    if (applicationStatus === 'submitted' || applicationStatus === 'completed') {
+      dynamicCompletedSteps.push(6);
+    }
+
+    // Compare with current completedSteps prop. If different, trigger update to parent.
+    const hasDifferences =
+      dynamicCompletedSteps.length !== completedSteps.length ||
+      dynamicCompletedSteps.some(step => !completedSteps.includes(step)) ||
+      completedSteps.some(step => !dynamicCompletedSteps.includes(step));
+
+    if (hasDifferences) {
+      console.log('MainContent: Dynamically synchronizing completed steps with parent:', dynamicCompletedSteps);
+      if (onCompletedStepsChange) {
+        onCompletedStepsChange(dynamicCompletedSteps);
+      } else {
+        // Fallback to calling onStepComplete for newly completed steps
+        dynamicCompletedSteps.forEach(step => {
+          if (!completedSteps.includes(step)) {
+            onStepComplete && onStepComplete(step);
+          }
+        });
       }
     }
-  }, [isStudentInfoCompleted, isFamilyInfoCompleted, isFeeResponsibilityCompleted, isIdentityVerificationCompleted, isApplicationDetailsCompleted, activeStep, dataLoaded, applicationInitialized, completedSteps, onStepComplete]);
+  }, [
+    isStudentInfoCompleted,
+    isMedicalInfoCompleted,
+    isFamilyInfoCompleted,
+    isFeeResponsibilityCompleted,
+    isIdentityVerificationCompleted,
+    isApplicationDetailsCompleted,
+    isDocumentsCompleted,
+    isAcademicHistoryCompleted,
+    isFeeAgreementCompleted,
+    isDeclarationCompleted,
+    applicationStatus,
+    completedSteps,
+    applicationInitialized,
+    dataLoaded,
+    onCompletedStepsChange,
+    onStepComplete
+  ]);
 
   // Show global loading state while application data is being synchronized
   if (!applicationInitialized) {
@@ -761,23 +837,6 @@ const MainContent: React.FC<MainContentProps> = (props) => {
       </ErrorBoundary>
     );
   } else if (activeStep === 2) {
-    // Check if Step 1 is completed before allowing Step 2
-    if (!localCompletedSteps.includes(1)) {
-      return (
-        <div className="flex items-center justify-center min-h-screen">
-          <div className="text-center">
-            <h2 className="text-2xl font-bold text-gray-900 mb-4">Step 1 Not Complete</h2>
-            <p className="text-gray-600 mb-6">Please complete Step 1 (Student & Guardian Information) before proceeding to document upload.</p>
-            <button
-              onClick={() => onStepChange && onStepChange(1)}
-              className="bg-blue-500 hover:bg-blue-600 text-white py-2 px-6 rounded-lg transition-colors"
-            >
-              Go to Step 1
-            </button>
-          </div>
-        </div>
-      );
-    }
     return (
       <Suspense fallback={<div>Loading Step 2...</div>}>
         <Step2DocumentUploadCenter
@@ -788,23 +847,6 @@ const MainContent: React.FC<MainContentProps> = (props) => {
       </Suspense>
     );
   } else if (activeStep === 3) {
-    // Check if Step 2 is completed before allowing Step 3
-    if (!localCompletedSteps.includes(2)) {
-      return (
-        <div className="flex items-center justify-center min-h-screen">
-          <div className="text-center">
-            <h2 className="text-2xl font-bold text-gray-900 mb-4">Step 2 Not Complete</h2>
-            <p className="text-gray-600 mb-6">Please complete Step 2 (Document Upload) before proceeding to academic history.</p>
-            <button
-              onClick={() => onStepChange && onStepChange(2)}
-              className="bg-blue-500 hover:bg-blue-600 text-white py-2 px-6 rounded-lg transition-colors"
-            >
-              Go to Step 2
-            </button>
-          </div>
-        </div>
-      );
-    }
     return (
       <ErrorBoundary>
         <Suspense fallback={<div>Loading Step 3...</div>}>
@@ -836,23 +878,6 @@ const MainContent: React.FC<MainContentProps> = (props) => {
       </ErrorBoundary>
     );
   } else if (activeStep === 4) {
-    // Check if Step 3 is completed before allowing Step 4
-    if (!localCompletedSteps.includes(3)) {
-      return (
-        <div className="flex items-center justify-center min-h-screen">
-          <div className="text-center">
-            <h2 className="text-2xl font-bold text-gray-900 mb-4">Step 3 Not Complete</h2>
-            <p className="text-gray-600 mb-6">Please complete Step 3 (Academic History) before proceeding to fee agreement.</p>
-            <button
-              onClick={() => onStepChange && onStepChange(3)}
-              className="bg-blue-500 hover:bg-blue-600 text-white py-2 px-6 rounded-lg transition-colors"
-            >
-              Go to Step 3
-            </button>
-          </div>
-        </div>
-      );
-    }
     return (
       <ErrorBoundary>
         <Suspense fallback={<div>Loading Step 4...</div>}>
@@ -874,23 +899,6 @@ const MainContent: React.FC<MainContentProps> = (props) => {
       </ErrorBoundary>
     );
   } else if (activeStep === 5) {
-    // Check if Step 4 is completed before allowing Step 5
-    if (!localCompletedSteps.includes(4)) {
-      return (
-        <div className="flex items-center justify-center min-h-screen">
-          <div className="text-center">
-            <h2 className="text-2xl font-bold text-gray-900 mb-4">Step 4 Not Complete</h2>
-            <p className="text-gray-600 mb-6">Please complete Step 4 (Fee Agreement) before proceeding to declaration.</p>
-            <button
-              onClick={() => onStepChange && onStepChange(4)}
-              className="bg-blue-500 hover:bg-blue-600 text-white py-2 px-6 rounded-lg transition-colors"
-            >
-              Go to Step 4
-            </button>
-          </div>
-        </div>
-      );
-    }
     return (
       <ErrorBoundary>
         <Suspense fallback={<div>Loading Step 5...</div>}>

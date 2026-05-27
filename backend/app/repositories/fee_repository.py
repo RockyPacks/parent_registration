@@ -16,29 +16,57 @@ class FeeRepository:
         self.supabase = supabase_service
         self.table_name = "school_fees"
     
-    def get_fees_by_grade(self, grade: str) -> Optional[Dict[str, Any]]:
+    def get_fees_by_grade(self, grade: str, school_key: Optional[str] = None) -> Optional[Dict[str, Any]]:
         """
-        Get school fees for a specific grade.
+        Get school fees for a specific grade, optionally filtered by school.
         
         Args:
             grade: Grade level (e.g., 'Grade R', 'Grade 1', 'Grade 10')
+            school_key: Optional school key for school-specific fees (e.g., 'MASEALA_PROG_001')
         
         Returns:
             Dictionary containing fee information or None if not found
         """
         try:
-            logger.info(f"Fetching fees for grade: {grade}")
-            
-            # Query for exact grade match
+            logger.info(f"Fetching fees for grade: {grade}, school_key: {school_key}")
+
+            if school_key:
+                # Look for school-specific fees first
+                result = self.supabase.table(self.table_name)\
+                    .select("*")\
+                    .eq("grade", grade)\
+                    .eq("school_key", school_key)\
+                    .execute()
+
+                if result.data and len(result.data) > 0:
+                    logger.info(f"Found school-specific fees for grade {grade}, school {school_key}")
+                    return result.data[0]
+
+                # Fallback: generic (school_key IS NULL)
+                logger.info(f"No school-specific fees for {school_key}, falling back to generic")
+
+            # Query generic fees (no school_key filter or explicit NULL)
             result = self.supabase.table(self.table_name)\
                 .select("*")\
                 .eq("grade", grade)\
+                .is_("school_key", "null")\
                 .execute()
-            
+
             if result.data and len(result.data) > 0:
-                logger.info(f"Found fees for grade {grade}: {result.data[0]}")
+                logger.info(f"Found generic fees for grade {grade}")
                 return result.data[0]
-            
+
+            # Final fallback: any row matching grade (covers legacy rows without school_key column)
+            result = self.supabase.table(self.table_name)\
+                .select("*")\
+                .eq("grade", grade)\
+                .limit(1)\
+                .execute()
+
+            if result.data and len(result.data) > 0:
+                logger.info(f"Found fees for grade {grade} (legacy fallback)")
+                return result.data[0]
+
             logger.warning(f"No fees found for grade: {grade}")
             return None
             

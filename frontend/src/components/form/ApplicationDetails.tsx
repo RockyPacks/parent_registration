@@ -1,15 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import SelectField from '../ui/SelectField';
 import DatePickerField from '../ui/DatePickerField';
-
-const MOLO_CLASS_NAME_OPTIONS = [
-  'Empress of Menen',
-  'Frances Gqoba',
-  'Sibulelo Mashale',
-  'Thandeka Nonkasana',
-  'Nosiseko Dlakavu',
-  'Amanirenas of Kush',
-];
+import { getActiveSchoolType, getGradeConfig } from '../../utils/storage';
 
 interface ApplicationDetailsProps {
   initialData?: any;
@@ -88,7 +80,8 @@ const ApplicationDetails: React.FC<ApplicationDetailsProps> = ({ initialData, on
         break;
       case 'gradeApplyingFor':
         if (!value || (typeof value === 'string' && value.trim().length === 0)) {
-          error = 'Class Name Applying For is required';
+          const { label } = getGradeConfig(getActiveSchoolType());
+          error = `${label} Applying For is required`;
         }
         break;
       case 'proposedStartDate':
@@ -118,7 +111,7 @@ const ApplicationDetails: React.FC<ApplicationDetailsProps> = ({ initialData, on
   const getCurrentYear = () => new Date().getFullYear();
   const years = Array.from({ length: 5 }, (_, i) => getCurrentYear() + i);
 
-  const classNameOptions = MOLO_CLASS_NAME_OPTIONS;
+  const { options: gradeOptions, label: gradeLabel } = getGradeConfig(getActiveSchoolType());
 
   // Term options
   const termOptions = ['Term 1', 'Term 2', 'Term 3', 'Term 4'];
@@ -162,16 +155,16 @@ const ApplicationDetails: React.FC<ApplicationDetailsProps> = ({ initialData, on
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <SelectField
           id="gradeApplyingFor"
-          label="Class Name Applying For"
+          label={`${gradeLabel} Applying For`}
           required
           value={formData.gradeApplyingFor}
           onChange={(e) => handleFieldChange('gradeApplyingFor', e.target.value)}
           error={errors.gradeApplyingFor}
         >
           <option value="">Please choose...</option>
-          {classNameOptions.map((className) => (
-            <option key={className} value={className}>
-              {className}
+          {gradeOptions.map((opt) => (
+            <option key={opt} value={opt}>
+              {opt}
             </option>
           ))}
         </SelectField>

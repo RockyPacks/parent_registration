@@ -9,7 +9,7 @@ import ForgotPasswordPage from './src/components/ForgotPasswordPage';
 import ResetPasswordPage from './src/components/ResetPasswordPage';
 import { InquiryPage } from './src/components/InquiryPage';
 
-import { EnrollmentData } from './src/services/api';
+import { EnrollmentData, apiService } from './src/services/api';
 import { storage } from './src/utils/storage';
 
 interface ApplicationSummary {
@@ -217,7 +217,6 @@ const App: React.FC = () => {
         }
 
         console.log("App.tsx: Fetching application details from backend for user:", userEmail);
-        const { apiService } = await import('./src/services/api');
         const appDataResponse = await apiService.initiateApplication();
         const initialAppId = appDataResponse.applicationId;
 
@@ -227,6 +226,8 @@ const App: React.FC = () => {
           setApplicationStatus(appDataResponse.status);
           if ((appDataResponse as any).schoolName) {
             setSchoolName((appDataResponse as any).schoolName);
+            localStorage.setItem('selectedSchoolName', (appDataResponse as any).schoolName);
+            console.log("App.tsx: Saved selectedSchoolName to localStorage:", (appDataResponse as any).schoolName);
           }
 
           // Restore other user-specific state
@@ -236,11 +237,10 @@ const App: React.FC = () => {
 
           const savedCurrentView = storage.get(userCurrentViewKey, 'enrollment');
 
-          // Load existing application data from backend first to determine actual completed steps
+          // Use nested full application data from the initiateApplication response
           try {
             console.log("App.tsx: Loading application data for:", initialAppId);
-            const { apiService } = await import('./src/services/api');
-            let appData = await apiService.getApplication(initialAppId);
+            let appData = (appDataResponse as any).application;
 
             // Determine completed steps based on actual backend data
             const backendCompletedSteps: number[] = [];
@@ -257,7 +257,6 @@ const App: React.FC = () => {
 
             if (appData) {
               console.log("App.tsx: Application data loaded successfully");
-              console.log("App.tsx: Raw appData:", JSON.stringify(appData, null, 2));
 
               // Check if step 1 data exists - must have actual student data with required fields
               const hasStudentData = appData.student?.surname && appData.student?.firstName;
@@ -439,7 +438,6 @@ const App: React.FC = () => {
               const hasActualData = (obj: any) => obj && Object.values(obj).some(val => val !== null && val !== undefined && val !== '');
 
               if (appData.student?.surname || appData.student?.firstName) {
-                console.log("App.tsx: Saving non-empty student data to localStorage:", JSON.stringify(enrollmentData.student));
                 storage.set(getUserKey(userEmail, 'studentData'), enrollmentData.student);
               } else {
                 console.log("App.tsx: Backend student data is empty or missing, not overwriting localStorage");
@@ -454,7 +452,51 @@ const App: React.FC = () => {
                 storage.set(getUserKey(userEmail, 'feeData'), enrollmentData.fee);
               }
 
-              // nextOfKin fields are already saved as part of familyData above (appData.family.nextOfKinXxx)
+              // Save application details data to localStorage (Step 1)
+              if (appData.applicationDetails) {
+                const applicationDetailsData = {
+                  proposedStartTerm: appData.applicationDetails.proposedStartTerm || '',
+                  year: appData.applicationDetails.year || '',
+                  gradeApplyingFor: appData.applicationDetails.gradeApplyingFor || '',
+                  proposedStartDate: appData.applicationDetails.proposedStartDate || ''
+                };
+                storage.set(getUserKey(userEmail, 'applicationDetailsData'), applicationDetailsData);
+                console.log("App.tsx: Saved applicationDetailsData to localStorage:", applicationDetailsData);
+              }
+
+              // Save next of kin data to localStorage (Step 1)
+              if (appData.nextOfKin) {
+                const nextOfKinData = {
+                  nextOfKinSurname: appData.nextOfKin.surname || '',
+                  nextOfKinFirstName: appData.nextOfKin.firstName || '',
+                  nextOfKinRelationship: appData.nextOfKin.relationship || '',
+                  nextOfKinMobile: appData.nextOfKin.mobileNumber || appData.nextOfKin.mobile || '',
+                  nextOfKinWhatsapp: appData.nextOfKin.whatsapp || '',
+                  nextOfKinEmail: appData.nextOfKin.emailAddress || appData.nextOfKin.email || '',
+                  nextOfKinIdNumber: appData.nextOfKin.idNumber || '',
+                  nextOfKinPhone: appData.nextOfKin.phoneNumber || appData.nextOfKin.phone || '',
+                  nextOfKinAlternateMobile: appData.nextOfKin.alternateMobile || '',
+                  nextOfKinPhysicalAddress: appData.nextOfKin.physicalAddress || ''
+                };
+                storage.set(getUserKey(userEmail, 'nextOfKinData'), nextOfKinData);
+                console.log("App.tsx: Saved nextOfKinData to localStorage:", nextOfKinData);
+              } else if (appData.family && (appData.family.nextOfKinSurname || appData.family.nextOfKinFirstName)) {
+                // Fallback to extracting from family object
+                const nextOfKinData = {
+                  nextOfKinSurname: appData.family.nextOfKinSurname || '',
+                  nextOfKinFirstName: appData.family.nextOfKinFirstName || '',
+                  nextOfKinRelationship: appData.family.nextOfKinRelationship || '',
+                  nextOfKinMobile: appData.family.nextOfKinMobile || '',
+                  nextOfKinWhatsapp: appData.family.nextOfKinWhatsapp || '',
+                  nextOfKinEmail: appData.family.nextOfKinEmail || '',
+                  nextOfKinIdNumber: appData.family.nextOfKinIdNumber || '',
+                  nextOfKinPhone: appData.family.nextOfKinPhone || '',
+                  nextOfKinAlternateMobile: appData.family.nextOfKinAlternateMobile || '',
+                  nextOfKinPhysicalAddress: appData.family.nextOfKinPhysicalAddress || ''
+                };
+                storage.set(getUserKey(userEmail, 'nextOfKinData'), nextOfKinData);
+                console.log("App.tsx: Saved nextOfKinData (from family fallback) to localStorage:", nextOfKinData);
+              }
 
               // Save declaration data to localStorage (Step 5)
               if (appData.declaration && (appData.declaration.signed || appData.declaration.id)) {
@@ -704,7 +746,6 @@ const App: React.FC = () => {
     setIsSubmitting(true);
     try {
       // Submit enrollment data to backend using the API service
-      const { apiService } = await import('./src/services/api');
       const result = await apiService.submitEnrollment(data);
 
       setEnrollmentData(data);
@@ -790,6 +831,20 @@ const App: React.FC = () => {
         storage.set(getUserKey(userEmail, 'completedSteps'), newSteps); // Save the clean array
         console.log(`App.tsx: Step ${stepNumber} marked as complete. All completed steps:`, newSteps);
       }
+      return newSteps;
+    });
+  };
+
+  const handleCompletedStepsChange = (newSteps: number[]) => {
+    setCompletedSteps(prev => {
+      // Avoid infinite loop if equal
+      if (prev.length === newSteps.length && prev.every(s => newSteps.includes(s))) {
+        return prev;
+      }
+      if (userEmail) {
+        storage.set(getUserKey(userEmail, 'completedSteps'), newSteps);
+      }
+      console.log('App.tsx: Dynamically updated completed steps to:', newSteps);
       return newSteps;
     });
   };
@@ -940,6 +995,7 @@ const App: React.FC = () => {
                   setActiveStep(step);
                 }}
                 onStepComplete={handleStepComplete}
+                onCompletedStepsChange={handleCompletedStepsChange}
                 completedSteps={completedSteps}
                 userEmail={userEmail}
               />
