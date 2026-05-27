@@ -249,7 +249,7 @@ class PvseService:
             "Username": settings.experian_username,
             "Password": settings.experian_password,
             "SubscriberCode": settings.experian_subscriber_code,
-            "ClientConsent": "Y",
+            "ClientConsent": True,
             "IDNumber": parent["id_number"],
             "FirstName": parent["first_name"],
             "Surname": parent["surname"],
