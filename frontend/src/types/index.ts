@@ -99,6 +99,8 @@ export interface SummaryData {
     previousGrade?: string;
     gradeAppliedFor?: string;
     previousSchool?: string;
+    studentNumber?: string;
+    pickupPerson?: string;
   };
   applicationDetails?: {
     proposedStartTerm?: string;
@@ -124,7 +126,6 @@ export interface SummaryData {
     nextOfKinIdNumber?: string;
   };
   medical?: {
-    religion?: string;
     homeLanguage?: string;
     allergies?: string;
     allergyActionRequired?: string;
@@ -194,6 +195,8 @@ export interface LocalStorageData {
     previousGrade?: string;
     gradeAppliedFor?: string;
     previousSchool?: string;
+    studentNumber?: string;
+    pickupPerson?: string;
   };
   familyInformation: {
     fatherFirstName?: string;
@@ -209,7 +212,6 @@ export interface LocalStorageData {
   };
   nextOfKinInformation: NextOfKinData;
   medicalInformation: {
-    religion?: string;
     homeLanguage?: string;
     allergies?: string;
     allergyActionRequired?: string;

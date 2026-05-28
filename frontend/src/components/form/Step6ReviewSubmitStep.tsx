@@ -127,6 +127,8 @@ const Step6ReviewSubmitStep: React.FC<Step6ReviewSubmitStepProps> = ({
       previousGrade: studentData?.previousGrade,
       gradeAppliedFor: studentData?.gradeAppliedFor,
       previousSchool: studentData?.previousSchool,
+      studentNumber: studentData?.studentNumber,
+      pickupPerson: studentData?.pickupPerson,
     },
     applicationDetails: {
       proposedStartTerm: applicationDetailsData?.proposedStartTerm || '',
@@ -162,6 +164,7 @@ const Step6ReviewSubmitStep: React.FC<Step6ReviewSubmitStepProps> = ({
       schoolEmail: academicHistoryData.schoolEmail || '',
       schoolAddress: academicHistoryData.schoolAddress || '',
       additionalNotes: academicHistoryData.additionalNotes || '',
+      reportCardUrl: academicHistoryData.reportCardUrl || '',
     }] : [],
     subjects: subjectsData,
     financing: financingData,
@@ -209,6 +212,8 @@ const Step6ReviewSubmitStep: React.FC<Step6ReviewSubmitStepProps> = ({
         previousGrade: studentData?.previousGrade,
         gradeAppliedFor: studentData?.gradeAppliedFor,
         previousSchool: studentData?.previousSchool,
+        studentNumber: studentData?.studentNumber,
+        pickupPerson: studentData?.pickupPerson,
       },
       applicationDetails: {
         proposedStartTerm: applicationDetailsData?.proposedStartTerm || '',
@@ -244,6 +249,7 @@ const Step6ReviewSubmitStep: React.FC<Step6ReviewSubmitStepProps> = ({
         schoolEmail: academicHistoryData.schoolEmail || '',
         schoolAddress: academicHistoryData.schoolAddress || '',
         additionalNotes: academicHistoryData.additionalNotes || '',
+        reportCardUrl: academicHistoryData.reportCardUrl || '',
       }] : [],
       subjects: subjectsData,
       financing: financingData,

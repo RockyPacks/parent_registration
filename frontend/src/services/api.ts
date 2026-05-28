@@ -107,7 +107,6 @@ export interface EnrollmentData {
     phone?: string;
   };
   medical: {
-    religion?: string;
     homeLanguage?: string;
     allergies?: string;
     allergyActionRequired?: string;
