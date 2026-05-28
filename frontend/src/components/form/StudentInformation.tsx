@@ -34,6 +34,8 @@ const StudentInformation: React.FC<StudentInformationProps> = ({ initialData, on
       previousGrade: '',
       gradeAppliedFor: '',
       previousSchool: '',
+      studentNumber: '',
+      pickupPerson: '',
       ...initialData,
     };
 
@@ -107,6 +109,16 @@ const StudentInformation: React.FC<StudentInformationProps> = ({ initialData, on
     let error = '';
 
     switch (field) {
+      case 'studentNumber':
+        if (!value || (typeof value === 'string' && value.trim().length === 0)) {
+          error = 'Student Number is required';
+        }
+        break;
+      case 'pickupPerson':
+        if (!value || (typeof value === 'string' && value.trim().length < 2)) {
+          error = 'Designated Pickup Person must be at least 2 characters';
+        }
+        break;
       case 'surname':
       case 'firstName':
         if (!value || (typeof value === 'string' && value.trim().length < 2)) {
@@ -254,6 +266,24 @@ const StudentInformation: React.FC<StudentInformationProps> = ({ initialData, on
             onChange={(e) => handleInputChange('phone', e.target.value)}
             error={errors.phone}
             placeholder="+27 XX XXX XXXX"
+          />
+          <InputField
+            id="studentNumber"
+            label="Student Number"
+            required
+            value={formData.studentNumber}
+            onChange={(e) => handleInputChange('studentNumber', e.target.value)}
+            error={errors.studentNumber}
+            placeholder="e.g. STU12345"
+          />
+          <InputField
+            id="pickupPerson"
+            label="Designated Pickup Person"
+            required
+            value={formData.pickupPerson}
+            onChange={(e) => handleInputChange('pickupPerson', e.target.value)}
+            error={errors.pickupPerson}
+            placeholder="Name of person authorized to collect student"
           />
           <DatePickerField
             id="dob"

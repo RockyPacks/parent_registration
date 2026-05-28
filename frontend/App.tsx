@@ -226,6 +226,8 @@ const App: React.FC = () => {
           setApplicationStatus(appDataResponse.status);
           if ((appDataResponse as any).schoolName) {
             setSchoolName((appDataResponse as any).schoolName);
+            localStorage.setItem('selectedSchoolName', (appDataResponse as any).schoolName);
+            console.log("App.tsx: Saved selectedSchoolName to localStorage:", (appDataResponse as any).schoolName);
           }
 
           // Restore other user-specific state
@@ -450,7 +452,51 @@ const App: React.FC = () => {
                 storage.set(getUserKey(userEmail, 'feeData'), enrollmentData.fee);
               }
 
-              // nextOfKin fields are already saved as part of familyData above (appData.family.nextOfKinXxx)
+              // Save application details data to localStorage (Step 1)
+              if (appData.applicationDetails) {
+                const applicationDetailsData = {
+                  proposedStartTerm: appData.applicationDetails.proposedStartTerm || '',
+                  year: appData.applicationDetails.year || '',
+                  gradeApplyingFor: appData.applicationDetails.gradeApplyingFor || '',
+                  proposedStartDate: appData.applicationDetails.proposedStartDate || ''
+                };
+                storage.set(getUserKey(userEmail, 'applicationDetailsData'), applicationDetailsData);
+                console.log("App.tsx: Saved applicationDetailsData to localStorage:", applicationDetailsData);
+              }
+
+              // Save next of kin data to localStorage (Step 1)
+              if (appData.nextOfKin) {
+                const nextOfKinData = {
+                  nextOfKinSurname: appData.nextOfKin.surname || '',
+                  nextOfKinFirstName: appData.nextOfKin.firstName || '',
+                  nextOfKinRelationship: appData.nextOfKin.relationship || '',
+                  nextOfKinMobile: appData.nextOfKin.mobileNumber || appData.nextOfKin.mobile || '',
+                  nextOfKinWhatsapp: appData.nextOfKin.whatsapp || '',
+                  nextOfKinEmail: appData.nextOfKin.emailAddress || appData.nextOfKin.email || '',
+                  nextOfKinIdNumber: appData.nextOfKin.idNumber || '',
+                  nextOfKinPhone: appData.nextOfKin.phoneNumber || appData.nextOfKin.phone || '',
+                  nextOfKinAlternateMobile: appData.nextOfKin.alternateMobile || '',
+                  nextOfKinPhysicalAddress: appData.nextOfKin.physicalAddress || ''
+                };
+                storage.set(getUserKey(userEmail, 'nextOfKinData'), nextOfKinData);
+                console.log("App.tsx: Saved nextOfKinData to localStorage:", nextOfKinData);
+              } else if (appData.family && (appData.family.nextOfKinSurname || appData.family.nextOfKinFirstName)) {
+                // Fallback to extracting from family object
+                const nextOfKinData = {
+                  nextOfKinSurname: appData.family.nextOfKinSurname || '',
+                  nextOfKinFirstName: appData.family.nextOfKinFirstName || '',
+                  nextOfKinRelationship: appData.family.nextOfKinRelationship || '',
+                  nextOfKinMobile: appData.family.nextOfKinMobile || '',
+                  nextOfKinWhatsapp: appData.family.nextOfKinWhatsapp || '',
+                  nextOfKinEmail: appData.family.nextOfKinEmail || '',
+                  nextOfKinIdNumber: appData.family.nextOfKinIdNumber || '',
+                  nextOfKinPhone: appData.family.nextOfKinPhone || '',
+                  nextOfKinAlternateMobile: appData.family.nextOfKinAlternateMobile || '',
+                  nextOfKinPhysicalAddress: appData.family.nextOfKinPhysicalAddress || ''
+                };
+                storage.set(getUserKey(userEmail, 'nextOfKinData'), nextOfKinData);
+                console.log("App.tsx: Saved nextOfKinData (from family fallback) to localStorage:", nextOfKinData);
+              }
 
               // Save declaration data to localStorage (Step 5)
               if (appData.declaration && (appData.declaration.signed || appData.declaration.id)) {

@@ -609,8 +609,8 @@ class EnrollmentRepository(BaseRepository):
             def fetch_table(table_name: str):
                 return self.supabase.table(table_name).select("*").eq("application_id", application_id).execute()
 
-            with ThreadPoolExecutor(max_workers=len(tables)) as executor:
-                results = list(executor.map(fetch_table, tables))
+            # Query related data sequentially to prevent HTTP/2 thread-safety/multiplexing stream issues in httpx
+            results = [fetch_table(table) for table in tables]
 
             student_result = results[0]
             medical_result = results[1]
