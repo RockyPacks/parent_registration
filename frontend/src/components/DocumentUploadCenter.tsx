@@ -55,7 +55,7 @@ const REQUIRED_DOCUMENT_CONFIG = {
   bankStatements: {
     requiredCount: 1,
     types: ['bank_statement', 'bank_statements'],
-    missingMessage: 'Bank Statement is required. Please upload a recent bank statement so the document analyser can run financial and gambling/risk checks.'
+    missingMessage: 'Bank Statement is required. Please upload your most recent 3-month bank statement for financial verification.'
   }
 } as const;
 
@@ -89,6 +89,8 @@ const OPTIONAL_DOCUMENT_CONFIG = {
   }
 } as const;
 
+const BANK_STATEMENT_TYPES = new Set(['bank_statement', 'bank_statements']);
+
 const DOCUMENT_CATEGORY_CONFIG = {
   ...REQUIRED_DOCUMENT_CONFIG,
   ...OPTIONAL_DOCUMENT_CONFIG
@@ -117,7 +119,7 @@ const moloInitialCategories: Record<string, DocumentCategory> = {
     status: CategoryStatus.NotStarted,
     files: [],
     required: true,
-    description: 'Compulsory: Upload a recent bank statement for financial verification and document analyser gambling/risk checks.'
+    description: 'Compulsory: Upload your most recent 3-month bank statement (PDF format). This is used for financial verification purposes.'
   },
   payslips: {
     id: 'payslips',
@@ -163,6 +165,23 @@ const defaultInitialCategories: Record<string, DocumentCategory> = {
   }
 };
 
+const BankStatementReceivedConfirmation: React.FC = () => (
+  <div className="mt-4 bg-green-50 border border-green-200 rounded-lg p-4">
+    <div className="flex items-start">
+      <div className="w-6 h-6 rounded-full bg-green-100 flex items-center justify-center mr-3 mt-0.5 flex-shrink-0">
+        <svg className="w-4 h-4 text-green-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+        </svg>
+      </div>
+      <div className="text-sm text-green-800">
+        <p className="font-semibold">✓ Bank statement received</p>
+        <p className="mt-1">Your document has been securely submitted for review by the school.</p>
+        <p className="mt-1">No further action is required from you.</p>
+      </div>
+    </div>
+  </div>
+);
+
 
 
 interface DocumentUploadCenterProps {
@@ -194,6 +213,7 @@ export const DocumentUploadCenter: React.FC<DocumentUploadCenterProps> = ({
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isComplete, setIsComplete] = useState(false);
+  const [bankStatementReceived, setBankStatementReceived] = useState(false);
   const [deletingFileIds, setDeletingFileIds] = useState<Set<string>>(new Set());
   const { uploadState, uploadFile, resetUploadState } = useUpload();
 
@@ -213,6 +233,7 @@ export const DocumentUploadCenter: React.FC<DocumentUploadCenterProps> = ({
     if (currentUserId !== userId) {
       setUploadedFiles([]);
       setCategories(getInitialCategoriesForSchool());
+      setBankStatementReceived(false);
       setCurrentUserId(userId);
     }
 
@@ -223,6 +244,7 @@ export const DocumentUploadCenter: React.FC<DocumentUploadCenterProps> = ({
       // Clear any cached uploaded files
       setUploadedFiles([]);
       setCategories(getInitialCategoriesForSchool());
+      setBankStatementReceived(false);
     }
   }, [applicationId, userId]);
 
@@ -305,6 +327,10 @@ export const DocumentUploadCenter: React.FC<DocumentUploadCenterProps> = ({
       const data = await apiService.getUploadedFiles(currentApplicationId);
 
       setUploadedFiles(data.files || []);
+      setBankStatementReceived((data.files || []).some((file: any) => {
+        const docType = file.documentType?.toLowerCase() || file.document_type?.toLowerCase() || '';
+        return BANK_STATEMENT_TYPES.has(docType);
+      }));
       // Save to localStorage so ReviewSubmitStep can access them
       localStorage.setItem('uploadedFiles', JSON.stringify(data.files || []));
       // Notify parent component of documents change
@@ -415,17 +441,21 @@ export const DocumentUploadCenter: React.FC<DocumentUploadCenterProps> = ({
       const result = await uploadFile(file, currentApplicationId, apiCategory, bucketName);
 
       if (result && result.success) {
-
-        // Show success message
-        setSuccessMessage(`${file.name} uploaded successfully!`);
+        if (apiCategory === 'bank_statement') {
+          setBankStatementReceived(true);
+        } else {
+          setSuccessMessage(`${file.name} uploaded successfully!`);
+        }
 
         // Reload uploaded files from backend to get fresh data
         await loadUploadedFiles();
 
         // Clear success message after 5 seconds
-        setTimeout(() => {
-          setSuccessMessage(null);
-        }, 5000);
+        if (apiCategory !== 'bank_statement') {
+          setTimeout(() => {
+            setSuccessMessage(null);
+          }, 5000);
+        }
       } else {
         const errorMsg = 'Upload failed: Unknown error occurred';
         setErrorMessage(errorMsg);
@@ -475,7 +505,7 @@ export const DocumentUploadCenter: React.FC<DocumentUploadCenterProps> = ({
 
     try {
       await apiService.completeDocumentUpload(applicationId);
-      setSuccessMessage('Document upload completed successfully. Bank statements will be processed by the document analyser for financial and gambling/risk checks.');
+      setSuccessMessage('Document upload completed successfully.');
       setTimeout(() => setSuccessMessage(null), 3000);
       await checkCompletionStatus();
       onDocumentUploadComplete && onDocumentUploadComplete();
@@ -542,6 +572,8 @@ export const DocumentUploadCenter: React.FC<DocumentUploadCenterProps> = ({
       return types.includes(docType);
     }).length;
   };
+
+  const hasBankStatementUpload = bankStatementReceived || getCategoryFileCount('bankStatements') > 0;
 
   const getUpdatedStatus = (categoryId: string, fileCount: number): CategoryStatus => {
     const categoryConfig = selectedDocumentCategoryConfig[categoryId as keyof typeof selectedDocumentCategoryConfig];
@@ -777,8 +809,9 @@ export const DocumentUploadCenter: React.FC<DocumentUploadCenterProps> = ({
               </div>
             </div>
             <div className="mt-4 bg-blue-50 text-blue-800 text-sm p-3 rounded-md border border-blue-200">
-              Bank statements are compulsory and will be checked by the document analyser for financial verification, including gambling/risk checks.
+              Bank statements are compulsory and are used for financial verification purposes.
             </div>
+            {hasBankStatementUpload && <BankStatementReceivedConfirmation />}
             {categories.bankStatements.files.map(file => (
               <FileItem key={file.id} file={file} onDelete={() => handleFileDelete(file.id)} />
             ))}
