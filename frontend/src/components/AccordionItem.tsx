@@ -6,24 +6,26 @@ interface AccordionItemProps {
   children: React.ReactNode;
   onEdit?: () => void;
   disabled?: boolean;
+  statusBadge?: React.ReactNode;
 }
 
-const AccordionItem: React.FC<AccordionItemProps> = ({ title, children, onEdit, disabled = false }) => {
+const AccordionItem: React.FC<AccordionItemProps> = ({ title, children, onEdit, disabled = false, statusBadge }) => {
   const [isOpen, setIsOpen] = useState(false);
 
   return (
     <div className={`border border-gray-200 rounded-lg ${disabled ? 'opacity-60' : ''}`}>
       <div
         onClick={() => !disabled && setIsOpen(!isOpen)}
-        className={`w-full flex items-center justify-between p-4 text-left bg-gray-50 transition-colors ${disabled ? 'cursor-not-allowed' : 'hover:bg-gray-100 cursor-pointer'}`}
+        className={`w-full flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 text-left bg-gray-50 transition-colors ${disabled ? 'cursor-not-allowed' : 'hover:bg-gray-100 cursor-pointer'}`}
       >
-        <div className="flex items-center space-x-3">
+        <div className="flex items-center space-x-3 min-w-0">
           {isOpen ? (
-            <ChevronDownIcon className="w-5 h-5 text-gray-500" />
+            <ChevronDownIcon className="w-5 h-5 text-gray-500 flex-shrink-0" />
           ) : (
-            <ChevronRightIcon className="w-5 h-5 text-gray-500" />
+            <ChevronRightIcon className="w-5 h-5 text-gray-500 flex-shrink-0" />
           )}
-          <h3 className={`text-lg font-semibold ${disabled ? 'text-gray-500' : 'text-gray-800'}`}>{title}</h3>
+          <h3 className={`text-base sm:text-lg font-semibold ${disabled ? 'text-gray-500' : 'text-gray-800'} truncate`}>{title}</h3>
+          {statusBadge}
         </div>
         {onEdit && !disabled && (
           <button

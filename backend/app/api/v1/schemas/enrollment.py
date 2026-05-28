@@ -34,6 +34,8 @@ class StudentInfo(BaseModel):
     previous_grade: str = Field(..., validation_alias=AliasChoices('previous_grade', 'previousGrade'), min_length=1, max_length=20, description="Previous grade completed")
     grade_applied_for: str = Field(..., validation_alias=AliasChoices('grade_applied_for', 'gradeAppliedFor'), min_length=1, max_length=20, description="Grade applying for")
     previous_school: str = Field(..., validation_alias=AliasChoices('previous_school', 'previousSchool'), min_length=1, max_length=100, description="Previous school attended")
+    student_number: Optional[str] = Field(None, validation_alias=AliasChoices('student_number', 'studentNumber'), max_length=50, description="Student number")
+    pickup_person: Optional[str] = Field(None, validation_alias=AliasChoices('pickup_person', 'pickupPerson'), max_length=100, description="Designated pickup person")
 
     model_config = ConfigDict(populate_by_name=True)
     
@@ -75,6 +77,8 @@ class StudentInfoPartial(BaseModel):
     previous_grade: Optional[str] = Field(None, validation_alias=AliasChoices('previous_grade', 'previousGrade'), min_length=1, max_length=20, description="Previous grade completed")
     grade_applied_for: Optional[str] = Field(None, validation_alias=AliasChoices('grade_applied_for', 'gradeAppliedFor'), min_length=1, max_length=20, description="Grade applying for")
     previous_school: Optional[str] = Field(None, validation_alias=AliasChoices('previous_school', 'previousSchool'), min_length=1, max_length=100, description="Previous school attended")
+    student_number: Optional[str] = Field(None, validation_alias=AliasChoices('student_number', 'studentNumber'), max_length=50, description="Student number")
+    pickup_person: Optional[str] = Field(None, validation_alias=AliasChoices('pickup_person', 'pickupPerson'), max_length=100, description="Designated pickup person")
 
     model_config = ConfigDict(populate_by_name=True)
 
@@ -109,7 +113,6 @@ class MedicalInfo(BaseModel):
     conditions: List[str] = Field(default_factory=list, description="List of medical conditions")
     allergies: Optional[str] = Field(None, max_length=1000, description="Known allergies")
     # New Medical & Learner Health Detail fields
-    religion: Optional[str] = Field(None, max_length=100, description="Religion")
     home_language: Optional[str] = Field(None, max_length=100, description="Home language")
     allergy_action_required: Optional[str] = Field(None, max_length=1000, description="Allergy action plan")
     allergy_status: Optional[str] = Field(None, max_length=50, description="Allergy status")
@@ -133,7 +136,6 @@ class MedicalInfoPartial(BaseModel):
     conditions: Optional[List[str]] = Field(None, description="List of medical conditions")
     allergies: Optional[str] = Field(None, max_length=1000, description="Known allergies")
     # New Medical & Learner Health Detail fields
-    religion: Optional[str] = Field(None, max_length=100, description="Religion")
     home_language: Optional[str] = Field(None, validation_alias=AliasChoices('home_language', 'homeLanguage'), max_length=100, description="Home language")
     allergy_action_required: Optional[str] = Field(None, validation_alias=AliasChoices('allergy_action_required', 'allergyActionRequired'), max_length=1000, description="Allergy action plan")
     allergy_status: Optional[str] = Field(None, validation_alias=AliasChoices('allergy_status', 'allergyStatus'), max_length=50, description="Allergy status")

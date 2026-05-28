@@ -11,16 +11,7 @@ interface MedicalInformationProps {
   onDataChange?: (data: any) => void;
 }
 
-const RELIGION_OPTIONS = [
-  'Christianity',
-  'Islam',
-  'Hinduism',
-  'Buddhism',
-  'Judaism',
-  'Traditional African',
-  'None',
-  'Other',
-];
+
 
 const HOME_LANGUAGE_OPTIONS = [
   'Afrikaans',
@@ -62,7 +53,6 @@ const LEARNER_CONDITIONS = [
 const MedicalInformation: React.FC<MedicalInformationProps> = ({ initialData, onDataChange }) => {
   const { addToast } = useToast();
   const [formData, setFormData] = useState({
-    religion: '',
     homeLanguage: '',
     allergies: '',
     allergyActionRequired: '',
@@ -97,7 +87,7 @@ const MedicalInformation: React.FC<MedicalInformationProps> = ({ initialData, on
 
   useEffect(() => {
     // Only propagate changes if we have data or if fully initialized from props
-    const hasData = formData.religion || formData.homeLanguage || formData.allergies ||
+    const hasData = formData.homeLanguage || formData.allergies ||
       formData.allergyStatus || formData.immunisationsUpToDate ||
       formData.medicalAidScheme || formData.medicalAidNumber ||
       formData.medicalAidName || formData.memberNumber ||
@@ -186,17 +176,6 @@ const MedicalInformation: React.FC<MedicalInformationProps> = ({ initialData, on
           <h3 className="text-lg font-semibold text-gray-800">Learner Profile</h3>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <SelectField
-            id="religion"
-            label="Religion"
-            value={formData.religion}
-            onChange={(e) => handleInputChange('religion', e.target.value)}
-          >
-            <option value="">Select Religion</option>
-            {RELIGION_OPTIONS.map(option => (
-              <option key={option} value={option}>{option}</option>
-            ))}
-          </SelectField>
           <SelectField
             id="medicalHomeLanguage"
             label="Home Language"

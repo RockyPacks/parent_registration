@@ -18,6 +18,9 @@ class Settings(BaseSettings):
     debug: bool = False
     secret_key: str = "your-secret-key-here"
     frontend_url: str = "http://localhost:3000"
+    
+    # OpenAI API
+    openai_api_key: str = ""
 
     # Experian PVS-E Configuration
     experian_uat_base_url: str = "https://apis-uat.experian.co.za:9443/PvseService"
