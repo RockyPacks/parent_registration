@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { UploadCard } from '../UploadCard';
 import StudentInformation from './StudentInformation';
+import { getActiveSchoolType } from '../../utils/storage';
 import ApplicationDetails from './ApplicationDetails';
 import MedicalInformation from './MedicalInformation';
 import FamilyInformation from './FamilyInformation';
@@ -74,7 +75,7 @@ const getDetailedMissingFields = (
   if (!studentData?.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(studentData.email)) studentMissing.push('Email Address');
   if (!studentData?.phone || !/^(\+27|0)[6-8][0-9]{8}$/.test(studentData.phone)) studentMissing.push('Phone Number');
   if (!studentData?.dob) studentMissing.push('Date of Birth');
-  if (!studentData?.gender) studentMissing.push('Gender');
+  if (getActiveSchoolType() !== 'molo' && !studentData?.gender) studentMissing.push('Gender');
   if (!studentData?.homeLanguage) studentMissing.push('Home Language');
   if (!studentData?.idNumber || !/^\d{13}$/.test(studentData.idNumber)) studentMissing.push('ID Number');
   if (!studentData?.previousGrade) studentMissing.push('Previous Class Name');

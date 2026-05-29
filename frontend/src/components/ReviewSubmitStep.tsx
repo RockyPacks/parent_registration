@@ -3,7 +3,7 @@ import { apiService } from '../services/api';
 import AccordionItem from './AccordionItem';
 import type { SummaryData, LocalStorageData, AcademicHistoryData } from '../types';
 import { CategoryStatus } from '../types';
-import { storage } from '../utils/storage';
+import { storage, getActiveSchoolType } from '../utils/storage';
 
 
 const InfoItem: React.FC<{ label: string; value: string | number | boolean | null | undefined; isRequired?: boolean; placeholder?: string }> = ({ label, value, isRequired = false, placeholder = '' }) => {
@@ -72,7 +72,7 @@ export const ReviewSubmitStep: React.FC<ReviewSubmitStepProps> = ({ currentData,
     if (!cleanStr(summaryData.student?.email)) studentMissing.push('Email Address');
     if (!cleanStr(summaryData.student?.phone)) studentMissing.push('Phone Number');
     if (!summaryData.student?.dob) studentMissing.push('Date of Birth');
-    if (!summaryData.student?.gender) studentMissing.push('Gender');
+    if (getActiveSchoolType() !== 'molo' && !summaryData.student?.gender) studentMissing.push('Gender');
     if (!summaryData.student?.homeLanguage) studentMissing.push('Home Language');
     if (!summaryData.student?.idNumber) studentMissing.push('ID Number');
     if (!summaryData.student?.previousGrade) studentMissing.push('Previous Class');
@@ -550,7 +550,9 @@ export const ReviewSubmitStep: React.FC<ReviewSubmitStepProps> = ({ currentData,
                     <InfoItem label="Email Address" value={summaryData.student.email} isRequired={true} placeholder="student@example.com" />
                     <InfoItem label="Phone Number" value={summaryData.student.phone} isRequired={true} placeholder="+27 XX XXX XXXX" />
                     <InfoItem label="Date of Birth" value={summaryData.student.dob} isRequired={true} placeholder="YYYY-MM-DD" />
-                    <InfoItem label="Gender" value={summaryData.student.gender} isRequired={true} placeholder="Gender" />
+                    {getActiveSchoolType() !== 'molo' && (
+                      <InfoItem label="Gender" value={summaryData.student.gender} isRequired={true} placeholder="Gender" />
+                    )}
                     <InfoItem label="ID Number" value={summaryData.student.idNumber} isRequired={true} placeholder="ID Number" />
                     <InfoItem label="Home Language" value={summaryData.student.homeLanguage} isRequired={true} placeholder="Home Language" />
                     <InfoItem label="Previous Grade / Class" value={summaryData.student.previousGrade} isRequired={true} placeholder="Previous Grade / Class" />

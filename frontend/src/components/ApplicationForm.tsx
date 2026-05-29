@@ -1,5 +1,6 @@
 import React, { useRef, useState } from 'react';
 import type { SummaryData } from '../types';
+import { getActiveSchoolType } from '../utils/storage';
 import knitIcon from '../../assets/knit-icon.png';
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
@@ -268,7 +269,7 @@ const ApplicationForm = React.forwardRef<ApplicationFormHandle, ApplicationFormP
           <FieldRow label="Full Name(s)" value={student.name} fullWidth={true} />
           <FieldRow label="Identity Number" value={student.idNumber} />
           <FieldRow label="Date of Birth" value={student.dob} />
-          <FieldRow label="Gender" value={student.gender} />
+          {getActiveSchoolType() !== 'molo' && <FieldRow label="Gender" value={student.gender} />}
           <FieldRow label="Home Language" value={student.homeLanguage} />
           <FieldRow label="Grade/Class Applying For" value={student.gradeAppliedFor} />
           <FieldRow label="Last Class Completed" value={student.previousGrade} />

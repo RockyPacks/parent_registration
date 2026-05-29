@@ -2,7 +2,7 @@ import React, { Suspense, useCallback, useEffect, useMemo, useRef, useState } fr
 import ToastContainer from './ui/ToastContainer';
 import { useToast } from '../hooks/useToast';
 import debounce from 'lodash.debounce';
-import { storage } from '../utils/storage';  // Import storage utils
+import { storage, getActiveSchoolType } from '../utils/storage';  // Import storage utils
 import ErrorBoundary from './ErrorBoundary';  // Import ErrorBoundary
 import Footer from './Footer';
 import { toCamelCase } from '../services/api';
@@ -169,7 +169,7 @@ const MainContent: React.FC<MainContentProps> = (props) => {
       studentData?.firstName?.trim() &&
       studentData?.idNumber?.trim() &&
       studentData?.dob &&
-      studentData?.gender &&
+      (getActiveSchoolType() === 'molo' || studentData?.gender) &&
       studentData?.homeLanguage &&
       studentData?.previousGrade &&
       studentData?.gradeAppliedFor &&
@@ -264,7 +264,7 @@ const MainContent: React.FC<MainContentProps> = (props) => {
     if (!studentData?.firstName?.trim()) errors.studentFirstName = 'First name is required';
     if (!studentData?.idNumber?.trim()) errors.studentIdNumber = 'ID number is required';
     if (!studentData?.dob) errors.studentDob = 'Date of birth is required';
-    if (!studentData?.gender) errors.studentGender = 'Gender is required';
+    if (getActiveSchoolType() !== 'molo' && !studentData?.gender) errors.studentGender = 'Gender is required';
     if (!studentData?.homeLanguage) errors.studentHomeLanguage = 'Home language is required';
     if (!studentData?.previousGrade) errors.studentPreviousGrade = 'Previous class name is required';
     if (!studentData?.gradeAppliedFor) errors.studentGradeAppliedFor = 'Class name applied for is required';
