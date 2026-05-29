@@ -156,7 +156,7 @@ const StudentInformation: React.FC<StudentInformationProps> = ({ initialData, on
         }
         break;
       case 'gender':
-        if (!value) {
+        if (getActiveSchoolType() !== 'molo' && !value) {
           error = 'Gender is required';
         }
         break;
@@ -296,54 +296,56 @@ const StudentInformation: React.FC<StudentInformationProps> = ({ initialData, on
             minDate={new Date(2000, 0, 1)}
             placeholder="Select your date of birth"
           />
-          <div className="space-y-3">
-            <label className="block text-sm font-medium text-gray-700">
-              Gender <span className="text-red-500">*</span>
-            </label>
-            <div className="grid grid-cols-3 gap-3">
-              {[
-                { id: 'male', value: 'Male', label: 'Male' },
-                { id: 'female', value: 'Female', label: 'Female' },
-                { id: 'other', value: 'Other', label: 'Other' }
-              ].map((option) => (
-                <label
-                  key={option.id}
-                  htmlFor={option.id}
-                  className={`relative flex items-center justify-center px-4 py-3 border-2 rounded-lg cursor-pointer transition-all duration-200 hover:shadow-md ${
-                    formData.gender === option.value.toLowerCase()
-                      ? 'border-blue-500 bg-blue-50 text-blue-700 shadow-sm'
-                      : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
-                  }`}
-                >
-                  <input
-                    id={option.id}
-                    name="gender"
-                    type="radio"
-                    value={option.value}
-                    checked={formData.gender === option.value.toLowerCase()}
-                    onChange={(e) => handleInputChange('gender', e.target.value)}
-                    className="sr-only"
-                  />
-                  <span className="text-sm font-medium">{option.label}</span>
-                  {formData.gender === option.value.toLowerCase() && (
-                    <div className="absolute top-1 right-1 w-3 h-3 bg-blue-500 rounded-full flex items-center justify-center">
-                      <svg className="w-2 h-2 text-white" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                      </svg>
-                    </div>
-                  )}
-                </label>
-              ))}
-            </div>
-            {errors.gender && (
-              <div className="flex items-center gap-1 mt-2">
-                <svg className="w-4 h-4 text-red-500" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                </svg>
-                <p className="text-sm text-red-600">{errors.gender}</p>
+          {getActiveSchoolType() !== 'molo' && (
+            <div className="space-y-3">
+              <label className="block text-sm font-medium text-gray-700">
+                Gender <span className="text-red-500">*</span>
+              </label>
+              <div className="grid grid-cols-3 gap-3">
+                {[
+                  { id: 'male', value: 'Male', label: 'Male' },
+                  { id: 'female', value: 'Female', label: 'Female' },
+                  { id: 'other', value: 'Other', label: 'Other' }
+                ].map((option) => (
+                  <label
+                    key={option.id}
+                    htmlFor={option.id}
+                    className={`relative flex items-center justify-center px-4 py-3 border-2 rounded-lg cursor-pointer transition-all duration-200 hover:shadow-md ${
+                      formData.gender === option.value.toLowerCase()
+                        ? 'border-blue-500 bg-blue-50 text-blue-700 shadow-sm'
+                        : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
+                    }`}
+                  >
+                    <input
+                      id={option.id}
+                      name="gender"
+                      type="radio"
+                      value={option.value}
+                      checked={formData.gender === option.value.toLowerCase()}
+                      onChange={(e) => handleInputChange('gender', e.target.value)}
+                      className="sr-only"
+                    />
+                    <span className="text-sm font-medium">{option.label}</span>
+                    {formData.gender === option.value.toLowerCase() && (
+                      <div className="absolute top-1 right-1 w-3 h-3 bg-blue-500 rounded-full flex items-center justify-center">
+                        <svg className="w-2 h-2 text-white" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                        </svg>
+                      </div>
+                    )}
+                  </label>
+                ))}
               </div>
-            )}
-          </div>
+              {errors.gender && (
+                <div className="flex items-center gap-1 mt-2">
+                  <svg className="w-4 h-4 text-red-500" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                  </svg>
+                  <p className="text-sm text-red-600">{errors.gender}</p>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
