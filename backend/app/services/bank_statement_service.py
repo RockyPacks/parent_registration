@@ -5,7 +5,13 @@ import traceback
 from datetime import datetime, timezone
 from typing import Optional
 
-import fitz  # PyMuPDF
+try:
+    import fitz  # PyMuPDF
+except ImportError:
+    fitz = None
+    logger_init = logging.getLogger(__name__)
+    logger_init.warning("PyMuPDF (fitz) not available - PDF processing will fail")
+
 import openai
 
 from app.core.config import settings
@@ -57,6 +63,11 @@ class BankStatementService:
 
     def _pdf_bytes_to_base64_images(self, pdf_bytes: bytes) -> list[str]:
         """Converts PDF bytes into a list of base64-encoded PNG images (one per page)."""
+        if fitz is None:
+            raise RuntimeError(
+                "PyMuPDF is not installed. Please ensure pymupdf is in requirements.txt "
+                "and install it with: pip install pymupdf"
+            )
         doc = fitz.open(stream=pdf_bytes, filetype="pdf")
         base64_images = []
         for page in doc:
