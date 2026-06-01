@@ -83,8 +83,8 @@ Initialize a virtual environment and install all Python dependencies defined in 
 
 ```bash
 cd backend
-python -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
+python3 -m venv .venv && source .venv/bin/activate
+pip3 install -r requirements.txt
 ```
 
 Configure the local environment. Create a `.env` file in the `backend/` directory, populating it with required secrets and configuration variables. Crucially, the `BACKEND_CORS_ORIGINS` must include the frontend's local address: `http://localhost:5173`.
