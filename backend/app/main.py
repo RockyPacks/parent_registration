@@ -15,7 +15,7 @@ from app.core.config import settings
 from app.core.security import get_current_user
 from app.core.rate_limit import RateLimitMiddleware
 from app.core.request_limit import RequestSizeLimitMiddleware
-from app.api.v1.routers import enrollment_router, documents_router, academic_router, financing_router, next_of_kin_router, fees_router, schools_router, pvse_router
+from app.api.v1.routers import enrollment_router, documents_router, academic_router, financing_router, next_of_kin_router, fees_router, schools_router, pvse_router, consent_router
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -186,6 +186,7 @@ app.include_router(next_of_kin_router, prefix="/api/v1/next-of-kin", tags=["next
 app.include_router(fees_router, prefix="/api/v1", tags=["fees"])
 app.include_router(schools_router, prefix="/api/v1", tags=["schools"])
 app.include_router(pvse_router, prefix="/api/v1", tags=["pvse"])
+app.include_router(consent_router, prefix="/api/v1", tags=["consent"])
 
 # Add legacy routes for backward compatibility
 # Legacy routes removed - now handled by proper API routers

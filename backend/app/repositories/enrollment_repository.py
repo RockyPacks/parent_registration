@@ -603,11 +603,17 @@ class EnrollmentRepository(BaseRepository):
             # Query related data in parallel to resolve N+1 sequential database REST waterfall
             tables = [
                 "students", "medical_info", "parents", "fee_responsibility",
-                "academic_history", "uploaded_files", "declarations", "next_of_kin"
+                "academic_history", "uploaded_files", "declarations", "next_of_kin",
+                "application_consents", "pvse_identity_verifications"
             ]
 
             def fetch_table(table_name: str):
-                return self.supabase.table(table_name).select("*").eq("application_id", application_id).execute()
+                try:
+                    return self.supabase.table(table_name).select("*").eq("application_id", application_id).execute()
+                except Exception:
+                    if table_name in {"application_consents", "pvse_identity_verifications"}:
+                        return type("EmptyResult", (), {"data": []})()
+                    raise
 
             # Query related data sequentially to prevent HTTP/2 thread-safety/multiplexing stream issues in httpx
             results = [fetch_table(table) for table in tables]
@@ -620,6 +626,15 @@ class EnrollmentRepository(BaseRepository):
             documents_result = results[5]
             declaration_result = results[6]
             next_of_kin_result = results[7]
+            consent_result = results[8]
+            pvse_result = results[9]
+            latest_pvse = {}
+            if pvse_result.data:
+                latest_pvse = sorted(
+                    pvse_result.data,
+                    key=lambda row: row.get("created_at") or "",
+                    reverse=True,
+                )[0]
 
             # Extract normalized family data into denormalized format for UI
             family_data = {}
@@ -670,6 +685,8 @@ class EnrollmentRepository(BaseRepository):
                 "documents": documents_result.data if documents_result.data else [],
                 "financing_selections": self._get_financing_from_fee_responsibility(fee_result),  # Get from fee_responsibility.selected_plan
                 "declaration": declaration_result.data[0] if declaration_result.data else {},
+                "consent": consent_result.data[0] if consent_result.data else {},
+                "identity_verification": latest_pvse,
                 "next_of_kin": next_of_kin_result.data[0] if next_of_kin_result.data else {}
             }
         except ExternalServiceError:

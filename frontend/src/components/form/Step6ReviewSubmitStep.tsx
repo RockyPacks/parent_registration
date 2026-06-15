@@ -10,6 +10,8 @@ import jsPDF from 'jspdf';
 
 interface Step6ReviewSubmitStepProps {
   activeStep: number;
+  stepNumber?: number;
+  totalSteps?: number;
   applicationId?: string | null; // Add applicationId prop
   studentData: any;
   familyData: any;
@@ -89,6 +91,8 @@ const ApplicationSubmittedCard: React.FC<ApplicationSubmittedCardProps> = ({ sum
 
 const Step6ReviewSubmitStep: React.FC<Step6ReviewSubmitStepProps> = ({
   activeStep,
+  stepNumber = 6,
+  totalSteps = 6,
   applicationId,
   studentData,
   familyData,
@@ -310,11 +314,11 @@ const Step6ReviewSubmitStep: React.FC<Step6ReviewSubmitStepProps> = ({
                     {/* Modern Step Indicator */}
                     <div className="flex items-center justify-center w-12 h-12 rounded-full bg-gradient-to-br from-green-500 to-blue-600 shadow-lg animate-pulse">
                       <div className="flex items-center justify-center w-10 h-10 rounded-full bg-white">
-                        <span className="text-transparent bg-clip-text bg-gradient-to-br from-green-600 to-blue-600 font-bold text-lg">6</span>
+                        <span className="text-transparent bg-clip-text bg-gradient-to-br from-green-600 to-blue-600 font-bold text-lg">{stepNumber}</span>
                       </div>
                     </div>
                     <div className="text-right">
-                      <div className="text-xs font-medium text-gray-500 uppercase tracking-wide">Step 6 of 6</div>
+                      <div className="text-xs font-medium text-gray-500 uppercase tracking-wide">Step {stepNumber} of {totalSteps}</div>
                       <div className="text-sm font-semibold text-transparent bg-clip-text bg-gradient-to-r from-green-600 to-blue-600">
                         100% Complete
                       </div>
@@ -333,7 +337,7 @@ const Step6ReviewSubmitStep: React.FC<Step6ReviewSubmitStepProps> = ({
           <div className="max-w-6xl mx-auto px-3 sm:px-4 md:px-6 lg:px-8 pt-16 md:pt-24 pb-16 md:pb-24">
             <ReviewSubmitStep
               currentData={currentData}
-              onBack={() => onStepChange && onStepChange(5)}
+              onBack={() => onStepChange && onStepChange(stepNumber > 6 ? 6 : 5)}
               onEditStep={handleEditStep}
               onSubmit={handleSubmitAndShowConfirmation} // Use the new handler here
               onStepComplete={onStepComplete}

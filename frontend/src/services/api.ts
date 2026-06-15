@@ -180,6 +180,55 @@ export interface PvseStatusResponse {
   message: string;
 }
 
+export interface ConsentDisclosure {
+  id: string;
+  version: string;
+  title: string;
+  body: string;
+  checks: string[];
+  responsibleParty: string;
+  operatorName: string;
+  rights: string[];
+}
+
+export interface ConsentRecord {
+  consentToken: string;
+  consentedAt: string;
+  disclosureVersion: string;
+}
+
+export interface ConsentConfigResponse {
+  schoolKey: string;
+  schoolName?: string | null;
+  screeningEnabled: boolean;
+  kbaEnabled: boolean;
+  disclosure?: ConsentDisclosure | null;
+  consent?: ConsentRecord | null;
+}
+
+export type ScreeningCheckStatus = 'pending' | 'not_run' | 'pass' | 'refer' | 'flagged' | 'error';
+export type ScreeningOverallStatus = 'green' | 'amber' | 'red';
+
+export interface ScreeningCheckResult {
+  checkKey: string;
+  checkName: string;
+  status: ScreeningCheckStatus;
+  summary: string;
+  timestamp?: string | null;
+  details?: string | null;
+  actionLabel?: string | null;
+}
+
+export interface ApplicantScreeningResults {
+  applicationId: string;
+  schoolKey?: string | null;
+  schoolName?: string | null;
+  overallStatus?: ScreeningOverallStatus | null;
+  overallSummary?: string | null;
+  checks: ScreeningCheckResult[];
+  updatedAt?: string | null;
+}
+
 class ApiService {
   private sessionCache: { session: any; timestamp: number } | null = null;
   private schoolsCache: { data: any; timestamp: number } | null = null;
@@ -724,6 +773,25 @@ class ApiService {
       method: 'POST',
       body: JSON.stringify({ parent_id: parentId, reason }),
     });
+  }
+
+  async getConsentConfig(applicationId: string): Promise<ConsentConfigResponse> {
+    return this.request<ConsentConfigResponse>(`/consent/config/${applicationId}`);
+  }
+
+  async recordConsent(applicationId: string, disclosureVersion: string, accepted: boolean): Promise<ConsentRecord> {
+    return this.request<ConsentRecord>('/consent/record', {
+      method: 'POST',
+      body: JSON.stringify(toSnakeCase({
+        applicationId,
+        disclosureVersion,
+        accepted,
+      })),
+    });
+  }
+
+  async getApplicantScreeningResults(applicationId: string): Promise<ApplicantScreeningResults> {
+    return this.request<ApplicantScreeningResults>(`/screening/applications/${applicationId}/results`);
   }
 }
 

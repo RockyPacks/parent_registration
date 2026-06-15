@@ -17,6 +17,7 @@ from fastapi import HTTPException
 from app.core.config import settings
 from app.core.validators import validate_sa_id_number, SAIDValidationError
 from app.repositories.pvse_repository import pvse_repository
+from app.services.consent_service import consent_service
 
 logger = logging.getLogger(__name__)
 
@@ -247,6 +248,11 @@ class PvseService:
         }
 
     async def start_verification(self, application_id: str, user_id: str) -> Dict[str, Any]:
+        application = self.repository.get_application_for_user(application_id, user_id)
+        if not application:
+            raise HTTPException(status_code=404, detail="Application not found")
+        consent_service.assert_consent_recorded(application_id, user_id, application.get("school_name"))
+
         parent = self._get_fee_payer(application_id, user_id)
         payload = {
             "Username": settings.experian_username.upper() if settings.experian_username else "",
