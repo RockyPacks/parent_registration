@@ -12,6 +12,7 @@ const Step2DocumentUploadCenter = React.lazy(() => import('./form/Step2DocumentU
 const Step3AcademicHistoryForm = React.lazy(() => import('./form/Step3AcademicHistoryForm'));
 const Step4FeeAgreement = React.lazy(() => import('./form/Step4FeeAgreement'));
 const Step5DeclarationStep = React.lazy(() => import('./form/Step5DeclarationStep'));
+const Step6PopiaConsentStep = React.lazy(() => import('./form/Step6PopiaConsentStep'));
 const Step6ReviewSubmitStep = React.lazy(() => import('./form/Step6ReviewSubmitStep'));
 
 interface MainContentProps {
@@ -30,6 +31,7 @@ interface MainContentProps {
   onCompletedStepsChange?: (completedSteps: number[]) => void;
   completedSteps?: number[];
   userEmail?: string | null;
+  consentStepEnabled?: boolean;
 }
 
 const MainContent: React.FC<MainContentProps> = (props) => {
@@ -48,7 +50,10 @@ const MainContent: React.FC<MainContentProps> = (props) => {
     onCompletedStepsChange,
     completedSteps = [],
     userEmail = null,
+    consentStepEnabled = false,
   } = props;
+
+  const reviewStepNumber = consentStepEnabled ? 7 : 6;
 
   // Helper to generate user-specific localStorage keys
   const getUserKey = useCallback((key: string) => userEmail ? `${userEmail}_${key}` : key, [userEmail]);
@@ -78,6 +83,7 @@ const MainContent: React.FC<MainContentProps> = (props) => {
   const [subjectsData, setSubjectsData] = useState<any>({});
   const [financingData, setFinancingData] = useState<any>({});
   const [declarationData, setDeclarationData] = useState<any>({});
+  const [consentData, setConsentData] = useState<any>({});
   const [nextOfKinData, setNextOfKinData] = useState<any>({});
   const [documentsData, setDocumentsData] = useState<any[]>([]);
   const [fullApplicationData, setFullApplicationData] = useState<any>({});
@@ -136,6 +142,7 @@ const MainContent: React.FC<MainContentProps> = (props) => {
     const declData = getStoredData('declarationData');
     console.log('MainContent: Loaded declarationData from storage - signature present:', !!declData.signatureImage, 'length:', declData.signatureImage?.length || 0);
     setDeclarationData(declData);
+    setConsentData(getStoredData('consentData'));
     
     setNextOfKinData(getStoredData('nextOfKinData'));
     setDataLoaded(true);
@@ -248,6 +255,14 @@ const MainContent: React.FC<MainContentProps> = (props) => {
   const isDeclarationCompleted = useMemo(() => {
     return !!(declarationData?.signed === true && declarationData?.fullName?.trim());
   }, [declarationData]);
+
+  const isConsentCompleted = useMemo(() => {
+    if (!consentStepEnabled) return true;
+    if (applicationStatus === 'submitted' || applicationStatus === 'completed') return true;
+    if (!consentData?.consentToken) return false;
+    if (consentData?.kbaEnabled) return consentData?.kbaResult === 'passed';
+    return true;
+  }, [applicationStatus, consentData, consentStepEnabled]);
 
   const isDocumentsCompleted = useMemo(() => {
     const uploadedDocTypes = new Set(
@@ -524,6 +539,14 @@ const MainContent: React.FC<MainContentProps> = (props) => {
     });
   }, [getUserKey]);
 
+  const handleConsentDataChange = useCallback((data: any) => {
+    setConsentData(prevData => {
+      const newData = { ...prevData, ...data };
+      storage.set(getUserKey('consentData'), newData);
+      return newData;
+    });
+  }, [getUserKey]);
+
   const handleFinalSubmit = async (): Promise<boolean> => {
     if (!applicationId) {
       addToast('No application ID found. Please try again.', 'error');
@@ -544,6 +567,7 @@ const MainContent: React.FC<MainContentProps> = (props) => {
     if (!isAcademicHistoryCompleted) errors.push('Academic History & Report Card (Step 3)');
     if (!isFeeAgreementCompleted) errors.push('Fee Agreement Plan (Step 4)');
     if (!isDeclarationCompleted) errors.push('Declaration Signature (Step 5)');
+    if (!isConsentCompleted) errors.push('POPIA Consent and Identity Questions (Step 6)');
 
     if (errors.length > 0) {
       console.error('MainContent: Submission blocked - Incomplete fields:', errors);
@@ -566,6 +590,7 @@ const MainContent: React.FC<MainContentProps> = (props) => {
         subjects: subjectsData,
         financing: financingData,
         declaration: declarationData,
+        consent: consentData,
         documents: documentsData,
       };
       
@@ -747,8 +772,12 @@ const MainContent: React.FC<MainContentProps> = (props) => {
     }
 
     // Step 6: Review & Submit (only complete if application is submitted or completed)
-    if (applicationStatus === 'submitted' || applicationStatus === 'completed') {
+    if (consentStepEnabled && isConsentCompleted) {
       dynamicCompletedSteps.push(6);
+    }
+
+    if (applicationStatus === 'submitted' || applicationStatus === 'completed') {
+      dynamicCompletedSteps.push(reviewStepNumber);
     }
 
     // Compare with current completedSteps prop. If different, trigger update to parent.
@@ -781,6 +810,9 @@ const MainContent: React.FC<MainContentProps> = (props) => {
     isAcademicHistoryCompleted,
     isFeeAgreementCompleted,
     isDeclarationCompleted,
+    isConsentCompleted,
+    consentStepEnabled,
+    reviewStepNumber,
     applicationStatus,
     completedSteps,
     applicationInitialized,
@@ -915,11 +947,32 @@ const MainContent: React.FC<MainContentProps> = (props) => {
             }}
             onDataChange={handleDeclarationDataChange}
             initialData={declarationData}
+            nextStep={6}
+            totalSteps={consentStepEnabled ? 7 : 6}
           />
         </Suspense>
       </ErrorBoundary>
     );
-  } else if (activeStep === 6) {
+  } else if (consentStepEnabled && activeStep === 6) {
+    return (
+      <ErrorBoundary>
+        <Suspense fallback={<div>Loading Step 6...</div>}>
+          <Step6PopiaConsentStep
+            applicationId={applicationId}
+            feeData={feeData}
+            onStepChange={onStepChange}
+            onStepComplete={(step) => {
+              if (!localCompletedSteps.includes(6)) {
+                setLocalCompletedSteps(prev => [...prev, 6]);
+              }
+              onStepComplete && onStepComplete(step);
+            }}
+            onConsentComplete={handleConsentDataChange}
+          />
+        </Suspense>
+      </ErrorBoundary>
+    );
+  } else if (activeStep === reviewStepNumber) {
     const isAlreadySubmitted = applicationStatus === 'submitted' || applicationStatus === 'completed';
     
     return (
@@ -927,6 +980,8 @@ const MainContent: React.FC<MainContentProps> = (props) => {
         <Suspense fallback={<div>Loading Step 6...</div>}>
           <Step6ReviewSubmitStep
             activeStep={activeStep}
+            stepNumber={reviewStepNumber}
+            totalSteps={consentStepEnabled ? 7 : 6}
             applicationId={applicationId}
             isSubmitted={isAlreadySubmitted}
             studentData={studentData}

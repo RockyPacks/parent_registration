@@ -7,6 +7,7 @@ from app.repositories.enrollment_repository import enrollment_repository
 from app.repositories.declaration_repository import declaration_repository
 from app.repositories.academic_repository import academic_repository
 from app.repositories.next_of_kin_repository import next_of_kin_repository
+from app.services.consent_service import consent_service
 from app.api.v1.schemas.enrollment import (
     AutoSaveRequest, AutoSaveResponse, EnrollmentData,
     SubmitEnrollmentResponse, ApplicationResponse,
@@ -236,6 +237,13 @@ class EnrollmentService:
                 application_id = self.repository.create_application(user_id, ApplicationStatus.SUBMITTED)
                 logger.info(f"Created new submitted application with ID: {application_id}")
 
+            app_check = self.repository.get_application_by_id_and_user(application_id, user_id)
+            consent_service.assert_submission_allowed(
+                application_id,
+                user_id,
+                app_check.get("school_name") if app_check else None,
+            )
+
             # Log the data being inserted
             logger.info(f"Submitting enrollment for user {user_id}, application {application_id}")
 
@@ -364,6 +372,13 @@ class EnrollmentService:
                 # Create new application if none exists (shouldn't happen in normal flow)
                 application_id = self.repository.create_application(user_id, ApplicationStatus.SUBMITTED)
                 logger.info(f"Created new submitted application with ID: {application_id}")
+
+            app_check = self.repository.get_application_by_id_and_user(application_id, user_id)
+            consent_service.assert_submission_allowed(
+                application_id,
+                user_id,
+                app_check.get("school_name") if app_check else None,
+            )
 
             # Save all provided data sections
             if data.student:

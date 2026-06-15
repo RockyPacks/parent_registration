@@ -11,6 +11,7 @@ import { InquiryPage } from './src/components/InquiryPage';
 
 import { EnrollmentData, apiService } from './src/services/api';
 import { storage } from './src/utils/storage';
+import { isStAndrewsSchool } from './src/utils/schoolConsent';
 
 interface ApplicationSummary {
   applicationId: string;
@@ -60,7 +61,7 @@ const App: React.FC = () => {
   const [applicationInitialized, setApplicationInitialized] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [applicationStatus, setApplicationStatus] = useState<string | null>(null);
-  const [schoolName, setSchoolName] = useState<string | null>(null);
+  const [schoolName, setSchoolName] = useState<string | null>(() => localStorage.getItem('selectedSchoolName'));
   const [selectedSchoolSlug, setSelectedSchoolSlug] = useState<string | null>(() => {
     const signupSlug = getSignupSchoolSlug();
     if (signupSlug) {
@@ -76,19 +77,34 @@ const App: React.FC = () => {
   });
 
 
-  const steps = useMemo(() => [
-    { 
-      number: 1, 
-      title: 'Student & Guardian Info', 
-      subtitle: 'Personal details',
-      showUpdateBadge: true // Draw attention to the new medical requirements
-    },
-    { number: 2, title: 'Document Upload', subtitle: 'Required documents' },
-    { number: 3, title: 'Academic History', subtitle: 'Previous schools' },
-    { number: 4, title: 'Fee Agreement', subtitle: 'Payment terms' },
-    { number: 5, title: 'Declaration', subtitle: 'Terms & conditions' },
-    { number: 6, title: 'Review & Submit', subtitle: 'Final review' },
-  ], []);
+  const consentStepEnabled = isStAndrewsSchool(schoolName || selectedSchoolSlug);
+  const steps = useMemo(() => {
+    const baseSteps = [
+      {
+        number: 1,
+        title: 'Student & Guardian Info',
+        subtitle: 'Personal details',
+        showUpdateBadge: true
+      },
+      { number: 2, title: 'Document Upload', subtitle: 'Required documents' },
+      { number: 3, title: 'Academic History', subtitle: 'Previous schools' },
+      { number: 4, title: 'Fee Agreement', subtitle: 'Payment terms' },
+      { number: 5, title: 'Declaration', subtitle: 'Terms & conditions' },
+    ];
+
+    if (consentStepEnabled) {
+      return [
+        ...baseSteps,
+        { number: 6, title: 'POPIA Consent', subtitle: 'Screening consent' },
+        { number: 7, title: 'Review & Submit', subtitle: 'Final review' },
+      ];
+    }
+
+    return [
+      ...baseSteps,
+      { number: 6, title: 'Review & Submit', subtitle: 'Final review' },
+    ];
+  }, [consentStepEnabled]);
 
   useEffect(() => {
     const signupSlug = getSignupSchoolSlug();
@@ -224,12 +240,6 @@ const App: React.FC = () => {
           console.log("App.tsx: Application ID from backend:", initialAppId);
           setApplicationId(initialAppId);
           setApplicationStatus(appDataResponse.status);
-          if ((appDataResponse as any).schoolName) {
-            setSchoolName((appDataResponse as any).schoolName);
-            localStorage.setItem('selectedSchoolName', (appDataResponse as any).schoolName);
-            console.log("App.tsx: Saved selectedSchoolName to localStorage:", (appDataResponse as any).schoolName);
-          }
-
           // Restore other user-specific state
           const userActiveStepKey = getUserKey(userEmail, 'activeStep');
           const userCompletedStepsKey = getUserKey(userEmail, 'completedSteps');
@@ -241,6 +251,12 @@ const App: React.FC = () => {
           try {
             console.log("App.tsx: Loading application data for:", initialAppId);
             let appData = (appDataResponse as any).application;
+            const effectiveSchoolName = (appDataResponse as any).schoolName || appData?.schoolName || appData?.school_name || null;
+            if (effectiveSchoolName) {
+              setSchoolName(effectiveSchoolName);
+              localStorage.setItem('selectedSchoolName', effectiveSchoolName);
+              console.log("App.tsx: Saved selectedSchoolName to localStorage:", effectiveSchoolName);
+            }
 
             // Determine completed steps based on actual backend data
             const backendCompletedSteps: number[] = [];
@@ -263,6 +279,8 @@ const App: React.FC = () => {
               const hasFamilyData = hasData(appData.family) && (appData.family?.fatherSurname || appData.family?.motherSurname);
               const hasFeeData = appData.fee?.feePerson;
               const isSubmittedOrCompleted = appData.status === 'submitted' || appData.status === 'completed';
+              const appUsesConsentStep = isStAndrewsSchool((appDataResponse as any).schoolName || appData.schoolName);
+              const appReviewStepNumber = appUsesConsentStep ? 7 : 6;
 
               console.log("App.tsx: Step 1 check - hasStudentData:", hasStudentData, "hasFamilyData:", hasFamilyData, "hasFeeData:", hasFeeData, "isSubmittedOrCompleted:", isSubmittedOrCompleted);
 
@@ -319,6 +337,12 @@ const App: React.FC = () => {
                 backendCompletedSteps.push(5);
               }
 
+              const hasConsent = Boolean(appData.consent?.consentToken || appData.consent?.consent_token);
+              const hasPassedKba = appData.identityVerification?.result === 'passed' || appData.identity_verification?.result === 'passed';
+              if (appUsesConsentStep && hasConsent && hasPassedKba) {
+                backendCompletedSteps.push(6);
+              }
+
               // IMPORTANT: Step 6 is ONLY complete when:
               // 1. Application status is 'submitted' AND has submittedAt timestamp
               // 2. AND ALL prerequisite steps (1-5) are ACTUALLY complete with data
@@ -328,7 +352,8 @@ const App: React.FC = () => {
                 backendCompletedSteps.includes(2) &&
                 backendCompletedSteps.includes(3) &&
                 backendCompletedSteps.includes(4) &&
-                backendCompletedSteps.includes(5);
+                backendCompletedSteps.includes(5) &&
+                (!appUsesConsentStep || backendCompletedSteps.includes(6));
               const isSubmitted = (appData.status === 'submitted' || appData.status === 'completed') && appData.submittedAt;
 
               console.log("App.tsx: Step 6 check - status:", appData.status, "submittedAt:", appData.submittedAt);
@@ -336,8 +361,8 @@ const App: React.FC = () => {
               console.log("App.tsx: Step 6 check - completed steps so far:", backendCompletedSteps);
 
               if (isSubmitted && hasAllPrerequisites && allStepsComplete) {
-                console.log("App.tsx: ✓ Application is submitted with ALL steps complete - marking step 6 as complete");
-                backendCompletedSteps.push(6);
+                console.log(`App.tsx: ✓ Application is submitted with ALL steps complete - marking step ${appReviewStepNumber} as complete`);
+                backendCompletedSteps.push(appReviewStepNumber);
               } else if (isSubmitted && !allStepsComplete) {
                 console.log("App.tsx: ✗ Application is submitted but NOT all steps complete - NOT marking step 6 as complete");
                 console.log("App.tsx: Missing steps - need all of [1,2,3,4,5] but have:", backendCompletedSteps);
@@ -522,6 +547,17 @@ const App: React.FC = () => {
                 console.log("App.tsx: Declaration data saved to localStorage - signature present:", !!declarationData.signatureImage, 'length:', declarationData.signatureImage?.length || 0);
               }
 
+              if (appData.consent && (appData.consent.consentToken || appData.consent.consent_token)) {
+                const consentData = {
+                  consentToken: appData.consent.consentToken || appData.consent.consent_token,
+                  consentedAt: appData.consent.consentedAt || appData.consent.consented_at,
+                  disclosureVersion: appData.consent.disclosureVersion || appData.consent.disclosure_version,
+                  kbaEnabled: appUsesConsentStep,
+                  kbaResult: appData.identityVerification?.result || appData.identity_verification?.result,
+                };
+                storage.set(getUserKey(userEmail, 'consentData'), consentData);
+              }
+
               // Save financing data to localStorage (Step 4)
               // Backend stores plan in fee.selectedPlan (fee_responsibility table), not in financingSelections
               const rawPlanType = (appData.financingSelections && appData.financingSelections.length > 0)
@@ -586,9 +622,9 @@ const App: React.FC = () => {
               // SAFETY CHECK: Remove step 6 from backendCompletedSteps if application is not actually submitted
               // This prevents any stale data or bugs from showing step 6 as complete prematurely
               const isActuallySubmitted = (appData.status === 'submitted' || appData.status === 'completed') && appData.submittedAt;
-              if (!isActuallySubmitted && backendCompletedSteps.includes(6)) {
-                console.warn("App.tsx: WARNING - Step 6 found in completed steps but application not submitted! Removing step 6.");
-                const index = backendCompletedSteps.indexOf(6);
+              if (!isActuallySubmitted && backendCompletedSteps.includes(appReviewStepNumber)) {
+                console.warn(`App.tsx: WARNING - Step ${appReviewStepNumber} found in completed steps but application not submitted! Removing review step.`);
+                const index = backendCompletedSteps.indexOf(appReviewStepNumber);
                 if (index > -1) {
                   backendCompletedSteps.splice(index, 1);
                 }
@@ -605,18 +641,18 @@ const App: React.FC = () => {
               // Determine the active step
               let targetStep = 1;
 
-              if (backendCompletedSteps.includes(6)) {
+              if (backendCompletedSteps.includes(appReviewStepNumber)) {
                 // Application submitted, stay on step 6 to view summary
-                targetStep = 6;
+                targetStep = appReviewStepNumber;
               } else if (backendCompletedSteps.length > 0) {
                 // User has made progress - restore their last saved position or go to next incomplete step
                 const savedActiveStep = storage.get(userActiveStepKey, null);
-                if (savedActiveStep && savedActiveStep >= 1 && savedActiveStep <= 6) {
+                if (savedActiveStep && savedActiveStep >= 1 && savedActiveStep <= appReviewStepNumber) {
                   // Restore user's last position
                   targetStep = savedActiveStep;
                 } else {
                   // Go to next incomplete step
-                  targetStep = Math.min(backendCompletedSteps.length + 1, 6);
+                  targetStep = Math.min(backendCompletedSteps.length + 1, appReviewStepNumber);
                 }
               } else {
                 // New user with no data - start at step 1
@@ -733,6 +769,7 @@ const App: React.FC = () => {
       storage.remove(getUserKey(email, 'academicHistoryData'));
       storage.remove(getUserKey(email, 'financingData'));
       storage.remove(getUserKey(email, 'declarationData'));
+      storage.remove(getUserKey(email, 'consentData'));
       // Note: Application ID is managed by backend, not stored in localStorage
     }
   };
@@ -998,6 +1035,7 @@ const App: React.FC = () => {
                 onCompletedStepsChange={handleCompletedStepsChange}
                 completedSteps={completedSteps}
                 userEmail={userEmail}
+                consentStepEnabled={consentStepEnabled}
               />
             </div>
           </main>

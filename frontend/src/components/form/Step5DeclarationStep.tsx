@@ -9,6 +9,8 @@ interface Step5DeclarationStepProps {
   onDeclarationComplete?: () => void;
   onDataChange?: (data: any) => void; 
   initialData?: any;
+  nextStep?: number;
+  totalSteps?: number;
 }
 
 const Step5DeclarationStep: React.FC<Step5DeclarationStepProps> = ({
@@ -17,7 +19,9 @@ const Step5DeclarationStep: React.FC<Step5DeclarationStepProps> = ({
   onStepComplete,
   onDeclarationComplete,
   onDataChange,
-  initialData
+  initialData,
+  nextStep = 6,
+  totalSteps = 6
 }) => {
   return (
     <div className="flex-1 bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 min-h-screen">
@@ -38,7 +42,7 @@ const Step5DeclarationStep: React.FC<Step5DeclarationStepProps> = ({
                   </div>
                 </div>
                 <div className="text-right">
-                  <div className="text-xs font-medium text-gray-500 uppercase tracking-wide">Step 5 of 6</div>
+                  <div className="text-xs font-medium text-gray-500 uppercase tracking-wide">Step 5 of {totalSteps}</div>
                   <div className="text-sm font-semibold text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600">
                     83% Complete
                   </div>
@@ -68,11 +72,11 @@ const Step5DeclarationStep: React.FC<Step5DeclarationStepProps> = ({
       <Footer
         onBack={() => onStepChange && onStepChange(4)}
         onSave={() => {}}
-        onNext={() => onStepChange && onStepChange(6)}
+        onNext={() => onStepChange && onStepChange(nextStep)}
         showBack={true}
         showSave={false}
         showNext={true}
-        nextLabel="Next: Review and Submit"
+        nextLabel={nextStep === 6 && totalSteps === 7 ? 'Next: POPIA Consent' : 'Next: Review and Submit'}
       />
     </div>
   );

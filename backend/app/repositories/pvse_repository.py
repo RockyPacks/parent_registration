@@ -26,7 +26,7 @@ class PvseRepository:
         self._check_supabase()
         result = (
             self.supabase.table("applications")
-            .select("id,user_id,status")
+            .select("id,user_id,status,school_name")
             .eq("id", application_id)
             .eq("user_id", user_id)
             .execute()

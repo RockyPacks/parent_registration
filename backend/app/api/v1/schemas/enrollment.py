@@ -475,6 +475,8 @@ class ApplicationResponse(BaseModel):
     documents: Optional[List[Dict[str, Any]]] = []
     financing_selections: Optional[List[Dict[str, Any]]] = []
     declaration: Optional[Dict[str, Any]] = {}
+    consent: Optional[Dict[str, Any]] = {}
+    identity_verification: Optional[Dict[str, Any]] = {}
 
 
 class UploadSummaryResponse(BaseModel):

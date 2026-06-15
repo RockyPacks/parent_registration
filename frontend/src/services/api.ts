@@ -180,6 +180,107 @@ export interface PvseStatusResponse {
   message: string;
 }
 
+export interface ConsentDisclosure {
+  id: string;
+  version: string;
+  title: string;
+  body: string;
+  checks: string[];
+  responsibleParty: string;
+  operatorName: string;
+  rights: string[];
+}
+
+export interface ConsentRecord {
+  consentToken: string;
+  consentedAt: string;
+  disclosureVersion: string;
+}
+
+export interface ConsentConfigResponse {
+  schoolKey: string;
+  schoolName?: string | null;
+  screeningEnabled: boolean;
+  kbaEnabled: boolean;
+  disclosure?: ConsentDisclosure | null;
+  consent?: ConsentRecord | null;
+}
+
+export type ScreeningCheckStatus = 'pending' | 'not_run' | 'pass' | 'refer' | 'flagged' | 'error';
+export type ScreeningOverallStatus = 'green' | 'amber' | 'red';
+
+export interface ScreeningCheckResult {
+  checkKey: string;
+  checkName: string;
+  status: ScreeningCheckStatus;
+  summary: string;
+  timestamp?: string | null;
+  details?: string | null;
+  actionLabel?: string | null;
+  result?: Record<string, any> | null;
+}
+
+export interface ApplicantScreeningResults {
+  applicationId: string;
+  schoolKey?: string | null;
+  schoolName?: string | null;
+  overallStatus?: ScreeningOverallStatus | null;
+  overallSummary?: string | null;
+  checks: ScreeningCheckResult[];
+  updatedAt?: string | null;
+}
+
+export type ScreeningCheckMode = 'mandatory' | 'advisory' | 'disabled';
+
+export interface ScreeningCheckConfig {
+  checkKey: string;
+  checkName: string;
+  mode: ScreeningCheckMode;
+}
+
+export interface ScreeningThresholdConfig {
+  affordabilityMonthlyFeeBand?: 'school_default' | 'custom';
+  affordabilityMonthlyFeeLabel?: string | null;
+  creditDefaultSensitivity?: 'single_default_refers' | 'multiple_defaults_refer';
+  riskLowMax?: number;
+  riskMediumMax?: number;
+}
+
+export interface ScreeningDisclosureConfig {
+  version: string;
+  title: string;
+  body: string;
+  active: boolean;
+  updatedAt?: string | null;
+}
+
+export interface ScreeningAdminConfig {
+  schoolKey: string;
+  schoolName?: string | null;
+  checks: ScreeningCheckConfig[];
+  thresholds: ScreeningThresholdConfig;
+  disclosure: ScreeningDisclosureConfig;
+  updatedAt?: string | null;
+}
+
+export interface ScreeningAuditLogEntry {
+  id: string;
+  applicationId?: string | null;
+  checkKey: string;
+  checkName: string;
+  timestamp: string;
+  experianReference?: string | null;
+  resultSummary: string;
+  status?: ScreeningCheckStatus | null;
+}
+
+export interface ScreeningConfigChangeLogEntry {
+  id: string;
+  changedBy: string;
+  changedAt: string;
+  changeSummary: string;
+}
+
 class ApiService {
   private sessionCache: { session: any; timestamp: number } | null = null;
   private schoolsCache: { data: any; timestamp: number } | null = null;
@@ -724,6 +825,59 @@ class ApiService {
       method: 'POST',
       body: JSON.stringify({ parent_id: parentId, reason }),
     });
+  }
+
+  async getConsentConfig(applicationId: string): Promise<ConsentConfigResponse> {
+    return this.request<ConsentConfigResponse>(`/consent/config/${applicationId}`);
+  }
+
+  async recordConsent(applicationId: string, disclosureVersion: string, accepted: boolean): Promise<ConsentRecord> {
+    return this.request<ConsentRecord>('/consent/record', {
+      method: 'POST',
+      body: JSON.stringify(toSnakeCase({
+        applicationId,
+        disclosureVersion,
+        accepted,
+      })),
+    });
+  }
+
+  async getApplicantScreeningResults(applicationId: string): Promise<ApplicantScreeningResults> {
+    return this.request<ApplicantScreeningResults>(`/screening/applications/${applicationId}/results`);
+  }
+
+  async getScreeningAdminConfig(schoolKey = 'ST_ANDREWS'): Promise<ScreeningAdminConfig> {
+    return this.request<ScreeningAdminConfig>(`/screening/admin/config/${encodeURIComponent(schoolKey)}`);
+  }
+
+  async updateScreeningAdminConfig(schoolKey: string, config: Partial<ScreeningAdminConfig>): Promise<ScreeningAdminConfig> {
+    return this.request<ScreeningAdminConfig>(`/screening/admin/config/${encodeURIComponent(schoolKey)}`, {
+      method: 'PATCH',
+      body: JSON.stringify(toSnakeCase(config)),
+    });
+  }
+
+  async updateScreeningDisclosure(
+    schoolKey: string,
+    disclosure: Pick<ScreeningDisclosureConfig, 'title' | 'body'>
+  ): Promise<ScreeningDisclosureConfig> {
+    return this.request<ScreeningDisclosureConfig>(`/screening/admin/config/${encodeURIComponent(schoolKey)}/disclosure`, {
+      method: 'POST',
+      body: JSON.stringify(toSnakeCase(disclosure)),
+    });
+  }
+
+  async getScreeningAuditLog(params: { schoolKey?: string; applicationId?: string }): Promise<ScreeningAuditLogEntry[]> {
+    const query = new URLSearchParams();
+    if (params.schoolKey) query.set('school_key', params.schoolKey);
+    if (params.applicationId) query.set('application_id', params.applicationId);
+    return this.request<ScreeningAuditLogEntry[]>(`/screening/admin/audit-log?${query.toString()}`);
+  }
+
+  async getScreeningConfigChangeLog(schoolKey = 'ST_ANDREWS'): Promise<ScreeningConfigChangeLogEntry[]> {
+    return this.request<ScreeningConfigChangeLogEntry[]>(
+      `/screening/admin/config/${encodeURIComponent(schoolKey)}/change-log`
+    );
   }
 }
 
