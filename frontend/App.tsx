@@ -61,7 +61,7 @@ const App: React.FC = () => {
   const [applicationInitialized, setApplicationInitialized] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [applicationStatus, setApplicationStatus] = useState<string | null>(null);
-  const [schoolName, setSchoolName] = useState<string | null>(null);
+  const [schoolName, setSchoolName] = useState<string | null>(() => localStorage.getItem('selectedSchoolName'));
   const [selectedSchoolSlug, setSelectedSchoolSlug] = useState<string | null>(() => {
     const signupSlug = getSignupSchoolSlug();
     if (signupSlug) {
@@ -77,7 +77,7 @@ const App: React.FC = () => {
   });
 
 
-  const consentStepEnabled = isStAndrewsSchool(schoolName);
+  const consentStepEnabled = isStAndrewsSchool(schoolName || selectedSchoolSlug);
   const steps = useMemo(() => {
     const baseSteps = [
       {
@@ -240,12 +240,6 @@ const App: React.FC = () => {
           console.log("App.tsx: Application ID from backend:", initialAppId);
           setApplicationId(initialAppId);
           setApplicationStatus(appDataResponse.status);
-          if ((appDataResponse as any).schoolName) {
-            setSchoolName((appDataResponse as any).schoolName);
-            localStorage.setItem('selectedSchoolName', (appDataResponse as any).schoolName);
-            console.log("App.tsx: Saved selectedSchoolName to localStorage:", (appDataResponse as any).schoolName);
-          }
-
           // Restore other user-specific state
           const userActiveStepKey = getUserKey(userEmail, 'activeStep');
           const userCompletedStepsKey = getUserKey(userEmail, 'completedSteps');
@@ -257,6 +251,12 @@ const App: React.FC = () => {
           try {
             console.log("App.tsx: Loading application data for:", initialAppId);
             let appData = (appDataResponse as any).application;
+            const effectiveSchoolName = (appDataResponse as any).schoolName || appData?.schoolName || appData?.school_name || null;
+            if (effectiveSchoolName) {
+              setSchoolName(effectiveSchoolName);
+              localStorage.setItem('selectedSchoolName', effectiveSchoolName);
+              console.log("App.tsx: Saved selectedSchoolName to localStorage:", effectiveSchoolName);
+            }
 
             // Determine completed steps based on actual backend data
             const backendCompletedSteps: number[] = [];
