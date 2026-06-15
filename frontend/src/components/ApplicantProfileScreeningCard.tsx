@@ -7,6 +7,7 @@ import {
   apiService,
 } from '../services/api';
 import { isStAndrewsSchool } from '../utils/schoolConsent';
+import { ScreeningResultSummary } from './screening/ScreeningResultSummaries';
 
 interface ApplicantProfileScreeningCardProps {
   applicationId: string;
@@ -159,10 +160,11 @@ const ApplicantProfileScreeningCard: React.FC<ApplicantProfileScreeningCardProps
                       <div className="border-t border-gray-200 bg-white px-4 py-4 sm:pl-16">
                         <div className="grid gap-4 md:grid-cols-[1fr_auto] md:items-start">
                           <div>
-                            <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">Review detail</div>
-                            <p className="mt-2 text-sm leading-6 text-gray-700">
-                              {check.details || check.summary || statusCopy[check.status]}
-                            </p>
+                            <ScreeningResultSummary
+                              checkKey={check.checkKey}
+                              result={check.result}
+                              fallback={check.details || check.summary || statusCopy[check.status]}
+                            />
                           </div>
                           {check.actionLabel && (
                             <div className="rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-xs font-semibold text-gray-700">
@@ -195,6 +197,7 @@ function normalizeChecks(results: ScreeningCheckResult[]): ScreeningCheckResult[
       timestamp: result?.timestamp || null,
       details: result?.details || null,
       actionLabel: result?.actionLabel || null,
+      result: result?.result || null,
     };
   });
 }
