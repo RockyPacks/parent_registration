@@ -35,6 +35,19 @@ const DOCUMENT_TYPE_TO_BUCKET: Record<string, string> = {
   "third-payslip": "payslips",
   "bank-statements": "bank_statements",
   "academic_history": "id_documents",
+  "winston-birth-certificate": "id_documents",
+  "winston-school-clearance": "documents",
+  "winston-december-2026-report": "documents",
+  "winston-current-year-report": "documents",
+  "winston-immunisation-record": "documents",
+  "winston-parent-guardian-id-1": "id_documents",
+  "winston-parent-guardian-id-2": "id_documents",
+  "winston-salary-advice-1": "payslips",
+  "winston-salary-advice-2": "payslips",
+  "winston-proof-of-residence": "proof_of_address",
+  "winston-lease-agreement": "proof_of_address",
+  "winston-self-employed-ck": "documents",
+  "winston-study-visa": "documents",
 };
 
 const getBucketName = (documentType: string): string => {
@@ -94,6 +107,27 @@ const BANK_STATEMENT_TYPES = new Set(['bank_statement', 'bank_statements']);
 const DOCUMENT_CATEGORY_CONFIG = {
   ...REQUIRED_DOCUMENT_CONFIG,
   ...OPTIONAL_DOCUMENT_CONFIG
+};
+
+type DocumentRequirementConfig = {
+  requiredCount: number;
+  types: readonly string[];
+  missingMessage?: string;
+};
+
+type UploadField = {
+  label: string;
+  documentType: string;
+  required?: boolean;
+};
+
+type UploadSection = {
+  categoryId: string;
+  title: string;
+  required: boolean;
+  requiredCount: number;
+  fields: UploadField[];
+  note?: string;
 };
 
 const moloInitialCategories: Record<string, DocumentCategory> = {
@@ -165,6 +199,228 @@ const defaultInitialCategories: Record<string, DocumentCategory> = {
   }
 };
 
+const winstonRequiredDocumentConfig: Record<string, DocumentRequirementConfig> = {
+  birthCertificate: {
+    requiredCount: 1,
+    types: ['winston-birth-certificate'],
+    missingMessage: "Copy of the learner's unabridged birth certificate is required."
+  },
+  schoolClearance: {
+    requiredCount: 1,
+    types: ['winston-school-clearance'],
+    missingMessage: 'A current school clearance certificate is required.'
+  },
+  schoolReports: {
+    requiredCount: 2,
+    types: ['winston-december-2026-report', 'winston-current-year-report'],
+    missingMessage: "Copies of your child's December 2026 and current year's school reports are required."
+  },
+  immunisationRecords: {
+    requiredCount: 1,
+    types: ['winston-immunisation-record'],
+    missingMessage: "Copy of your child's immunisation records is required. Please ensure your child's name is on the record."
+  },
+  parentGuardianIds: {
+    requiredCount: 2,
+    types: ['winston-parent-guardian-id-1', 'winston-parent-guardian-id-2'],
+    missingMessage: 'Copy of both biological parents/legal guardians identity documents is required.'
+  },
+  salaryAdvice: {
+    requiredCount: 2,
+    types: ['winston-salary-advice-1', 'winston-salary-advice-2'],
+    missingMessage: 'Copy of both biological parents/legal guardians latest salary advice is required.'
+  },
+  proofOfResidence: {
+    requiredCount: 1,
+    types: ['winston-proof-of-residence'],
+    missingMessage: 'Proof of residence is required.'
+  }
+};
+
+const winstonDocumentCategoryConfig: Record<string, DocumentRequirementConfig> = {
+  ...winstonRequiredDocumentConfig,
+  leaseAgreement: {
+    requiredCount: 0,
+    types: ['winston-lease-agreement']
+  },
+  selfEmployedCk: {
+    requiredCount: 0,
+    types: ['winston-self-employed-ck']
+  },
+  studyVisa: {
+    requiredCount: 0,
+    types: ['winston-study-visa']
+  }
+};
+
+const winstonInitialCategories: Record<string, DocumentCategory> = {
+  birthCertificate: {
+    id: 'birthCertificate',
+    title: 'Learner Birth Certificate',
+    status: CategoryStatus.NotStarted,
+    files: [],
+    required: true,
+    description: "Copy of the learner's unabridged birth certificate."
+  },
+  schoolClearance: {
+    id: 'schoolClearance',
+    title: 'School Clearance Certificate',
+    status: CategoryStatus.NotStarted,
+    files: [],
+    required: true,
+    description: 'A current school clearance certificate.'
+  },
+  schoolReports: {
+    id: 'schoolReports',
+    title: 'School Reports',
+    status: CategoryStatus.NotStarted,
+    files: [],
+    required: true,
+    description: "Copy of your child's December 2026 and current year's school reports."
+  },
+  immunisationRecords: {
+    id: 'immunisationRecords',
+    title: 'Immunisation Records',
+    status: CategoryStatus.NotStarted,
+    files: [],
+    required: true,
+    description: "Copy of your child's immunisation records. Please ensure your child's name is on the record."
+  },
+  parentGuardianIds: {
+    id: 'parentGuardianIds',
+    title: 'Parent/Guardian Identity Documents',
+    status: CategoryStatus.NotStarted,
+    files: [],
+    required: true,
+    description: 'Copy of both biological parents/legal guardians identity documents.'
+  },
+  salaryAdvice: {
+    id: 'salaryAdvice',
+    title: 'Latest Salary Advice',
+    status: CategoryStatus.NotStarted,
+    files: [],
+    required: true,
+    description: 'Copy of both biological parents/legal guardians latest salary advice.'
+  },
+  proofOfResidence: {
+    id: 'proofOfResidence',
+    title: 'Proof of Residence',
+    status: CategoryStatus.NotStarted,
+    files: [],
+    required: true,
+    description: 'If you own the property, provide both pages of your utility bill not older than 3 months.'
+  },
+  leaseAgreement: {
+    id: 'leaseAgreement',
+    title: 'Lease Agreement',
+    status: CategoryStatus.NotStarted,
+    files: [],
+    required: false,
+    description: 'If you are renting, provide your lease agreement with supporting post addressed to you. Both must be not older than 3 months.'
+  },
+  selfEmployedCk: {
+    id: 'selfEmployedCk',
+    title: 'CK Document',
+    status: CategoryStatus.NotStarted,
+    files: [],
+    required: false,
+    description: 'If either mother or father is self-employed, supply a recent CK document.'
+  },
+  studyVisa: {
+    id: 'studyVisa',
+    title: 'Study Visa',
+    status: CategoryStatus.NotStarted,
+    files: [],
+    required: false,
+    description: 'Original study visa for international applicants.'
+  }
+};
+
+const winstonUploadSections: UploadSection[] = [
+  {
+    categoryId: 'birthCertificate',
+    title: 'Learner Birth Certificate',
+    required: true,
+    requiredCount: 1,
+    fields: [{ label: "Copy of learner's unabridged birth certificate", documentType: 'winston-birth-certificate', required: true }]
+  },
+  {
+    categoryId: 'schoolClearance',
+    title: 'School Clearance Certificate',
+    required: true,
+    requiredCount: 1,
+    fields: [{ label: 'Current school clearance certificate', documentType: 'winston-school-clearance', required: true }]
+  },
+  {
+    categoryId: 'schoolReports',
+    title: 'School Reports',
+    required: true,
+    requiredCount: 2,
+    fields: [
+      { label: "Child's December 2026 school report", documentType: 'winston-december-2026-report', required: true },
+      { label: "Child's current year school report", documentType: 'winston-current-year-report', required: true }
+    ]
+  },
+  {
+    categoryId: 'immunisationRecords',
+    title: 'Immunisation Records',
+    required: true,
+    requiredCount: 1,
+    fields: [{ label: "Child's immunisation record with child's name visible", documentType: 'winston-immunisation-record', required: true }]
+  },
+  {
+    categoryId: 'parentGuardianIds',
+    title: 'Parent/Guardian Identity Documents',
+    required: true,
+    requiredCount: 2,
+    fields: [
+      { label: 'First biological parent/legal guardian identity document', documentType: 'winston-parent-guardian-id-1', required: true },
+      { label: 'Second biological parent/legal guardian identity document', documentType: 'winston-parent-guardian-id-2', required: true }
+    ]
+  },
+  {
+    categoryId: 'salaryAdvice',
+    title: 'Latest Salary Advice',
+    required: true,
+    requiredCount: 2,
+    fields: [
+      { label: 'First biological parent/legal guardian latest salary advice', documentType: 'winston-salary-advice-1', required: true },
+      { label: 'Second biological parent/legal guardian latest salary advice', documentType: 'winston-salary-advice-2', required: true }
+    ]
+  },
+  {
+    categoryId: 'proofOfResidence',
+    title: 'Proof of Residence',
+    required: true,
+    requiredCount: 1,
+    fields: [{ label: 'Owned property: both pages of utility bill, not older than 3 months', documentType: 'winston-proof-of-residence', required: true }]
+  },
+  {
+    categoryId: 'leaseAgreement',
+    title: 'Lease Agreement',
+    required: false,
+    requiredCount: 0,
+    fields: [{ label: 'Rented property: lease agreement and supporting post addressed to you, both not older than 3 months', documentType: 'winston-lease-agreement' }],
+    note: 'Only upload this if you are renting.'
+  },
+  {
+    categoryId: 'selfEmployedCk',
+    title: 'CK Document',
+    required: false,
+    requiredCount: 0,
+    fields: [{ label: 'Recent CK document', documentType: 'winston-self-employed-ck' }],
+    note: 'Only upload this if either parent is self-employed.'
+  },
+  {
+    categoryId: 'studyVisa',
+    title: 'Study Visa',
+    required: false,
+    requiredCount: 0,
+    fields: [{ label: 'Original study visa', documentType: 'winston-study-visa' }],
+    note: 'Only upload this for international applicants.'
+  }
+];
+
 const BankStatementReceivedConfirmation: React.FC = () => (
   <div className="mt-4 bg-green-50 border border-green-200 rounded-lg p-4">
     <div className="flex items-start">
@@ -201,11 +457,21 @@ export const DocumentUploadCenter: React.FC<DocumentUploadCenterProps> = ({
 }) => {
   const selectedSchoolName = typeof window !== 'undefined' ? (localStorage.getItem('selectedSchoolName') || '') : '';
   const useMoloDocumentRules = /molo|mhlaba|tennyson|shaba/i.test(selectedSchoolName);
-  const selectedRequiredDocumentConfig = useMoloDocumentRules ? REQUIRED_DOCUMENT_CONFIG : DEFAULT_REQUIRED_DOCUMENT_CONFIG;
+  const useWinstonDocumentRules = /winston.*park|park.*winston/i.test(selectedSchoolName);
+  const selectedRequiredDocumentConfig: Record<string, DocumentRequirementConfig> = useWinstonDocumentRules
+    ? winstonRequiredDocumentConfig
+    : useMoloDocumentRules
+      ? REQUIRED_DOCUMENT_CONFIG
+      : DEFAULT_REQUIRED_DOCUMENT_CONFIG;
   const selectedDocumentCategoryConfig = useMoloDocumentRules
     ? DOCUMENT_CATEGORY_CONFIG
-    : DEFAULT_REQUIRED_DOCUMENT_CONFIG;
-  const getInitialCategoriesForSchool = () => useMoloDocumentRules ? moloInitialCategories : defaultInitialCategories;
+    : useWinstonDocumentRules
+      ? winstonDocumentCategoryConfig
+      : DEFAULT_REQUIRED_DOCUMENT_CONFIG;
+  const getInitialCategoriesForSchool = () => {
+    if (useWinstonDocumentRules) return winstonInitialCategories;
+    return useMoloDocumentRules ? moloInitialCategories : defaultInitialCategories;
+  };
 
   const [categories, setCategories] = useState<Record<string, DocumentCategory>>(() => getInitialCategoriesForSchool());
   const [activeCategory, setActiveCategory] = useState<string>('proofOfAddress');
@@ -273,17 +539,23 @@ export const DocumentUploadCenter: React.FC<DocumentUploadCenterProps> = ({
         });
 
         const categoryFiles = categoryApiFiles.map(mapToUploadedFile);
+        const completedCount = useWinstonDocumentRules
+          ? types.filter(type => categoryApiFiles.some(file => {
+            const docType = file.documentType?.toLowerCase() || file.document_type?.toLowerCase() || '';
+            return docType === type;
+          })).length
+          : categoryFiles.length;
 
         updated[categoryId] = {
           ...updated[categoryId],
           files: categoryFiles,
-          status: required === 0 ? (categoryFiles.length > 0 ? CategoryStatus.Completed : CategoryStatus.NotStarted) : categoryFiles.length >= required ? CategoryStatus.Completed : categoryFiles.length > 0 ? CategoryStatus.InProgress : CategoryStatus.NotStarted
+          status: required === 0 ? (categoryFiles.length > 0 ? CategoryStatus.Completed : CategoryStatus.NotStarted) : completedCount >= required ? CategoryStatus.Completed : completedCount > 0 ? CategoryStatus.InProgress : CategoryStatus.NotStarted
         };
       });
       return updated;
     });
 
-  }, [uploadedFiles]);
+  }, [uploadedFiles, selectedDocumentCategoryConfig, useWinstonDocumentRules]);
 
   // Check completion status whenever categories change
   useEffect(() => {
@@ -370,7 +642,20 @@ export const DocumentUploadCenter: React.FC<DocumentUploadCenterProps> = ({
       'proof_of_address': 'proofOfAddress',
       'id_document': 'idDocuments',
       'payslip': 'payslips',
-      'bank_statement': 'bankStatements'
+      'bank_statement': 'bankStatements',
+      'winston-birth-certificate': 'birthCertificate',
+      'winston-school-clearance': 'schoolClearance',
+      'winston-december-2026-report': 'schoolReports',
+      'winston-current-year-report': 'schoolReports',
+      'winston-immunisation-record': 'immunisationRecords',
+      'winston-parent-guardian-id-1': 'parentGuardianIds',
+      'winston-parent-guardian-id-2': 'parentGuardianIds',
+      'winston-salary-advice-1': 'salaryAdvice',
+      'winston-salary-advice-2': 'salaryAdvice',
+      'winston-proof-of-residence': 'proofOfResidence',
+      'winston-lease-agreement': 'leaseAgreement',
+      'winston-self-employed-ck': 'selfEmployedCk',
+      'winston-study-visa': 'studyVisa'
     };
     return mapping[docType] || null;
   };
@@ -383,6 +668,46 @@ export const DocumentUploadCenter: React.FC<DocumentUploadCenterProps> = ({
       'bankStatements': 'bank_statement'
     };
     return mapping[categoryId] || categoryId;
+  };
+
+  const renderUploadSection = (section: UploadSection) => {
+    const category = categories[section.categoryId];
+    if (!category) return null;
+
+    return (
+      <UploadCard
+        key={section.categoryId}
+        title={section.title}
+        required={section.required}
+        icon={<UploadCloudIcon />}
+        collapsible={true}
+        defaultOpen={false}
+        status={category.status === CategoryStatus.Completed ? 'completed' :
+          category.status === CategoryStatus.InProgress ? 'in-progress' : 'not-started'}
+        currentCount={getCategoryFileCount(section.categoryId)}
+        requiredCount={section.requiredCount}
+      >
+        <p className="text-sm text-gray-600 mb-4">{category.description}</p>
+        <div className="space-y-3">
+          {section.fields.map((field) => (
+            <div key={field.documentType}>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                {field.label} {field.required && <span className="text-red-600">*</span>}
+              </label>
+              <FileUpload onFileUpload={(file) => handleFileUpload(section.categoryId, file, field.documentType)} variant="button" />
+            </div>
+          ))}
+        </div>
+        {section.note && (
+          <div className="mt-4 bg-blue-50 text-blue-800 text-sm p-3 rounded-md border border-blue-200">
+            {section.note}
+          </div>
+        )}
+        {category.files.map(file => (
+          <FileItem key={file.id} file={file} onDelete={() => handleFileDelete(file.id)} />
+        ))}
+      </UploadCard>
+    );
   };
 
   const validateFile = (file: File): string | null => {
@@ -567,10 +892,19 @@ export const DocumentUploadCenter: React.FC<DocumentUploadCenterProps> = ({
   const getCategoryFileCount = (categoryId: string) => {
     const categoryConfig = selectedDocumentCategoryConfig[categoryId as keyof typeof selectedDocumentCategoryConfig];
     const types = categoryConfig?.types ? [...categoryConfig.types] : [];
-    return uploadedFiles.filter(file => {
+    const matchingFiles = uploadedFiles.filter(file => {
       const docType = file.documentType?.toLowerCase() || file.document_type?.toLowerCase() || '';
       return types.includes(docType);
-    }).length;
+    });
+
+    if (!useWinstonDocumentRules) {
+      return matchingFiles.length;
+    }
+
+    return types.filter(type => matchingFiles.some(file => {
+      const docType = file.documentType?.toLowerCase() || file.document_type?.toLowerCase() || '';
+      return docType === type;
+    })).length;
   };
 
   const hasBankStatementUpload = bankStatementReceived || getCategoryFileCount('bankStatements') > 0;
@@ -628,7 +962,7 @@ export const DocumentUploadCenter: React.FC<DocumentUploadCenterProps> = ({
             <h2 className="text-lg font-semibold text-gray-800">Upload Progress</h2>
             <span className="text-sm text-gray-500">{Object.keys(selectedRequiredDocumentConfig).filter(categoryId => getCategoryFileCount(categoryId) >= selectedRequiredDocumentConfig[categoryId as keyof typeof selectedRequiredDocumentConfig].requiredCount).length} of {Object.keys(selectedRequiredDocumentConfig).length} compulsory documents uploaded</span>
           </div>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
             {categoryList.map((category) => (
               <div key={category.id} className="text-center">
                 <div className={`w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-2 ${category.status === CategoryStatus.Completed
@@ -693,129 +1027,135 @@ export const DocumentUploadCenter: React.FC<DocumentUploadCenterProps> = ({
             </div>
           )}
 
-          <UploadCard
-            title="Proof of Address"
-            required
-            icon={<UploadCloudIcon />}
-            collapsible={true}
-            defaultOpen={false}
-            status={categories.proofOfAddress.status === CategoryStatus.Completed ? 'completed' :
-              categories.proofOfAddress.status === CategoryStatus.InProgress ? 'in-progress' : 'not-started'}
-            currentCount={getCategoryFileCount('proofOfAddress')}
-            requiredCount={1}
-          >
-            <p className="text-sm text-gray-600 mb-4">{categories.proofOfAddress.description}</p>
-            <div className="space-y-3">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Utility Bill/Municipal Account <span className="text-red-600">*</span></label>
-                <FileUpload onFileUpload={(file) => handleFileUpload('proofOfAddress', file, 'proof_of_address')} variant="button" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Bank Statement <span className="text-red-600">*</span></label>
-                <FileUpload onFileUpload={(file) => handleFileUpload('proofOfAddress', file, 'proof_of_address')} variant="button" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Lease Agreement</label>
-                <FileUpload onFileUpload={(file) => handleFileUpload('proofOfAddress', file, 'proof_of_address')} variant="button" />
-              </div>
-            </div>
-            {categories.proofOfAddress.files.map(file => (
-              <FileItem key={file.id} file={file} onDelete={() => handleFileDelete(file.id)} />
-            ))}
-          </UploadCard>
+          {useWinstonDocumentRules ? (
+            winstonUploadSections.map(renderUploadSection)
+          ) : (
+            <>
+              <UploadCard
+                title="Proof of Address"
+                required
+                icon={<UploadCloudIcon />}
+                collapsible={true}
+                defaultOpen={false}
+                status={categories.proofOfAddress.status === CategoryStatus.Completed ? 'completed' :
+                  categories.proofOfAddress.status === CategoryStatus.InProgress ? 'in-progress' : 'not-started'}
+                currentCount={getCategoryFileCount('proofOfAddress')}
+                requiredCount={1}
+              >
+                <p className="text-sm text-gray-600 mb-4">{categories.proofOfAddress.description}</p>
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Utility Bill/Municipal Account <span className="text-red-600">*</span></label>
+                    <FileUpload onFileUpload={(file) => handleFileUpload('proofOfAddress', file, 'proof_of_address')} variant="button" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Bank Statement <span className="text-red-600">*</span></label>
+                    <FileUpload onFileUpload={(file) => handleFileUpload('proofOfAddress', file, 'proof_of_address')} variant="button" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Lease Agreement</label>
+                    <FileUpload onFileUpload={(file) => handleFileUpload('proofOfAddress', file, 'proof_of_address')} variant="button" />
+                  </div>
+                </div>
+                {categories.proofOfAddress.files.map(file => (
+                  <FileItem key={file.id} file={file} onDelete={() => handleFileDelete(file.id)} />
+                ))}
+              </UploadCard>
 
-          <UploadCard
-            title={useMoloDocumentRules ? "Parent ID" : "Identity Documents"}
-            required
-            icon={<UploadCloudIcon />}
-            collapsible={true}
-            defaultOpen={false}
-            status={categories.idDocuments.status === CategoryStatus.Completed ? 'completed' :
-              categories.idDocuments.status === CategoryStatus.InProgress ? 'in-progress' : 'not-started'}
-            currentCount={getCategoryFileCount('idDocuments')}
-            requiredCount={useMoloDocumentRules ? 1 : 2}
-          >
-            <p className="text-sm text-gray-600 mb-4">{categories.idDocuments.description}</p>
-            <div className="space-y-3">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Parent/Guardian ID Copy <span className="text-red-600">*</span></label>
-                <FileUpload onFileUpload={(file) => handleFileUpload('idDocuments', file, 'id_document')} variant="button" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Learner Birth Certificate</label>
-                <FileUpload onFileUpload={(file) => handleFileUpload('idDocuments', file, 'id_document')} variant="button" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Spouse ID (if applicable)</label>
-                <FileUpload onFileUpload={(file) => handleFileUpload('idDocuments', file, 'id_document')} variant="button" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Optional document</label>
-                <FileUpload onFileUpload={(file) => handleFileUpload('idDocuments', file, 'id_document')} variant="button" />
-              </div>
-            </div>
-            {categories.idDocuments.files.map(file => (
-              <FileItem key={file.id} file={file} onDelete={() => handleFileDelete(file.id)} />
-            ))}
-          </UploadCard>
+              <UploadCard
+                title={useMoloDocumentRules ? "Parent ID" : "Identity Documents"}
+                required
+                icon={<UploadCloudIcon />}
+                collapsible={true}
+                defaultOpen={false}
+                status={categories.idDocuments.status === CategoryStatus.Completed ? 'completed' :
+                  categories.idDocuments.status === CategoryStatus.InProgress ? 'in-progress' : 'not-started'}
+                currentCount={getCategoryFileCount('idDocuments')}
+                requiredCount={useMoloDocumentRules ? 1 : 2}
+              >
+                <p className="text-sm text-gray-600 mb-4">{categories.idDocuments.description}</p>
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Parent/Guardian ID Copy <span className="text-red-600">*</span></label>
+                    <FileUpload onFileUpload={(file) => handleFileUpload('idDocuments', file, 'id_document')} variant="button" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Learner Birth Certificate</label>
+                    <FileUpload onFileUpload={(file) => handleFileUpload('idDocuments', file, 'id_document')} variant="button" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Spouse ID (if applicable)</label>
+                    <FileUpload onFileUpload={(file) => handleFileUpload('idDocuments', file, 'id_document')} variant="button" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Optional document</label>
+                    <FileUpload onFileUpload={(file) => handleFileUpload('idDocuments', file, 'id_document')} variant="button" />
+                  </div>
+                </div>
+                {categories.idDocuments.files.map(file => (
+                  <FileItem key={file.id} file={file} onDelete={() => handleFileDelete(file.id)} />
+                ))}
+              </UploadCard>
 
-          <UploadCard
-            title="Payslip Documents"
-            required={!useMoloDocumentRules}
-            icon={<UploadCloudIcon />}
-            collapsible={true}
-            defaultOpen={false}
-            status={categories.payslips.status === CategoryStatus.Completed ? 'completed' :
-              categories.payslips.status === CategoryStatus.InProgress ? 'in-progress' : 'not-started'}
-            currentCount={getCategoryFileCount('payslips')}
-            requiredCount={useMoloDocumentRules ? 0 : 3}
-          >
-            <p className="text-sm text-gray-600 mb-4">{categories.payslips.description}</p>
-            <div className="space-y-3">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Latest Payslip (Current Month)</label>
-                <FileUpload onFileUpload={(file) => handleFileUpload('payslips', file, 'payslip')} variant="button" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Previous Month Payslip</label>
-                <FileUpload onFileUpload={(file) => handleFileUpload('payslips', file, 'payslip')} variant="button" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Third Month Payslip</label>
-                <FileUpload onFileUpload={(file) => handleFileUpload('payslips', file, 'payslip')} variant="button" />
-              </div>
-            </div>
-            {categories.payslips.files.map(file => (
-              <FileItem key={file.id} file={file} onDelete={() => handleFileDelete(file.id)} />
-            ))}
-          </UploadCard>
+              <UploadCard
+                title="Payslip Documents"
+                required={!useMoloDocumentRules}
+                icon={<UploadCloudIcon />}
+                collapsible={true}
+                defaultOpen={false}
+                status={categories.payslips.status === CategoryStatus.Completed ? 'completed' :
+                  categories.payslips.status === CategoryStatus.InProgress ? 'in-progress' : 'not-started'}
+                currentCount={getCategoryFileCount('payslips')}
+                requiredCount={useMoloDocumentRules ? 0 : 3}
+              >
+                <p className="text-sm text-gray-600 mb-4">{categories.payslips.description}</p>
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Latest Payslip (Current Month)</label>
+                    <FileUpload onFileUpload={(file) => handleFileUpload('payslips', file, 'payslip')} variant="button" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Previous Month Payslip</label>
+                    <FileUpload onFileUpload={(file) => handleFileUpload('payslips', file, 'payslip')} variant="button" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Third Month Payslip</label>
+                    <FileUpload onFileUpload={(file) => handleFileUpload('payslips', file, 'payslip')} variant="button" />
+                  </div>
+                </div>
+                {categories.payslips.files.map(file => (
+                  <FileItem key={file.id} file={file} onDelete={() => handleFileDelete(file.id)} />
+                ))}
+              </UploadCard>
 
-          <UploadCard
-            title={useMoloDocumentRules ? "Bank Statement" : "Bank Statements"}
-            required
-            icon={<UploadCloudIcon />}
-            collapsible={true}
-            defaultOpen={false}
-            status={categories.bankStatements.status === CategoryStatus.Completed ? 'completed' :
-              categories.bankStatements.status === CategoryStatus.InProgress ? 'in-progress' : 'not-started'}
-            currentCount={getCategoryFileCount('bankStatements')}
-            requiredCount={1}
-          >
-            <p className="text-sm text-gray-600 mb-4">{categories.bankStatements.description}</p>
-            <div className="space-y-3">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Bank Statement <span className="text-red-600">*</span></label>
-                <FileUpload onFileUpload={(file) => handleFileUpload('bankStatements', file, 'bank_statement')} variant="button" />
-              </div>
-            </div>
-            <div className="mt-4 bg-blue-50 text-blue-800 text-sm p-3 rounded-md border border-blue-200">
-              Bank statements are compulsory and are used for financial verification purposes.
-            </div>
-            {hasBankStatementUpload && <BankStatementReceivedConfirmation />}
-            {categories.bankStatements.files.map(file => (
-              <FileItem key={file.id} file={file} onDelete={() => handleFileDelete(file.id)} />
-            ))}
-          </UploadCard>
+              <UploadCard
+                title={useMoloDocumentRules ? "Bank Statement" : "Bank Statements"}
+                required
+                icon={<UploadCloudIcon />}
+                collapsible={true}
+                defaultOpen={false}
+                status={categories.bankStatements.status === CategoryStatus.Completed ? 'completed' :
+                  categories.bankStatements.status === CategoryStatus.InProgress ? 'in-progress' : 'not-started'}
+                currentCount={getCategoryFileCount('bankStatements')}
+                requiredCount={1}
+              >
+                <p className="text-sm text-gray-600 mb-4">{categories.bankStatements.description}</p>
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Bank Statement <span className="text-red-600">*</span></label>
+                    <FileUpload onFileUpload={(file) => handleFileUpload('bankStatements', file, 'bank_statement')} variant="button" />
+                  </div>
+                </div>
+                <div className="mt-4 bg-blue-50 text-blue-800 text-sm p-3 rounded-md border border-blue-200">
+                  Bank statements are compulsory and are used for financial verification purposes.
+                </div>
+                {hasBankStatementUpload && <BankStatementReceivedConfirmation />}
+                {categories.bankStatements.files.map(file => (
+                  <FileItem key={file.id} file={file} onDelete={() => handleFileDelete(file.id)} />
+                ))}
+              </UploadCard>
+            </>
+          )}
 
           {uploadState.error && (
             <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-md mb-4 sm:mb-6">

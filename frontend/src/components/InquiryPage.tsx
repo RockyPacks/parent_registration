@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import knitIcon from "../../assets/knit-icon.png";
+import winstonParkPrimaryLogo from "../../assets/winston-park-primary-logo.jpg";
 
 const MOLO_CLASS_NAME_OPTIONS = [
   "Empress of Menen",
@@ -11,6 +12,7 @@ const MOLO_CLASS_NAME_OPTIONS = [
 ];
 interface InquiryPageProps {
   schoolId?: string | null;
+  schoolSlug?: string | null;
   onBackToLogin?: () => void;
 }
 
@@ -43,6 +45,7 @@ interface FormErrors {
 
 export const InquiryPage: React.FC<InquiryPageProps> = ({
   schoolId: initialSchoolId,
+  schoolSlug,
   onBackToLogin,
 }) => {
   // Active School selection state
@@ -83,6 +86,41 @@ export const InquiryPage: React.FC<InquiryPageProps> = ({
   const API_BASE_URL =
     import.meta.env.VITE_API_BASE_URL || "http://localhost:8000/api/v1";
 
+  const normalizeSchoolSlug = (value: string) =>
+    value
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-|-$/g, "");
+
+  const getSchoolLogo = (schoolName: string, logoUrl?: string) => {
+    const normalizedName = schoolName.toLowerCase();
+
+    if (logoUrl) return logoUrl;
+    if (normalizedName.includes("winston") && normalizedName.includes("park")) {
+      return winstonParkPrimaryLogo;
+    }
+
+    return knitIcon;
+  };
+
+  const setFavicon = (href: string) => {
+    if (typeof document === "undefined") return;
+
+    let favicon = document.querySelector<HTMLLinkElement>("link[rel='icon']");
+    if (!favicon) {
+      favicon = document.createElement("link");
+      favicon.rel = "icon";
+      document.head.appendChild(favicon);
+    }
+
+    favicon.href = href;
+  };
+
+  useEffect(() => {
+    if (!school) return;
+    setFavicon(getSchoolLogo(school.name, school.logoUrl));
+  }, [school]);
+
   // Fetch list of all schools (only if no schoolId is active)
   useEffect(() => {
     const fetchSchoolsList = async () => {
@@ -103,6 +141,26 @@ export const InquiryPage: React.FC<InquiryPageProps> = ({
 
     fetchSchoolsList();
   }, [selectedSchoolId, API_BASE_URL]);
+
+  useEffect(() => {
+    if (!schoolSlug || selectedSchoolId || !schools.length) return;
+
+    const requestedSlug = schoolSlug.trim().toLowerCase();
+    const matchedSchool = schools.find((schoolItem) => {
+      const schoolItemSlug = normalizeSchoolSlug(schoolItem.schoolName);
+
+      return (
+        schoolItemSlug === requestedSlug ||
+        schoolItemSlug.includes(requestedSlug) ||
+        requestedSlug.includes(schoolItemSlug)
+      );
+    });
+
+    if (matchedSchool) {
+      setTempSelectedSchool(matchedSchool);
+      setSelectedSchoolId(matchedSchool.id);
+    }
+  }, [schoolSlug, selectedSchoolId, schools]);
 
   // Click outside listener to close dropdown
   useEffect(() => {
@@ -635,8 +693,8 @@ export const InquiryPage: React.FC<InquiryPageProps> = ({
           </span>
 
           <img
-            src={knitIcon}
-            alt="Knit Logo"
+            src={getSchoolLogo(school.name, school.logoUrl)}
+            alt={`${school.name} logo`}
             className="w-12 h-12 rounded-xl object-contain border border-gray-100 p-1 shrink-0"
           />
 

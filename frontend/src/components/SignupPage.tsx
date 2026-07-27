@@ -4,6 +4,7 @@ import { authService } from "../services/auth";
 import { apiService } from "../services/api";
 import knitIcon from "../../assets/knit-icon.png";
 import moloMhlabaTennysonLogo from "../../assets/molo-mhlaba-tennyson-logo.png";
+import winstonParkPrimaryLogo from "../../assets/winston-park-primary-logo.jpg";
 import PasswordInput from "./ui/PasswordInput";
 
 interface SignupPageProps {
@@ -25,6 +26,10 @@ const SELECTED_SCHOOL_NAME_KEY = "selectedSchoolName";
 const getSchoolLogo = (schoolName: string) => {
   const normalizedName = schoolName.toLowerCase();
 
+  if (normalizedName.includes("winston") && normalizedName.includes("park")) {
+    return winstonParkPrimaryLogo;
+  }
+
   if (
     normalizedName.includes("molo") ||
     normalizedName.includes("mhlaba") ||
@@ -34,6 +39,30 @@ const getSchoolLogo = (schoolName: string) => {
   }
 
   return knitIcon;
+};
+
+const getKnownSchoolNameFromSlug = (slug?: string | null) => {
+  if (!slug) return "";
+  const normalizedSlug = slug.toLowerCase();
+
+  if (normalizedSlug.includes("winston") && normalizedSlug.includes("park")) {
+    return "Winston Park Primary School";
+  }
+
+  return "";
+};
+
+const setFavicon = (href: string) => {
+  if (typeof document === "undefined") return;
+
+  let favicon = document.querySelector<HTMLLinkElement>("link[rel='icon']");
+  if (!favicon) {
+    favicon = document.createElement("link");
+    favicon.rel = "icon";
+    document.head.appendChild(favicon);
+  }
+
+  favicon.href = href;
 };
 
 const SignupPage: React.FC<SignupPageProps> = ({
@@ -47,12 +76,15 @@ const SignupPage: React.FC<SignupPageProps> = ({
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const initialKnownSchoolName = getKnownSchoolNameFromSlug(initialSchoolSlug);
 
   const [selectedSchool, setSelectedSchool] = useState("");
   const [selectedSchoolId, setSelectedSchoolId] = useState<
     number | string | null
   >(null);
-  const [selectedSchoolLogo, setSelectedSchoolLogo] = useState(knitIcon);
+  const [selectedSchoolLogo, setSelectedSchoolLogo] = useState(
+    initialKnownSchoolName ? getSchoolLogo(initialKnownSchoolName) : knitIcon
+  );
 
   const [schools, setSchools] = useState<School[]>([]);
   const [schoolsLoading, setSchoolsLoading] = useState(true);
@@ -64,6 +96,10 @@ const SignupPage: React.FC<SignupPageProps> = ({
   const [showSchoolDropdown, setShowSchoolDropdown] = useState(false);
 
   const schoolDropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    setFavicon(selectedSchoolLogo);
+  }, [selectedSchoolLogo]);
 
   useEffect(() => {
     let mounted = true;

@@ -1,5 +1,5 @@
 // LoginPage.tsx
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { authService } from '../services/auth';
 import knitIcon from '../../assets/knit-icon.png';
 import PasswordInput from './ui/PasswordInput';
@@ -11,9 +11,6 @@ interface LoginPageProps {
   onSwitchToInquiry: () => void;
 }
 
-const SELECTED_SCHOOL_LOGO_KEY = 'selectedSchoolLogo';
-const SELECTED_SCHOOL_NAME_KEY = 'selectedSchoolName';
-
 const LoginPage: React.FC<LoginPageProps> = ({
   onLogin,
   onSwitchToSignup,
@@ -23,21 +20,8 @@ const LoginPage: React.FC<LoginPageProps> = ({
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
-  const [schoolLogo, setSchoolLogo] = useState(knitIcon);
-  const [schoolName, setSchoolName] = useState('');
-
-  useEffect(() => {
-    const savedLogo = localStorage.getItem(SELECTED_SCHOOL_LOGO_KEY);
-    const savedSchoolName = localStorage.getItem(SELECTED_SCHOOL_NAME_KEY);
-
-    if (savedLogo) {
-      setSchoolLogo(savedLogo);
-    }
-
-    if (savedSchoolName) {
-      setSchoolName(savedSchoolName);
-    }
-  }, []);
+  const schoolLogo = knitIcon;
+  const schoolName = '';
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();

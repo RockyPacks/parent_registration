@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import knitIcon from '../../assets/knit-icon.png';
 import moloMhlabaTennysonLogo from '../../assets/molo-mhlaba-tennyson-logo.png';
+import winstonParkPrimaryLogo from '../../assets/winston-park-primary-logo.jpg';
 
 interface HeaderProps {
   onLogout?: () => void;
@@ -11,10 +12,11 @@ interface HeaderProps {
   schoolName?: string;
 }
 
-const SELECTED_SCHOOL_NAME_KEY = 'selectedSchoolName';
-
 const getSchoolLogo = (name: string): string => {
   const n = name.toLowerCase();
+  if (n.includes('winston') && n.includes('park')) {
+    return winstonParkPrimaryLogo;
+  }
   if (n.includes('molo') || n.includes('mhlaba') || n.includes('tennyson')) {
     return moloMhlabaTennysonLogo;
   }
@@ -29,8 +31,7 @@ const Header: React.FC<HeaderProps> = ({
   const [displayName, setDisplayName] = useState(schoolName || 'Knit');
 
   useEffect(() => {
-    const savedSchoolName = localStorage.getItem(SELECTED_SCHOOL_NAME_KEY);
-    const resolvedName = savedSchoolName || schoolName || 'Knit';
+    const resolvedName = schoolName || 'Knit';
     setDisplayName(resolvedName);
     setLogo(getSchoolLogo(resolvedName));
   }, [schoolName]);

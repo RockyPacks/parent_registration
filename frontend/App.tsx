@@ -8,6 +8,9 @@ import SignupPage from './src/components/SignupPage';
 import ForgotPasswordPage from './src/components/ForgotPasswordPage';
 import ResetPasswordPage from './src/components/ResetPasswordPage';
 import { InquiryPage } from './src/components/InquiryPage';
+import knitIcon from './assets/knit-icon.png';
+import moloMhlabaTennysonLogo from './assets/molo-mhlaba-tennyson-logo.png';
+import winstonParkPrimaryLogo from './assets/winston-park-primary-logo.jpg';
 
 import { EnrollmentData, apiService } from './src/services/api';
 import { storage } from './src/utils/storage';
@@ -22,11 +25,19 @@ interface ApplicationSummary {
 const getUserKey = (email: string | null, key: string) => email ? `${email}_${key}` : key;
 
 // Public registration routes are school-scoped.
-// Example: /signup/molo-mhlaba-tennyson
+// Examples: /signup/molo-mhlaba-tennyson, /winston-park-primary-school
 const getSignupSchoolSlug = (): string | null => {
   const path = window.location.pathname;
   const pathMatch = path.match(/^\/signup\/([a-zA-Z0-9-]+)/);
   if (pathMatch) return pathMatch[1];
+
+  const rootSlugMatch = path.match(/^\/([a-zA-Z0-9-]+)$/);
+  if (rootSlugMatch) {
+    const slug = rootSlugMatch[1];
+    if (slug.toLowerCase().includes('winston') && slug.toLowerCase().includes('park')) {
+      return slug;
+    }
+  }
 
   const hash = window.location.hash;
   const hashMatch =
@@ -37,6 +48,44 @@ const getSignupSchoolSlug = (): string | null => {
 };
 
 const SELECTED_SCHOOL_SLUG_KEY = 'selectedSchoolSlug';
+const SELECTED_SCHOOL_NAME_KEY = 'selectedSchoolName';
+const SELECTED_SCHOOL_LOGO_KEY = 'selectedSchoolLogo';
+const getKnownSchoolNameFromSlug = (slug: string | null): string | null => {
+  if (!slug) return null;
+  const normalized = slug.toLowerCase();
+
+  if (normalized.includes('winston') && normalized.includes('park')) {
+    return 'Winston Park Primary School';
+  }
+
+  return null;
+};
+
+const getSchoolLogoFromName = (nameOrSlug: string | null): string => {
+  const normalized = (nameOrSlug || '').toLowerCase();
+
+  if (normalized.includes('winston') && normalized.includes('park')) {
+    return winstonParkPrimaryLogo;
+  }
+  if (normalized.includes('molo') || normalized.includes('mhlaba') || normalized.includes('tennyson')) {
+    return moloMhlabaTennysonLogo;
+  }
+
+  return knitIcon;
+};
+
+const setFavicon = (href: string) => {
+  if (typeof document === 'undefined') return;
+
+  let favicon = document.querySelector<HTMLLinkElement>("link[rel='icon']");
+  if (!favicon) {
+    favicon = document.createElement('link');
+    favicon.rel = 'icon';
+    document.head.appendChild(favicon);
+  }
+
+  favicon.href = href;
+};
 
 const App: React.FC = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -61,7 +110,7 @@ const App: React.FC = () => {
   const [applicationInitialized, setApplicationInitialized] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [applicationStatus, setApplicationStatus] = useState<string | null>(null);
-  const [schoolName, setSchoolName] = useState<string | null>(() => localStorage.getItem('selectedSchoolName'));
+  const [schoolName, setSchoolName] = useState<string | null>(null);
   const [selectedSchoolSlug, setSelectedSchoolSlug] = useState<string | null>(() => {
     const signupSlug = getSignupSchoolSlug();
     if (signupSlug) {
@@ -70,10 +119,11 @@ const App: React.FC = () => {
       return signupSlug;
     }
 
-    return (
-      sessionStorage.getItem(SELECTED_SCHOOL_SLUG_KEY) ||
-      storage.get(SELECTED_SCHOOL_SLUG_KEY, null)
-    );
+    storage.remove(SELECTED_SCHOOL_SLUG_KEY);
+    sessionStorage.removeItem(SELECTED_SCHOOL_SLUG_KEY);
+    localStorage.removeItem(SELECTED_SCHOOL_NAME_KEY);
+    localStorage.removeItem(SELECTED_SCHOOL_LOGO_KEY);
+    return null;
   });
 
 
@@ -118,8 +168,19 @@ const App: React.FC = () => {
       setShowSignup(true);
       setShowForgotPassword(false);
       setShowPublicInquiry(false);
+    } else {
+      setSelectedSchoolSlug(null);
+      storage.remove(SELECTED_SCHOOL_SLUG_KEY);
+      sessionStorage.removeItem(SELECTED_SCHOOL_SLUG_KEY);
+      localStorage.removeItem(SELECTED_SCHOOL_NAME_KEY);
+      localStorage.removeItem(SELECTED_SCHOOL_LOGO_KEY);
     }
   }, []);
+
+  useEffect(() => {
+    const activeSchool = schoolName || getKnownSchoolNameFromSlug(selectedSchoolSlug) || selectedSchoolSlug;
+    setFavicon(getSchoolLogoFromName(activeSchool));
+  }, [schoolName, selectedSchoolSlug]);
 
   useEffect(() => {
     // Check if user is already authenticated on app load
@@ -899,19 +960,37 @@ const App: React.FC = () => {
     return null;
   };
 
-  const inquirySchoolId = getInquirySchoolId();
+  const inquirySchoolIdentifier = getInquirySchoolId();
+  const isUuid = (value: string | null) =>
+    Boolean(value && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value));
 
-  if (inquirySchoolId) {
-    return <InquiryPage schoolId={inquirySchoolId} />;
+  if (inquirySchoolIdentifier) {
+    return (
+      <InquiryPage
+        schoolId={isUuid(inquirySchoolIdentifier) ? inquirySchoolIdentifier : null}
+        schoolSlug={!isUuid(inquirySchoolIdentifier) ? inquirySchoolIdentifier : null}
+      />
+    );
   }
 
   if (showPublicInquiry) {
-    return <InquiryPage onBackToLogin={() => setShowPublicInquiry(false)} />;
+    return <InquiryPage schoolSlug={getSignupSchoolSlug()} onBackToLogin={() => setShowPublicInquiry(false)} />;
   }
 
   // Show reset password page regardless of auth state (triggered by recovery email link)
   if (showResetPassword) {
     return <ResetPasswordPage onPasswordReset={() => { setShowResetPassword(false); }} />;
+  }
+
+  if (showSignup && authInitialized) {
+    return (
+      <SignupPage
+        onSignupSuccess={handleSignupSuccess}
+        onSwitchToLogin={() => setShowSignup(false)}
+        onSwitchToInquiry={() => { setShowSignup(false); setShowPublicInquiry(true); }}
+        initialSchoolSlug={selectedSchoolSlug}
+      />
+    );
   }
 
   if (!isAuthenticated && authInitialized) {
@@ -965,14 +1044,7 @@ const App: React.FC = () => {
           </div>
         )}
 
-        {showSignup ? (
-          <SignupPage 
-            onSignupSuccess={handleSignupSuccess} 
-            onSwitchToLogin={() => setShowSignup(false)} 
-            onSwitchToInquiry={() => { setShowSignup(false); setShowPublicInquiry(true); }}
-            initialSchoolSlug={selectedSchoolSlug}
-          />
-        ) : showForgotPassword ? (
+        {showForgotPassword ? (
           <ForgotPasswordPage onBack={() => setShowForgotPassword(false)} />
         ) : (
           <LoginPage 
